@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyfmto"
+authors = [{name = "Xiaoxu Zhang", email = "xxzhang_official@163.com"}]
+description = "A library that implemented many-task optimization benchmarks"
+readme = "README.md"
+requires-python = ">=3.9"
+#license = {file = "LICENSE"}
+dynamic = ["version"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Developers",
+#    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent"
+]
+
+[tool.setuptools.package-data]
+"pyfmto.problems" = ["*.yaml", "datasets/**/*"]
+"pyfmto.utilities" = ["*.yaml"]
+#[project.urls]
+#Homepage = "https://github.com/Xiaoxu-Zhang"
+
+[tool.setuptools.dynamic]
+version = {attr = "pyfmto.__version__"}

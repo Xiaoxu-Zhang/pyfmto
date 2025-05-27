@@ -1,0 +1,196 @@
+import matplotlib
+import numpy as np
+import shutil
+import unittest
+from pathlib import Path
+
+from pyfmto.problems.problem import (
+    SingleTaskProblem as _SingleTaskProblem,
+    MultiTaskProblem as _MultiTaskProblem, check_and_transform
+)
+matplotlib.use('Agg')
+
+TASK_NUM = 4
+TMP_DIR = Path(__file__).parent / 'tmp_data'
+
+
+class STP(_SingleTaskProblem):
+
+    def __init__(self, dim: int, obj: int, x_lb, x_ub, **kwargs):
+        super().__init__(dim, obj, x_lb, x_ub, **kwargs)
+
+    @check_and_transform()
+    def evaluate(self, x):
+        return np.sin(np.sum(x ** 2, axis=1))
+
+
+class TestSingleTaskProblem(unittest.TestCase):
+
+    def tearDown(self):
+        if TMP_DIR.exists():
+            for file in TMP_DIR.iterdir():
+                if file.is_file():
+                    file.unlink()
+                elif file.is_dir():
+                    shutil.rmtree(file)
+            TMP_DIR.rmdir()
+
+    def test_init(self):
+        self.assertRaises(ValueError, STP, dim=1., obj=1, x_lb=-1, x_ub=1)
+        self.assertRaises(ValueError, STP, dim=1, obj=1., x_lb=-1, x_ub=1)
+        self.assertRaises(ValueError, STP, dim=0, obj=1, x_lb=-1, x_ub=1)
+        self.assertRaises(ValueError, STP, dim=-1, obj=1, x_lb=-1, x_ub=1)
+        self.assertRaises(ValueError, STP, dim=1, obj=0, x_lb=-1, x_ub=1)
+        self.assertRaises(ValueError, STP, dim=1, obj=-1, x_lb=-1, x_ub=1)
+        self.assertRaises(ValueError, STP, dim=1, obj=1, x_lb=1, x_ub=1)
+        self.assertRaises(ValueError, STP, dim=1, obj=1, x_lb=[0, 0], x_ub=1)
+        self.assertRaises(ValueError, STP, dim=2, obj=1, x_lb=[0, 0], x_ub=[1])
+        self.assertRaises(ValueError, STP, dim=2, obj=1, x_lb=[0, 0], x_ub=[[1, 1]])
+        self.assertRaises(ValueError, STP, dim=2, obj=1, x_lb=-1, x_ub=1, unexpected_arg=1)
+
+    def test_attributes(self):
+        stp = STP(dim=2, obj=1, x_lb=-1, x_ub=1)
+        self.assertTrue(stp.name in stp.__repr__())
+        self.assertTrue(stp.name in stp.__str__())
+
+    def test_norm_denorm_methods(self):
+        stp = STP(dim=2, obj=1, x_lb=-1, x_ub=1)
+        x_in_src_bound = stp.random_uniform_x(size=50)
+        x_out_src_bound = x_in_src_bound - 2
+        x_out_normal_bound = x_in_src_bound
+
+        x_in_src_bound_normalized = stp.normalize_x(x_in_src_bound)
+        x_in_src_bound_denormalized = stp.denormalize_x(x_in_src_bound_normalized)
+        x_out_src_bound_normalized = stp.normalize_x(x_out_src_bound)
+        x_out_normal_bound_denormalized = stp.denormalize_x(x_out_normal_bound)
+
+        self.assertTrue(np.all(x_in_src_bound_normalized >= 0))
+        self.assertTrue(np.all(x_in_src_bound_normalized <= 1))
+        self.assertTrue(np.all(x_out_src_bound_normalized >= 0))
+        self.assertTrue(np.all(x_out_src_bound_normalized <= 1))
+
+        self.assertTrue(np.all(x_in_src_bound_denormalized >= stp.x_lb))
+        self.assertTrue(np.all(x_in_src_bound_denormalized <= stp.x_ub))
+        self.assertTrue(np.all(x_out_normal_bound_denormalized >= stp.x_lb))
+        self.assertTrue(np.all(x_out_normal_bound_denormalized <= stp.x_ub))
+        err = x_in_src_bound - x_in_src_bound_denormalized
+        self.assertTrue(np.all(err < 1e-10), msg=f"{err < 1e-10}")
+
+    def test_init_solutions(self):
+        stp = STP(dim=5, obj=1, x_lb=-1, x_ub=1)
+        stp.init_solutions()
+        self.assertEqual(stp.fe_available, stp.fe_max - stp.fe_init)
+        self.assertTrue(stp.no_partition)
+
+        stp.init_solutions()  # reinitialize solutions
+        init_fe = stp.solutions.fe_init
+        init_size = stp.solutions.size
+        self.assertEqual(stp.solutions.fe_init, stp.solutions.size,
+                         msg=f"init_fe is {init_fe}, init_size is {init_size}")
+        self.assertTrue(np.all(stp.solutions.x >= stp.x_lb))
+        self.assertTrue(np.all(stp.solutions.x <= stp.x_ub))
+
+        for np_per_dim in range(2, 10):
+            stp_pb = STP(dim=5, obj=1, x_lb=[-1, -2, -3, -4, -5], x_ub=[6, 7, 8, 9, 10], np_per_dim=np_per_dim)
+            self.assertEqual(stp_pb.np_per_dim, np_per_dim)
+            band_partition = stp_pb._partition[1] - stp_pb._partition[0]
+            band_bounds = stp_pb.x_ub - stp_pb.x_lb
+            band_expected = band_bounds / np_per_dim
+            band_diff = np.abs(band_partition - band_expected)
+            msg = (f"partition lb: {stp_pb._partition[0]}\n"
+                   f"partition ub: {stp_pb._partition[1]}\n"
+                   f"band partition: {band_partition}\n"
+                   f"band bounds: {band_bounds}\n"
+                   f"band expected: {band_expected}\n"
+                   f"band diff: {band_diff}")
+            self.assertTrue(np.all(band_diff < 1e-10), msg)
+
+            stp_pb.init_solutions()
+            self.assertTrue(np.all(stp_pb.solutions.x >= stp_pb._partition[0]))
+            self.assertTrue(np.all(stp_pb.solutions.x <= stp_pb._partition[1]))
+
+    def test_evaluation(self):
+        stp = STP(dim=1, obj=1, x_lb=-1, x_ub=1)
+        _ = stp.evaluate(0.5), stp.evaluate(1), stp.evaluate([0.5]), stp.evaluate((1,))
+        self.assertRaises(TypeError, stp.evaluate, '1')
+        self.assertRaises(ValueError, stp.evaluate, [[[1]]])
+        self.assertRaises(ValueError, stp.evaluate, np.array([[1, 2], [3, 4]]))
+
+    def test_visualize(self):
+        stp1 = STP(dim=1, obj=1, x_lb=-1, x_ub=1)
+        stp2 = STP(dim=2, obj=1, x_lb=-1, x_ub=1)
+        stp3 = STP(dim=3, obj=1, x_lb=-1, x_ub=1)
+        vis_1d = TMP_DIR / 'test_vis_1d.png'
+        vis_2d = TMP_DIR / 'test_vis_2d.png'
+        stp1.visualize(num_points=10)
+        stp1.visualize(num_points=10, path=vis_1d)
+        stp2.visualize(num_points=10)
+        stp2.visualize(num_points=10, path=vis_2d)
+
+        self.assertTrue(vis_1d.exists(), msg="Visualization 1d failed")
+        self.assertTrue(vis_2d.exists(), msg="Visualization 2d failed")
+        self.assertRaises(ValueError, stp3.visualize)
+
+
+class InitAttrAfterSuper(_MultiTaskProblem):
+
+    def __init__(self, dim: int = 2):
+        super().__init__(is_realworld=False)
+        self.dim = dim
+
+    def _init_tasks(self, *args, **kwargs):
+        return [STP(self.dim, 1, 0, 1) for _ in range(TASK_NUM)]
+
+
+class InitWithInvalidReturn(_MultiTaskProblem):
+    def __init__(self):
+        super().__init__(is_realworld=False)
+
+    def _init_tasks(self, *args, **kwargs):
+        return None
+
+
+class SyntheticMtp(_MultiTaskProblem):
+
+    def __init__(self, dim: int = 2):
+        self.dim = dim
+        super().__init__(is_realworld=False)
+
+    def _init_tasks(self, *args, **kwargs):
+        return [STP(self.dim, 1, 0, 1) for _ in range(TASK_NUM)]
+
+
+class RealworldMtp(_MultiTaskProblem):
+    def __init__(self):
+        super().__init__(is_realworld=True)
+
+    def _init_tasks(self, *args, **kwargs):
+        return [STP(2, 1, 0, 1) for _ in range(TASK_NUM)]
+
+
+class TestMultiTaskProblem(unittest.TestCase):
+
+    def test_init(self):
+        self.assertRaises(AttributeError, InitAttrAfterSuper)
+        self.assertRaises(TypeError, InitWithInvalidReturn)
+
+    def test_attributes(self):
+        realworld = RealworldMtp()
+        synthetic = SyntheticMtp()
+        self.assertEqual(realworld.task_num, synthetic.task_num)
+        realworld.__iter__()
+        synthetic.__iter__()
+        _ = str(realworld), synthetic.__repr__()
+        _ = str(realworld), realworld.__repr__()
+        _ = realworld[0], synthetic[0]
+        _ = realworld[:2], synthetic[:2]
+
+        self.assertEqual(realworld.is_realworld, True)
+        self.assertEqual(synthetic.is_realworld, False)
+
+        for idx in range(len(realworld)):
+            self.assertEqual(realworld[idx].id, idx + 1)
+            self.assertEqual(synthetic[idx].id, idx + 1)
+        self.assertRaises(IndexError, realworld.__getitem__, -1)
+        self.assertRaises(IndexError, realworld.__getitem__, len(realworld))
+        self.assertRaises(TypeError, realworld.__getitem__, '1')

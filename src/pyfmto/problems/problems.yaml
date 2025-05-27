@@ -1,0 +1,15 @@
+realworld:
+  single_objective:
+    svm_landmine:
+      class: SvmLandmine
+synthetic:
+  single_objective:
+    arxiv2017:
+      class: MultiTaskSingleObjectiveArxiv2017
+      args:
+        dim: 10
+    tevc2024:
+      class: MultiTaskSingleObjectiveTevc2024
+      args:
+        dim: 10
+        src_problem: Ackley
