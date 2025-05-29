@@ -219,7 +219,7 @@ class SingleTaskProblem(ABC):
         partition = np.array([lb, ub]) * (self.x_ub - self.x_lb) + self.x_lb
         self._partition = partition
 
-    def visualize(self, num_points=100, path: Optional[Union[str, Path]] = None):
+    def visualize(self, filename: Optional[str] = None, num_points=100):
         """
         Visualize the objective function in 1D or 2D decision space.
 
@@ -231,7 +231,7 @@ class SingleTaskProblem(ABC):
         ----------
         num_points : int, optional
             Number of grid points per dimension for visualization. Default is 100.
-        path : str, optional
+        filename : str, optional
             File path to save the generated plot. If not provided, the plot will be displayed
             interactively using `plt.show()`. Default is None.
 
@@ -282,9 +282,8 @@ class SingleTaskProblem(ABC):
             ax.set_zlabel('f(x1, x2)')
             ax.set_title(f'{self.name} Function Visualization (2D)')
 
-        if path is not None:
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            plt.savefig(path)
+        if filename is not None:
+            plt.savefig(filename)
         else:
             plt.show()
         plt.close()
