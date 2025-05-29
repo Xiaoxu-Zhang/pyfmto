@@ -46,14 +46,10 @@ def _init_conf():
     logging.config.dictConfig(conf_dict)
 
 
-def set_output_path(path: Union[Path, str]):
-    global LOG_PATH
-    LOG_PATH = Path(path)
-
-
 def reset_log():
     if LOG_FILE.exists():
         shutil.copy(str(LOG_FILE), str(LOG_BACKUP))
+        LOG_FILE.unlink()
         with open(LOG_FILE, 'w', encoding='utf-8') as f:
             f.write(LOG_HEAD)
 

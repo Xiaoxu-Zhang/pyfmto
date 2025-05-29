@@ -20,14 +20,8 @@ T_Bound = Union[int, float, list, tuple, np.ndarray]
 
 
 def _check_x(x, dim):
-    if isinstance(x, (int, float)):
-        x = np.array([[x]])
-    elif isinstance(x, (list, tuple)):
-        x = np.array(x)
-    elif isinstance(x, np.ndarray):
-        pass
-    else:
-        raise TypeError(f"Supported datasets types are [int, float, list, tuple, np.ndarray], got {type(x)} instead.")
+    if not isinstance(x, np.ndarray):
+        raise TypeError(f"Only support ndarray as input, got {type(x)} instead.")
 
     if x.ndim == 1:
         x = x.reshape(-1, dim)
@@ -189,7 +183,7 @@ class SingleTaskProblem(ABC):
 
     def init_partition(self):
         """
-        Set attribute 'partition' to simulate the non-IID settings.
+        Set attribute 'partition' according to 'np_per_dim' to simulate the non-IID settings.
 
         Notes
         -----
@@ -393,7 +387,7 @@ class SingleTaskProblem(ABC):
         return points * (self.x_ub - self.x_lb) + self.x_lb
 
     @abstractmethod
-    def evaluate(self, x, *args, **kwargs):
+    def evaluate(self, x: np.ndarray, *args, **kwargs):
         """
         OjbFunc:= :math:`\\mathbf{x} \\to f \\to \\mathbf{y}, \\mathbf{x} \\in \\mathbb{R}^{D1},
         \\mathbf{y}\\in \\mathbb{R}^{D2}`, where :math:`D1` is the dimension of decision space

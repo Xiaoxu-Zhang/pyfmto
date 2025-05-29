@@ -1,3 +1,4 @@
+import os
 import matplotlib
 import numpy as np
 import shutil
@@ -26,6 +27,10 @@ class STP(_SingleTaskProblem):
 
 class TestSingleTaskProblem(unittest.TestCase):
 
+    def setUp(self):
+        if not TMP_DIR.exists():
+            TMP_DIR.mkdir(parents=True)
+
     def tearDown(self):
         if TMP_DIR.exists():
             for file in TMP_DIR.iterdir():
@@ -35,7 +40,7 @@ class TestSingleTaskProblem(unittest.TestCase):
                     shutil.rmtree(file)
             TMP_DIR.rmdir()
 
-    def test_init(self):
+    def test_init_instance(self):
         self.assertRaises(ValueError, STP, dim=1., obj=1, x_lb=-1, x_ub=1)
         self.assertRaises(ValueError, STP, dim=1, obj=1., x_lb=-1, x_ub=1)
         self.assertRaises(ValueError, STP, dim=0, obj=1, x_lb=-1, x_ub=1)
@@ -76,6 +81,16 @@ class TestSingleTaskProblem(unittest.TestCase):
         err = x_in_src_bound - x_in_src_bound_denormalized
         self.assertTrue(np.all(err < 1e-10), msg=f"{err < 1e-10}")
 
+    def test_uniform_solution(self):
+        stp_np1 = STP(dim=5, obj=1, x_lb=-1, x_ub=1, np_per_dim=1)
+        stp_np2 = STP(dim=5, obj=1, x_lb=-1, x_ub=1, np_per_dim=2)
+        stp_np1.init_partition()
+        stp_np2.init_partition()
+        x1 = stp_np1.random_uniform_x(size=100)
+        x2 = stp_np2.random_uniform_x(size=100)
+        self.assertEqual(x1.shape[0], 100)
+        self.assertEqual(x2.shape[0], 100)
+
     def test_init_solutions(self):
         stp = STP(dim=5, obj=1, x_lb=-1, x_ub=1)
         stp.init_solutions()
@@ -92,6 +107,7 @@ class TestSingleTaskProblem(unittest.TestCase):
 
         for np_per_dim in range(2, 10):
             stp_pb = STP(dim=5, obj=1, x_lb=[-1, -2, -3, -4, -5], x_ub=[6, 7, 8, 9, 10], np_per_dim=np_per_dim)
+            stp_pb.init_partition()
             self.assertEqual(stp_pb.np_per_dim, np_per_dim)
             band_partition = stp_pb._partition[1] - stp_pb._partition[0]
             band_bounds = stp_pb.x_ub - stp_pb.x_lb
@@ -111,9 +127,8 @@ class TestSingleTaskProblem(unittest.TestCase):
 
     def test_evaluation(self):
         stp = STP(dim=1, obj=1, x_lb=-1, x_ub=1)
-        _ = stp.evaluate(0.5), stp.evaluate(1), stp.evaluate([0.5]), stp.evaluate((1,))
         self.assertRaises(TypeError, stp.evaluate, '1')
-        self.assertRaises(ValueError, stp.evaluate, [[[1]]])
+        self.assertRaises(ValueError, stp.evaluate, np.array([[[1]]]))
         self.assertRaises(ValueError, stp.evaluate, np.array([[1, 2], [3, 4]]))
 
     def test_visualize(self):
@@ -123,9 +138,9 @@ class TestSingleTaskProblem(unittest.TestCase):
         vis_1d = TMP_DIR / 'test_vis_1d.png'
         vis_2d = TMP_DIR / 'test_vis_2d.png'
         stp1.visualize(num_points=10)
-        stp1.visualize(num_points=10, path=vis_1d)
+        stp1.visualize(filename=str(vis_1d), num_points=10)
         stp2.visualize(num_points=10)
-        stp2.visualize(num_points=10, path=vis_2d)
+        stp2.visualize(filename=str(vis_2d), num_points=10)
 
         self.assertTrue(vis_1d.exists(), msg="Visualization 1d failed")
         self.assertTrue(vis_2d.exists(), msg="Visualization 2d failed")
@@ -170,9 +185,27 @@ class RealworldMtp(_MultiTaskProblem):
 
 class TestMultiTaskProblem(unittest.TestCase):
 
+    def setUp(self):
+        self.temp_dir = Path(__file__).parent / 'tmp'
+        self.temp_dir.mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self):
+        for f in os.listdir(self.temp_dir):
+            os.remove(self.temp_dir / f)
+        os.rmdir(self.temp_dir)
+
     def test_init(self):
         self.assertRaises(AttributeError, InitAttrAfterSuper)
         self.assertRaises(TypeError, InitWithInvalidReturn)
+        prob = SyntheticMtp()
+        prob.init_solutions(random_ctrl='no')
+        prob.init_solutions(random_ctrl='weak')
+        prob.init_solutions(random_ctrl='strong')
+        filename = self.temp_dir / 'test_show.png'
+        prob.show_distribution(str(filename))
+        prob.show_distribution()
+        self.assertTrue(filename.exists())
+        self.assertRaises(ValueError, prob.init_solutions, random_ctrl='invalid')
 
     def test_attributes(self):
         realworld = RealworldMtp()
