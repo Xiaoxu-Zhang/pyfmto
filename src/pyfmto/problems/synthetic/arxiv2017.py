@@ -13,24 +13,22 @@ from ..benchmarks import (
     Sphere,
     Weierstrass)
 
-__all__ = ["MultiTaskSingleObjectiveArxiv2017"]
+__all__ = ["Arxiv2017"]
 
 
-class MultiTaskSingleObjectiveArxiv2017(Mtp):
+class Arxiv2017(Mtp):
     """
     Multi-Task Single-Objective Benchmark from Arxiv 2017
 
-    This module implements a multi-task optimization problem set based on transformed versions of classical
-    single-objective benchmark functions. Each task corresponds to an individual optimization problem,
-    with shared dimensionality and search space bounds, but with different transformations (rotation and shift).
-
-    The number of tasks is either 17 or 18, depending on the input dimension:
-        - If dim <= 25: 18 tasks
-        - If dim > 25: 17 tasks (due to shape mismatch in transform matrices)
+    This module implements a many-task optimization problem set based on transformed versions of classical
+    single-objective benchmark functions. Each task corresponds to an individual optimization problem.
 
     Notes
     -----
-    - All tasks share the same dimensionality and are evaluated within the same search bounds.
+    - The number of tasks is either 17 or 18, depending on the input dimension:
+        - If dim <= 25: 18 tasks
+        - If dim > 25: 17 tasks (due to Weierstrass function only support 1 <= dim <= 25)
+    - All tasks share the same dimensionality.
     - Tasks differ by rotation matrices and shift vectors applied to their base functions.
     - This benchmark was used in federated many-task Bayesian optimization experiments.
     - task10 same with task13
@@ -58,9 +56,7 @@ class MultiTaskSingleObjectiveArxiv2017(Mtp):
         super().__init__(False, dim, **kwargs)
 
     def __str__(self):
-        header1 = ["ProbName", "ProbType", "TaskNum"]
-        info1 = [[self.problem_name, "Synthetic", len(self._problem)]]
-        table1 = tabulate(info1, headers=header1, tablefmt="rounded_grid")
+        info_head = tabulate([[f"{self.problem_name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
 
         task_id = [t.id for t in self._problem]
         task_name = [t.name for t in self._problem]
@@ -71,7 +67,7 @@ class MultiTaskSingleObjectiveArxiv2017(Mtp):
         table2 = tabulate(zip(task_id, task_name, task_dec, task_lb, task_ub), headers=tab_headers,
                           tablefmt="rounded_grid")
 
-        return f"{table1}\n{table2}"
+        return f"{info_head}\n{table2}"
 
     def _init_tasks(self, dim, **kwargs):
         datasets = Path(__file__).parents[1] / 'datasets' / 'mtso_arxiv2017'

@@ -71,9 +71,9 @@ class SingleTaskProblem(ABC):
         **kwargs : dict, optional
             Additional keyword arguments. Supported options are:
 
-            - init_fe : int, optional
+            - fe_init : int, optional
               Initial function evaluations.
-            - max_fe : int, optional
+            - fe_max : int, optional
               Maximum function evaluation budget.
             - np_per_dim : int, default=1
               Number of partitions per dimension for non-IID simulation.
@@ -98,11 +98,11 @@ class SingleTaskProblem(ABC):
         if not isinstance(obj, int) or obj <= 0:
             raise ValueError(f"obj must be an integer (>0), got type({type(dim)}), value({dim}) instead")
 
-        init_fe = kwargs.get('init_fe')
-        max_fe = kwargs.get('max_fe')
+        fe_init = kwargs.get('fe_init')
+        fe_max = kwargs.get('fe_max')
         np_per_dim = kwargs.get('np_per_dim', 1)
 
-        other_args = set(kwargs.keys()) - {'init_fe', 'max_fe', 'np_per_dim'}
+        other_args = set(kwargs.keys()) - {'fe_init', 'fe_max', 'np_per_dim'}
         if other_args:
             raise ValueError(f"got unrecognized arg(s): {other_args}")
 
@@ -116,7 +116,7 @@ class SingleTaskProblem(ABC):
         self._np_per_dim = np_per_dim
         self._partition = np.zeros((2, self.dim))
         self._init_bounds(x_lb, x_ub)
-        self._init_budget(init_fe, max_fe)
+        self._init_budget(fe_init, fe_max)
         self._solutions = Solution()
 
         self.rotate_mat: Optional[ndarray] = None
@@ -257,7 +257,7 @@ class SingleTaskProblem(ABC):
             plt.plot(x_values, y_values, label='Objective Function')
             plt.xlabel('x')
             plt.ylabel('f(x)')
-            plt.title(f'{self.name} Function Visualization (1D)')
+            plt.title(f'T{self.id}({self.name})')
             plt.legend()
             plt.grid(True)
 
@@ -274,8 +274,8 @@ class SingleTaskProblem(ABC):
             ax.set_xlabel('x1')
             ax.set_ylabel('x2')
             ax.set_zlabel('f(x1, x2)')
-            ax.set_title(f'{self.name} Function Visualization (2D)')
-
+            ax.set_title(f'T{self.id}({self.name})')
+        plt.tight_layout()
         if filename is not None:
             plt.savefig(filename)
         else:
@@ -566,6 +566,10 @@ class MultiTaskProblem(ABC):
     @property
     def task_num(self):
         return len(self._problem)
+
+    @property
+    def docstring(self):
+        return self.__class__.__doc__
 
     def __len__(self):
         return len(self._problem) if self._problem is not None else 0

@@ -5,11 +5,15 @@ realworld:
 synthetic:
   single_objective:
     arxiv2017:
-      class: MultiTaskSingleObjectiveArxiv2017
+      class: Arxiv2017
       args:
         dim: 10
     tevc2024:
-      class: MultiTaskSingleObjectiveTevc2024
+      class: Tevc2024
       args:
         dim: 10
         src_problem: Ackley
+    tetci2019:
+      class: Tetci2019
+      args:
+        dim: 10

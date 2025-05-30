@@ -7,13 +7,13 @@ from typing import Literal, Type
 from .. import benchmarks
 from ..problem import (MultiTaskProblem as Mtp, SingleTaskProblem)
 
-__all__ = ["MultiTaskSingleObjectiveTevc2024"]
+__all__ = ["Tevc2024"]
 
 T_SrcProblem = Literal[
     'Griewank', 'Rastrigin', 'Ackley', 'Schwefel', 'Sphere', 'Rosenbrock', 'Weierstrass', 'Ellipsoid']
 
 
-class MultiTaskSingleObjectiveTevc2024(Mtp):
+class Tevc2024(Mtp):
     """
     Multi-Task Single-Objective Benchmark from Tevc2024
 
@@ -48,9 +48,7 @@ class MultiTaskSingleObjectiveTevc2024(Mtp):
         super().__init__(False, dim, src_prob_cls, **kwargs)
 
     def __str__(self):
-        prob_name = self.problem_name
-        prob_type = "Synthetic"
-        task_num = self.task_num
+        info_head = tabulate([[f"{self.problem_name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
 
         task = self._problem[0]
         task_name = task.name
@@ -58,10 +56,10 @@ class MultiTaskSingleObjectiveTevc2024(Mtp):
         task_lb = task.x_lb[0]
         task_ub = task.x_ub[0]
 
-        header2 = ["ProbName", "ProbType", "TaskNum", "TaskSrc", "DecDim", "Lower", "Upper"]
-        info_data = [[prob_name, prob_type, task_num, task_name, task_dim, task_lb, task_ub]]
+        header2 = ["TaskSrc", "DecDim", "Lower", "Upper"]
+        info_data = [[task_name, task_dim, task_lb, task_ub]]
         table_str = tabulate(info_data, headers=header2, tablefmt="rounded_grid")
-        return table_str
+        return f"{info_head}\n{table_str}"
 
     def _init_tasks(self, dim: int, src_prob_cls: Type[SingleTaskProblem], **kwargs):
         funcs = [src_prob_cls(dim, **kwargs) for _ in range(10)]

@@ -1,0 +1,85 @@
+import numpy as np
+from tabulate import tabulate
+
+from ..problem import MultiTaskProblem as Mtp, T_Tasks
+from ..benchmarks import (
+    Ackley,
+    Griewank,
+    Rastrigin,
+    Rosenbrock,
+    Schwefel,
+    Sphere,
+    Weierstrass)
+
+class Tetci2019(Mtp):
+    """
+    Multi-Task Single-Objective Benchmark from Tetci 2019
+
+    Notes
+    -----
+    - The number of tasks is either 10 or 8, depending on the input dimension:
+        - If dim <= 25: 10 tasks
+        - If dim > 25: 8 tasks (due to Weierstrass function only support 1 <= dim <= 25)
+    - All tasks share the same dimensionality.
+    - Tasks differ by shift vectors applied to their base functions.
+
+    References
+    ----------
+    CHEN Y, ZHONG J, FENG L, et al. An Adaptive Archive-Based Evolutionary
+    Framework for Many-Task Optimization[J/OL]. IEEE TETCI, 2020: 369-384.
+    DOI:10.1109/tetci.2019.2916051.
+    """
+    def __init__(self, dim: int, **kwargs):
+        if not 1 <= dim <= 50:
+            raise ValueError('dim must be in [1, 50]')
+        super().__init__(False, dim, **kwargs)
+
+    def __str__(self):
+        info_head = tabulate([[f"{self.problem_name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
+        task_id = [t.id for t in self._problem]
+        task_name = [t.name for t in self._problem]
+        task_dec = [t.dim for t in self._problem]
+        task_lb = [t.x_lb[0] for t in self._problem]
+        task_ub = [t.x_ub[0] for t in self._problem]
+        category = ['Easy']*4 + ['Complex']*6
+        assisted_task = [None, None, None, None, 'T1', 'T2', 'T3,T4', None, 'T4', None]
+        if self.task_num == 8:
+            del category[6], category[3]
+            del assisted_task[6], assisted_task[3]
+        tab_headers = ["TaskID", "TaskName", "DecDim", "Lower", "Upper", "Category", "Assisted By"]
+        tab = tabulate(zip(task_id, task_name, task_dec, task_lb, task_ub, category, assisted_task), headers=tab_headers,
+                          tablefmt="rounded_grid")
+        return f"{info_head}\n{tab}"
+
+    def _init_tasks(self, dim, **kwargs) -> T_Tasks:
+        f1 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)
+        f2 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)
+        f3 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)
+        f4 = Weierstrass(dim, x_lb=-0.5, x_ub=0.5, **kwargs)
+        f5 = Rosenbrock(dim, x_lb=-50, x_ub=50, **kwargs)    # Ideal Assisted Task f1
+        f6 = Ackley(dim, x_lb=-50, x_ub=50, **kwargs)        # Ideal Assisted Task f2
+        f7 = Weierstrass(dim, x_lb=-0.4, x_ub=0.4, **kwargs) # Ideal Assisted Task f3,f4
+        f8 = Schwefel(dim, x_lb=-500, x_ub=500, **kwargs)
+        f9 = Griewank(dim, x_lb=-100, x_ub=100, **kwargs)    # Ideal Assisted Task f4
+        f10 = Rastrigin(dim, x_lb=-50, x_ub=50, **kwargs)
+
+        functions = [f1, f2, f3, f4, f5, f6, f7, f8, f9, f10]
+        [functions[idx].set_id(idx+1) for idx in range(len(functions))]
+
+        s9 = np.ones(dim)
+        s9[:dim // 2] = -80
+        s9[s9==1] = 80
+
+        s10 = np.ones(dim)
+        s10[: dim//2] = 40
+        s10[s10==1] = -40
+
+        shift_mats = [0, 80, -80, -0.4, 0, 40, -0.4, 420.9687, s9, s10]
+
+        if dim > 25:
+            del functions[6], functions[3]
+            del shift_mats[6], shift_mats[3]
+
+        [func.set_transform(rot_mat=None, shift_mat=shift_mat) for func, shift_mat in zip(functions, shift_mats)]
+
+        return functions

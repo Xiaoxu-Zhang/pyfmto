@@ -21,7 +21,7 @@ class TestArxiv2017(unittest.TestCase):
     def test_init(self):
         default, _ = load_problem('arxiv2017')
         mod_dim, _ = load_problem('arxiv2017', dim=MODIFIED_DIM)
-        mod_fe, _ = load_problem('arxiv2017', init_fe=MODIFIED_INIT_FE, max_fe=MODIFIED_MAX_FE,
+        mod_fe, _ = load_problem('arxiv2017', fe_init=MODIFIED_INIT_FE, fe_max=MODIFIED_MAX_FE,
                                  np_per_dim=MODIFIED_NP_PER_DIM)
 
         self.assertEqual(len(default), 18)

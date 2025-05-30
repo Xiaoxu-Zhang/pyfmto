@@ -99,12 +99,22 @@ class MyClient(Client):
 
 ## Problems
 
-- **arxiv2017**
-  - `dim`: int [1-50]  # If dim > 25, the number of tasks will be 17, else 18
-  - `init_fe`: < max_fe
-  - `max_fe`: int > 0
-  - `np_per_dim`: int > 0
-- **tevc2024**
-  - `dim`: int [1-10]
-  - `src_problem`: str, one of ['Griewank', 'Rastrigin', 'Ackley', 'Schwefel', 'Sphere', 'Rosenbrock', 'Weierstrass', 'Ellipsoid']
-  - `init_fe`, `max_fe`, `np_per_dim`: same as arxiv2017
+The following parameters are available for all problems and can be optionally customized:
+
+- `fe_max`: int $\in [1, +\infty)$ (default: `11*dim`)
+- `fe_init`: int $\in [1, \text{fe_max}]$ (default: `5*dim`)
+- `np_per_dim`: int $\in [1, +\infty)$ (default: `1`)
+
+Available problems and their configurable parameters are listed below:
+
+- **Synthetic**
+  - **arxiv2017**
+    - `dim`: int $\in [1, 50]$  # If dim > 25, the number of tasks will be 17, else 18
+  - **tevc2024**
+    - `dim`: int $\in [1, 10]$
+    - `src_problem`: str $\in$ ['Griewank', 'Rastrigin', 'Ackley', 'Schwefel', 'Sphere', 'Rosenbrock', 'Weierstrass', 'Ellipsoid']
+  - **tetci2019**
+    - `dim`: int $\in [1, 10]$ # If dim > 25, the number of tasks will be 8, else 10
+
+- **Realworld**
+  - **svm_landmine**
