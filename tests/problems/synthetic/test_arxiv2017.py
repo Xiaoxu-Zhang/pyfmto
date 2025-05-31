@@ -2,6 +2,7 @@ import unittest
 import pickle
 from pathlib import Path
 import numpy as np
+from scipy.io import loadmat
 
 from pyfmto.problems import load_problem
 
@@ -82,9 +83,21 @@ class TestValidateFunctions(unittest.TestCase):
     """
 
     def setUp(self):
-        with open(Path(__file__).parent / "validation_arxiv2017.pkl", 'rb') as f:
-            self.val_data = pickle.load(f)
         self.problems, _ = load_problem('arxiv2017')
+        self.val_data = {}
+        val_data = loadmat(str(Path(__file__).parent / "validation_arxiv2017.mat"))
+        for p in self.problems:
+            value = {
+                'name': val_data[f"F{p.id}_name"],
+                'x': val_data[f"F{p.id}_x"],
+                'y': val_data[f"F{p.id}_y"],
+                'lb': val_data[f"F{p.id}_lb"],
+                'ub': val_data[f"F{p.id}_ub"],
+                'trans': {
+                    'rot_mat': val_data[f"F{p.id}_trans_rot"],
+                    'shift_mat': val_data[f"F{p.id}_trans_shift"]},
+            }
+            self.val_data[p.id] = value
 
     def test_validate_attributes(self):
         for prob in self.problems:
