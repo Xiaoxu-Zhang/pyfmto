@@ -2,22 +2,14 @@ import unittest
 import yaml
 from pathlib import Path
 
-from pyfmto.problems import load_problem
+from pyfmto.problems import load_problem, list_problems
 
 
 class TestAllProblemsCanBeEvaluate(unittest.TestCase):
 
-    def setUp(self):
-        with open(Path(__file__).parents[2] / 'src' / 'pyfmto' / 'problems' / 'problems.yaml') as f:
-            problems = yaml.safe_load(f)
-        self.all_prob = []
-        for problem_type, sub_types in problems.items():
-            for sub_type, probs in sub_types.items():
-                self.all_prob += list(probs.keys())
-
     def test_evaluate(self):
-        for prob_name in self.all_prob:
-            problem, _ = load_problem(prob_name)
+        for prob_name in list_problems(print_it=False):
+            problem = load_problem(prob_name)
             for func in problem:
                 msg = f"Problem {prob_name}.func{func.id}({func.name}) evaluation failed."
                 x1 = func.random_uniform_x(1)

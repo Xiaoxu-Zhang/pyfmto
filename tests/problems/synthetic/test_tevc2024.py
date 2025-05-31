@@ -10,7 +10,7 @@ _ORIGINAL_PROBLEMS = ["Griewank", "Rastrigin", "Ackley", "Schwefel", "Sphere", "
 
 class TestTevc2024(unittest.TestCase):
     def test_init(self):
-        problems, _ = load_problem('tevc2024')
+        problems = load_problem('tevc2024')
         prob = problems[0]
         self.assertEqual(prob.dim, 10)
         self.assertEqual(prob.obj, 1)
@@ -23,5 +23,5 @@ class TestTevc2024(unittest.TestCase):
         self.assertRaises(ValueError, load_problem, 'tevc2024', **raise_value)
 
     def test_not_rasis(self):
-        problems, _ = load_problem('tevc2024')
+        problems = load_problem('tevc2024')
         self.assertTrue(problems.problem_name in str(problems))

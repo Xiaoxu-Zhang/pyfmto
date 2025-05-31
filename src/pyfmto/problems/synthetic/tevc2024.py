@@ -36,7 +36,7 @@ class Tevc2024(Mtp):
     https://doi.org/10.1109/TEVC.2024.3428701
     """
 
-    def __init__(self, dim: int, src_problem: T_SrcProblem, **kwargs):
+    def __init__(self, dim=10, src_problem: T_SrcProblem='Ackley', **kwargs):
         if not isinstance(src_problem, str):
             raise TypeError(f"original_problem should be str, but {type(src_problem)} is given")
         try:

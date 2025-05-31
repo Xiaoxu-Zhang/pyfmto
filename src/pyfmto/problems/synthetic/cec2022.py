@@ -20,7 +20,7 @@ class _BenchmarksCec2022(Stp):
 
 
 class Cec2022(Mtp):
-    def __init__(self, dim: int, **kwargs):
+    def __init__(self, dim=10, **kwargs):
         if not dim in [10, 20]:
             raise ValueError('CEC2022 only support 10D and 20D')
         super().__init__(False, dim, **kwargs)

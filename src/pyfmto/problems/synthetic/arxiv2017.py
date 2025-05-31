@@ -48,7 +48,7 @@ class Arxiv2017(Mtp):
         https://doi.org/10.1109/TEVC.2023.3279775
     """
 
-    def __init__(self, dim: int, **kwargs):
+    def __init__(self, dim=10, **kwargs):
         if dim is None:
             raise ValueError("dim did not specified")
         if not 1 <= dim <= 50:

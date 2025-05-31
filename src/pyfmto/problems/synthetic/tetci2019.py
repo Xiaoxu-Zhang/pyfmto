@@ -29,7 +29,7 @@ class Tetci2019(Mtp):
     Framework for Many-Task Optimization[J/OL]. IEEE TETCI, 2020: 369-384.
     DOI:10.1109/tetci.2019.2916051.
     """
-    def __init__(self, dim: int, **kwargs):
+    def __init__(self, dim=10, **kwargs):
         if not 1 <= dim <= 50:
             raise ValueError('dim must be in [1, 50]')
         super().__init__(False, dim, **kwargs)

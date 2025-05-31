@@ -40,24 +40,32 @@ pip install .
 Play with a problem
 
 ```python
-from pyfmto.problems import load_problem
+from pyfmto.problems import load_problem, list_problems
+
+# list all problems in console and get name list
+prob_names = list_problems()
 
 # load a problem with default args
-prob, args = load_problem('arxiv2017')
-# print the problem info
+prob = load_problem(prob_name='arxiv2017')
 print(prob)
-print(args)
+# In load_problem(), prob_name is case-insensitive, 
+# and it will remove '_' in prob_name to match camel case class names.
+# So you can load problem SvmLandmine by any of the following ways:
+_ = load_problem('svm_landmine')
+_ = load_problem('svmlandmine')
+_ = load_problem('SvmLandmine')
+_ = load_problem('SVM_Landmine')
 
 # load a problem with customized args
-prob, args = load_problem('arxiv2017', dim=2, init_fe=20, max_fe=50, np_per_dim=2)
-print(args)  # print the customized args
-# visualize one of the tasks (require dim=1(or 2) while load the problem)
+prob = load_problem('arxiv2017', dim=2, init_fe=20, max_fe=50, np_per_dim=2)
+
+# visualize one of the tasks (require problem dim>=2)
 first_task = prob[0]
 first_task.visualize_2d(f'visualize2D T{first_task.id}')
 first_task.visualize_3d(f'visualize3D T{first_task.id}')
 
 # show distribution of init solutions in 2d space, if dim>2, only the first two dimensions will be shown
-prob, _ = load_problem('arxiv2017', dim=2)
+prob = load_problem('arxiv2017', dim=2)
 for i in range(3):
     prob.init_solutions('no')  # choices: no, weak, strong
     prob.show_distribution(f'distribution plot {i + 1}.png')
