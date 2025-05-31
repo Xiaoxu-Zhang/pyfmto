@@ -114,7 +114,9 @@ Available problems and their configurable parameters are listed below:
     - `dim`: int $\in [1, 10]$
     - `src_problem`: str $\in$ ['Griewank', 'Rastrigin', 'Ackley', 'Schwefel', 'Sphere', 'Rosenbrock', 'Weierstrass', 'Ellipsoid']
   - **tetci2019**
-    - `dim`: int $\in [1, 10]$ # If dim > 25, the number of tasks will be 8, else 10
+    - `dim`: int $\in [1, 50]$ # If dim > 25, the number of tasks will be 8, else 10
+  - **cec2022**
+    - `dim`: int $\in \{10, 20\}$
 
 - **Realworld**
   - **svm_landmine**

@@ -17,3 +17,7 @@ synthetic:
       class: Tetci2019
       args:
         dim: 10
+    cec2022:
+      class: Cec2022
+      args:
+        dim: 10

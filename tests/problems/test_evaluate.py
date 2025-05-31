@@ -8,7 +8,7 @@ from pyfmto.problems import load_problem
 class TestAllProblemsCanBeEvaluate(unittest.TestCase):
 
     def setUp(self):
-        with open(Path(__file__).parent / 'problems.yaml') as f:
+        with open(Path(__file__).parents[2] / 'src' / 'pyfmto' / 'problems' / 'problems.yaml') as f:
             problems = yaml.safe_load(f)
         self.all_prob = []
         for problem_type, sub_types in problems.items():

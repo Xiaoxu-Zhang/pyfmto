@@ -32,3 +32,7 @@ clean:
 	rm -rf dist
 	rm -rf src/pyfmto.egg-info
 	pip uninstall -y pyfmto || true
+
+reinstall:
+	make clean
+	pip install -e .

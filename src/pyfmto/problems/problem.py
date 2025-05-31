@@ -1,6 +1,5 @@
 import copy
 import numpy as np
-import os
 import pandas as pd
 import seaborn as sns
 import wrapt
@@ -8,7 +7,6 @@ from abc import ABC, abstractmethod
 from matplotlib import pyplot as plt
 from numpy import ndarray
 from pyDOE import lhs
-from pathlib import Path
 from tabulate import tabulate
 from typing import List, Union, Tuple, Optional, Literal
 
@@ -283,8 +281,18 @@ class SingleTaskProblem(ABC):
         plt.close()
 
     def set_transform(self, rot_mat: Optional[np.ndarray], shift_mat: Optional[np.ndarray]):
-        self.rotate_mat = rot_mat
-        self.shift_mat = shift_mat
+        if rot_mat is not None:
+            if isinstance(rot_mat, np.ndarray):
+                self.rotate_mat = rot_mat
+            else:
+                raise TypeError('rot_mat must be ndarray or None')
+        if shift_mat is not None:
+            if isinstance(shift_mat, (int, float)):
+                self.shift_mat = np.ones(self.dim) * shift_mat
+            elif isinstance(shift_mat, np.ndarray):
+                self.shift_mat = shift_mat
+            else:
+                raise TypeError('shift_mat must be one of int, float, ndarray or None')
 
     def set_id(self, _id: int):
         self._id = _id
