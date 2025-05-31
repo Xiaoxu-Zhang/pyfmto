@@ -20,9 +20,8 @@ class STP(_SingleTaskProblem):
     def __init__(self, dim: int, obj: int, x_lb, x_ub, **kwargs):
         super().__init__(dim, obj, x_lb, x_ub, **kwargs)
 
-    @check_and_transform()
-    def evaluate(self, x):
-        return np.sin(np.sum(x ** 2, axis=1))
+    def _eval_single(self, x):
+        return np.sin(np.sum(x ** 2))
 
 
 class TestSingleTaskProblem(unittest.TestCase):
@@ -134,17 +133,15 @@ class TestSingleTaskProblem(unittest.TestCase):
     def test_visualize(self):
         stp1 = STP(dim=1, obj=1, x_lb=-1, x_ub=1)
         stp2 = STP(dim=2, obj=1, x_lb=-1, x_ub=1)
-        stp3 = STP(dim=3, obj=1, x_lb=-1, x_ub=1)
-        vis_1d = TMP_DIR / 'test_vis_1d.png'
-        vis_2d = TMP_DIR / 'test_vis_2d.png'
-        stp1.visualize(num_points=10)
-        stp1.visualize(filename=str(vis_1d), num_points=10)
-        stp2.visualize(num_points=10)
-        stp2.visualize(filename=str(vis_2d), num_points=10)
-
-        self.assertTrue(vis_1d.exists(), msg="Visualization 1d failed")
-        self.assertTrue(vis_2d.exists(), msg="Visualization 2d failed")
-        self.assertRaises(ValueError, stp3.visualize)
+        vis_2d = TMP_DIR / 'test_vis_2d'
+        vis_3d = TMP_DIR / 'test_vis_3d'
+        stp2.visualize_2d(n_points=10)
+        stp2.visualize_3d(n_points=10)
+        stp2.visualize_2d(filename=str(vis_2d), n_points=10)
+        stp2.visualize_3d(filename=str(vis_3d), n_points=10)
+        self.assertTrue(vis_2d.with_suffix('.png').exists(), msg="Visualization 2d failed")
+        self.assertTrue(vis_3d.with_suffix('.png').exists(), msg="Visualization 3d failed")
+        self.assertRaises(ValueError, stp1.visualize_2d)
 
 
 class InitAttrAfterSuper(_MultiTaskProblem):

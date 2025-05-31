@@ -23,10 +23,10 @@ class _SingleSvmProblem(Stp):
     @check_and_transform()
     def evaluate(self, x):
         # training svm and get the prediction with real datasets
-        res = [self._eval(xi) for xi in x]
+        res = [self._eval_single(xi) for xi in x]
         return np.array(res).reshape(-1, 1)
 
-    def _eval(self, x):
+    def _eval_single(self, x):
         clf = svm.SVC(kernel="rbf", C=x[0], gamma=x[1], probability=True)
         clf.fit(self.x_train, self.y_train)
         pred = clf.predict_proba(self.x_test)

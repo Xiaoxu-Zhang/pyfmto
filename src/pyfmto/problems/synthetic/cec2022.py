@@ -15,18 +15,7 @@ class _BenchmarksCec2022(Stp):
         self.func = func
         super().__init__(dim, 1, x_lb=func.lb, x_ub=func.ub, **kwargs)
 
-    def evaluate(self, x: np.ndarray, *args, **kwargs) -> np.ndarray:
-        res = map(self._eval_one, x)
-        return np.array(list(res)).reshape(-1, 1)
-
-    def visualize(self, filename: Optional[str] = None, num_points=300):
-        if filename is None:
-            draw_3d(self.func.evaluate, self.x_lb, self.x_ub, n_points=num_points)
-        else:
-            filename = Path(filename).with_suffix('.png') if filename is not None else None
-            draw_3d(self.func.evaluate, self.x_lb, self.x_ub, exts=('', ), filename=str(filename), n_points=num_points, verbose=False)
-
-    def _eval_one(self, x):
+    def _eval_single(self, x):
          return self.func.evaluate(x)
 
 

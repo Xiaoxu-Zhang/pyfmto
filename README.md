@@ -41,6 +41,7 @@ Play with a problem
 
 ```python
 from pyfmto.problems import load_problem
+
 # load a problem with default args
 prob, args = load_problem('arxiv2017')
 # print the problem info
@@ -49,16 +50,17 @@ print(args)
 
 # load a problem with customized args
 prob, args = load_problem('arxiv2017', dim=2, init_fe=20, max_fe=50, np_per_dim=2)
-print(args) # print the customized args
+print(args)  # print the customized args
 # visualize one of the tasks (require dim=1(or 2) while load the problem)
 first_task = prob[0]
-first_task.visualize(f'visualize T{first_task.id}.png')
+first_task.visualize_2d(f'visualize2D T{first_task.id}')
+first_task.visualize_3d(f'visualize3D T{first_task.id}')
 
 # show distribution of init solutions in 2d space, if dim>2, only the first two dimensions will be shown
 prob, _ = load_problem('arxiv2017', dim=2)
 for i in range(3):
-    prob.init_solutions('no') # choices: no, weak, strong
-    prob.show_distribution(f'distribution plot {i+1}.png')
+    prob.init_solutions('no')  # choices: no, weak, strong
+    prob.show_distribution(f'distribution plot {i + 1}.png')
 ```
 
 Implement a federated optimization algorithm

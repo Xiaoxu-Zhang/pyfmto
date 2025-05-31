@@ -115,4 +115,4 @@ class TestValidateFunctions(unittest.TestCase):
             x = self.val_data[prob.id]['x']
             y = self.val_data[prob.id]['y']
             diff = np.abs(prob.evaluate(x) - y)
-            self.assertTrue(np.all(diff < 1e-5), f"id({prob.id})|diff y:\n{prob.evaluate(x)-y}")
+            self.assertTrue(np.all(diff < 1e-5), f"id({prob.id})|diff y:\n{prob.evaluate(x) - y}")

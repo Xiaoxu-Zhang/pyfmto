@@ -19,7 +19,7 @@ class BatchEval(SingleTaskProblem):
         super().__init__(dim=dim, obj=obj, x_lb=x_lb, x_ub=x_ub)
 
     @check_and_transform()
-    def evaluate(self, x):
+    def _eval_single(self, x):
         res = []
         for xi in x:
             res.append(self._eval_one(xi))

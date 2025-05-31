@@ -6,6 +6,7 @@ import wrapt
 from abc import ABC, abstractmethod
 from matplotlib import pyplot as plt
 from numpy import ndarray
+from opfunu import draw_2d, draw_3d
 from pyDOE import lhs
 from tabulate import tabulate
 from typing import List, Union, Tuple, Optional, Literal
@@ -211,74 +212,69 @@ class SingleTaskProblem(ABC):
         partition = np.array([lb, ub]) * (self.x_ub - self.x_lb) + self.x_lb
         self._partition = partition
 
-    def visualize(self, filename: Optional[str] = None, num_points=100):
+    def visualize_2d(self, filename: Optional[str]=None, suffix='.png', n_points=300, **kwargs):
         """
-        Visualize the objective function in 1D or 2D decision space.
-
-        This method generates a plot of the objective function over the defined
-        decision space. For 1D problems, a line plot is generated. For 2D problems,
-        a 3D surface plot is created.
+        Draw 2D contour of the function.
 
         Parameters
         ----------
-        num_points : int, optional
-            Number of grid points per dimension for visualization. Default is 100.
-        filename : str, optional
-            File path to save the generated plot. If not provided, the plot will be displayed
-            interactively using `plt.show()`. Default is None.
 
-        Raises
-        ------
-        ValueError
-            If the problem's dimension is not 1 or 2.
-
-        Examples
-        --------
-        - problem.visualize(num_points=200, path='./plots/ackley_1d.png')  # Save 1D plot
-        - problem.visualize(path='./plots/rosenbrock_2d.png')  # Save 2D plot with default 100 points
+        filename : str, default = None
+            Set the file name, If None, the file will not be saved
+        suffix : list, tuple, np.ndarray
+            The list of suffix to save file, for example: (".png", ".pdf", ".jpg")
+        n_points : int
+            The number of points that will be used to draw the contour
 
         Notes
         -----
-        - This method uses `matplotlib` for plotting and supports saving plots in any format
-          supported by `matplotlib.pyplot.savefig`.
+
+        Additional kwargs will be passed to the `opfunu.draw_2d`.
+        See the documentation(https://opfunu.readthedocs.io/en/latest/) for details.
+
         """
+        self._plotting(draw_2d, filename, suffix, n_points, **kwargs)
 
-        if self.dim not in (1, 2):
-            raise ValueError(f"Visualization is only supported for 1D or 2D problems, got dim={self.dim} instead.")
+    def visualize_3d(self, filename: Optional[str]=None, suffix='.png', n_points=300, **kwargs):
+        """
+        Draw 2D contour of the function.
 
-        # Generate grid points for visualization
-        if self.dim == 1:
-            x_values = np.linspace(self.x_lb[0], self.x_ub[0], num_points)
-            y_values = self.evaluate(x_values.reshape(-1, 1)).flatten()
+        Parameters
+        ----------
 
-            plt.figure(figsize=(8, 6))
-            plt.plot(x_values, y_values, label='Objective Function')
-            plt.xlabel('x')
-            plt.ylabel('f(x)')
-            plt.title(f'T{self.id}({self.name})')
-            plt.legend()
-            plt.grid(True)
+        filename : str, default = None
+            Set the file name, If None, the file will not be saved
+        suffix : list, tuple, np.ndarray
+            The list of suffix to save file, for example: (".png", ".pdf", ".jpg")
+        n_points : int
+            The number of points that will be used to draw the contour
 
-        elif self.dim == 2:
-            x1 = np.linspace(self.x_lb[0], self.x_ub[0], num_points)
-            x2 = np.linspace(self.x_lb[1], self.x_ub[1], num_points)
-            X1, X2 = np.meshgrid(x1, x2)
-            X = np.stack([X1.ravel(), X2.ravel()], axis=1)
-            Y = self.evaluate(X).reshape(X1.shape)
+        Notes
+        -----
 
-            fig = plt.figure(figsize=(10, 8))
-            ax = fig.add_subplot(111, projection='3d')
-            ax.plot_surface(X1, X2, Y, cmap='viridis', alpha=0.8)
-            ax.set_xlabel('x1')
-            ax.set_ylabel('x2')
-            ax.set_zlabel('f(x1, x2)')
-            ax.set_title(f'T{self.id}({self.name})')
-        plt.tight_layout()
-        if filename is not None:
-            plt.savefig(filename)
+        Additional keyword arguments will be passed to the `opfunu.draw_3d`.
+        See the documentation(https://opfunu.readthedocs.io/en/latest/) for details.
+        """
+        self._plotting(draw_3d, filename, suffix, n_points, **kwargs)
+
+    def _plotting(self, drawer, filename, suffix, n_points, **kwargs):
+        if self.dim < 2:
+            raise ValueError(f"Only supported for 'dim>1' problems, got dim={self.dim} instead.")
+        if filename is None:
+            drawer(func=self._eval_single,
+                   lb=self.x_lb, ub=self.x_ub,
+                   n_points=n_points,
+                   title=f"T{self.id}({self.name})",
+                   **kwargs)
         else:
-            plt.show()
-        plt.close()
+            kwargs.pop('exts', None)
+            kwargs.pop('verbose', None)
+            drawer(func=self._eval_single,
+                   lb=self.x_lb, ub=self.x_ub,
+                   n_points=n_points,
+                   title=f"T{self.id}({self.name})",
+                   filename=filename, exts=(suffix, ),
+                   verbose=False, **kwargs)
 
     def set_transform(self, rot_mat: Optional[np.ndarray], shift_mat: Optional[np.ndarray]):
         if rot_mat is not None:
@@ -394,8 +390,13 @@ class SingleTaskProblem(ABC):
             #                "np.clip() is applied to ensure all values are within the range.")
         return points * (self.x_ub - self.x_lb) + self.x_lb
 
+    @check_and_transform()
+    def evaluate(self, x: np.ndarray):
+        res = np.apply_along_axis(self._eval_single, 1, x)
+        return res.reshape(-1, self.obj)
+
     @abstractmethod
-    def evaluate(self, x: np.ndarray, *args, **kwargs):
+    def _eval_single(self, x: np.ndarray):
         """
         OjbFunc:= :math:`\\mathbf{x} \\to f \\to \\mathbf{y}, \\mathbf{x} \\in \\mathbb{R}^{D1},
         \\mathbf{y}\\in \\mathbb{R}^{D2}`, where :math:`D1` is the dimension of decision space
@@ -404,14 +405,11 @@ class SingleTaskProblem(ABC):
         Parameters
         ----------
         x: np.ndarray
-            Inputs of the problem.
-        args
-        kwargs
+            Input vector of the problem.
 
         Returns
         -------
         np.ndarray or float
-            Outputs corresponding to the problem inputs.
         """
 
     def _check_inputs(self, points):
