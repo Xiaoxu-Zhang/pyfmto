@@ -35,4 +35,4 @@ clean:
 
 reinstall:
 	make clean
-	pip install -e .
+	make install

@@ -25,7 +25,8 @@ dependencies = [
     "scikit-learn",
     "seaborn",
     "matplotlib",
-    "pyDOE"
+    "pyDOE",
+    "opfunu"
    ]
 classifiers = [
     "Development Status :: 4 - Beta",
