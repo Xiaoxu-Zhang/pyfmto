@@ -13,9 +13,7 @@ from tabulate import tabulate
 from typing import final, Optional
 
 from .packages import ServerPackage, ClientPackage, Actions
-logger = logging.getLogger('pyfmto')
-if not logger.handlers:
-    logger = logging.getLogger()
+from pyfmto.utilities import logger
 app = FastAPI()
 
 
@@ -88,9 +86,9 @@ class Server(ABC):
         disabled = not yes
 
         for name in ["uvicorn", "fastapi", "uvicorn.error", "uvicorn.access"]:
-            logger = logging.getLogger(name)
-            logger.setLevel(level)
-            logger.disabled = disabled
+            __logger = logging.getLogger(name)
+            __logger.setLevel(level)
+            __logger.disabled = disabled
 
     def set_agg_interval(self, seconds: float):
         self._agg_interval = max(0.01, seconds)

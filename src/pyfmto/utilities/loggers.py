@@ -5,9 +5,6 @@
 import logging.config
 import logging.handlers
 import shutil
-from typing import Union
-
-import yaml
 from pathlib import Path
 
 __all__ = ['logger', 'reset_log']
@@ -21,11 +18,34 @@ LOG_HEAD= r"""
         /_/       /____/                                      
 
 """
-
 LOG_PATH = Path.cwd() / 'out' / 'logs'
-CONF_FILE = Path(__file__).parent / 'logging.yaml'
 LOG_FILE = LOG_PATH / 'pyfmto.log'
 LOG_BACKUP = LOG_PATH / 'backup.log'
+LOG_CONF = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simpleFormatter': {
+            'format': '%(levelname)-8s%(asctime)-22s%(filename)16s->line(%(lineno)s)|%(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        }
+    },
+    'handlers': {
+        'pyfmto_handler': {
+            'class': 'logging.FileHandler',
+            'level': 'DEBUG',
+            'formatter': 'simpleFormatter',
+            'filename': str(LOG_FILE)
+        }
+    },
+    'loggers': {
+        'pyfmto': {
+            'level': 'INFO',
+            'handlers': ['pyfmto_handler'],
+            'propagate': 0
+        }
+    }
+}
 
 
 def _check_path():
@@ -40,10 +60,7 @@ def _check_file():
 
 
 def _init_conf():
-    with open(CONF_FILE, 'r') as config_file:
-        conf_dict = yaml.safe_load(config_file)
-    conf_dict['handlers']['pyfmto_handler']['filename'] = str(LOG_PATH / 'pyfmto.log')
-    logging.config.dictConfig(conf_dict)
+    logging.config.dictConfig(LOG_CONF)
 
 
 def reset_log():

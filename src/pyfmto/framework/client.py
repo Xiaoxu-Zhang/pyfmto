@@ -1,6 +1,5 @@
 #!usr/bin/env/ python
 # -*- coding:utf-8 -*-
-import logging
 import pickle
 import requests
 import time
@@ -16,9 +15,7 @@ from typing import final, Optional, Any
 
 from .packages import ClientPackage, ServerPackage, Actions
 from pyfmto.problems import SingleTaskProblem
-logger = logging.getLogger('pyfmto')
-if not logger.handlers:
-    logger = logging.getLogger()
+from pyfmto.utilities import logger
 
 __all__ = [
     'Client',
@@ -119,6 +116,7 @@ class Client(ABC):
             while self.problem.fe_available > 0:
                 self.optimize()
                 pbar.update(self.solutions.num_updated)
+                logger.info(f"round info size {len(self._round_info)}")
                 self.__logging_round_info(only_latest=True)
 
             self.__logging_round_info(only_latest=False)
