@@ -33,10 +33,6 @@ class TestArxiv2017(unittest.TestCase):
         task_mod_dim = mod_dim[0]
         task_mod_fe = mod_fe[0]
 
-        task_default.init_solutions()
-        task_mod_dim.init_solutions()
-        task_mod_fe.init_solutions()
-
         self.assertEqual(task_default.solutions.dim, DEFAULT_DIM)
         self.assertEqual(task_default.solutions.fe_init, DEFAULT_INIT_FE)
         self.assertEqual(task_default.solutions.size, DEFAULT_INIT_FE)
@@ -47,10 +43,10 @@ class TestArxiv2017(unittest.TestCase):
 
         self.assertEqual(task_mod_fe.solutions.fe_init, MODIFIED_INIT_FE)
 
-        problem10 = load_problem('arxiv2017', dim=10)
-        problem25 = load_problem('arxiv2017', dim=25)
-        problem30 = load_problem('arxiv2017', dim=30)
-        problem50 = load_problem('arxiv2017', dim=50)
+        problem10 = load_problem('arxiv2017', dim=10, _init_solutions=False)
+        problem25 = load_problem('arxiv2017', dim=25, _init_solutions=False)
+        problem30 = load_problem('arxiv2017', dim=30, _init_solutions=False)
+        problem50 = load_problem('arxiv2017', dim=50, _init_solutions=False)
         _ = str(problem10)
 
         self.assertEqual(problem10[0].dim, 10)
@@ -83,7 +79,7 @@ class TestValidateFunctions(unittest.TestCase):
     """
 
     def setUp(self):
-        self.problems = load_problem('arxiv2017')
+        self.problems = load_problem('arxiv2017', _init_solutions=False)
         self.val_data = {}
         val_data = loadmat(str(Path(__file__).parent / "validation_arxiv2017.mat"))
         for p in self.problems:

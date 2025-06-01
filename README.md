@@ -21,7 +21,7 @@
 
 ### Install
 
-Install with pip from our private repository
+Install with pip:
 
 ```bash
 pip install https://pyfmto.oss-cn-hangzhou.aliyuncs.com/dist/pyfmto-0.1.0-py3-none-any.whl
@@ -37,24 +37,35 @@ pip install .
 
 ### Usage
 
-Play with a problem
+Show available problems and load a problem
 
 ```python
-from pyfmto.problems import load_problem, list_problems
+from pyfmto.problems import list_problems, load_problem
 
 # list all problems in console and get name list
 prob_names = list_problems()
 
-# load a problem with default args
-prob = load_problem(prob_name='arxiv2017')
-print(prob)
-# In load_problem(), prob_name is case-insensitive, 
-# and it will remove '_' in prob_name to match camel case class names.
-# So you can load problem SvmLandmine by any of the following ways:
+# load the first problem
+prob = load_problem(prob_name=prob_names[0])
+
+# `prob_name` is case-insensitive and ignores underscores to match 'PascalCase' or 'camelCase' class name.
+# For example, the problem `SvmLandmine` can be loaded using any of the following:
 _ = load_problem('svm_landmine')
 _ = load_problem('svmlandmine')
 _ = load_problem('SvmLandmine')
 _ = load_problem('SVM_Landmine')
+
+```
+
+Play with a problem
+
+```python
+from pyfmto.problems import load_problem
+
+# load a problem with default args
+prob = load_problem(prob_name='arxiv2017')
+print(prob)
+
 
 # load a problem with customized args
 prob = load_problem('arxiv2017', dim=2, init_fe=20, max_fe=50, np_per_dim=2)
@@ -67,7 +78,7 @@ first_task.visualize_3d(f'visualize3D T{first_task.id}')
 # show distribution of init solutions in 2d space, if dim>2, only the first two dimensions will be shown
 prob = load_problem('arxiv2017', dim=2)
 for i in range(3):
-    prob.init_solutions('no')  # choices: no, weak, strong
+    # prob.init_solutions('no')  # choices: no, weak, strong
     prob.show_distribution(f'distribution plot {i + 1}.png')
 ```
 

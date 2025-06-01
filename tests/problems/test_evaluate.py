@@ -9,7 +9,7 @@ class TestAllProblemsCanBeEvaluate(unittest.TestCase):
 
     def test_evaluate(self):
         for prob_name in list_problems(print_it=False):
-            problem = load_problem(prob_name)
+            problem = load_problem(prob_name, _init_solutions=False)
             for func in problem:
                 msg = f"Problem {prob_name}.func{func.id}({func.name}) evaluation failed."
                 x1 = func.random_uniform_x(1)

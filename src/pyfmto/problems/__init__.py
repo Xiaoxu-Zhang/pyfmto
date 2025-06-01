@@ -33,7 +33,7 @@ PROBLEMS = {name: cls
 _lowercase_map = {name.lower(): name for name in PROBLEMS}
 
 
-def load_problem(prob_name, **kwargs):
+def load_problem(prob_name, **kwargs) -> MultiTaskProblem:
     no_space = prob_name.replace('_', '')
     if prob_name in PROBLEMS:
         return PROBLEMS[prob_name](**kwargs)
@@ -46,7 +46,7 @@ def load_problem(prob_name, **kwargs):
 def list_problems(print_it=True):
     data = defaultdict(list)
     for name, cls in PROBLEMS.items():
-        instance: MultiTaskProblem = cls()
+        instance: MultiTaskProblem = cls(_init_solutions=False)
         data['name'].append(name)
         data['total'].append(instance.task_num)
         prob_type = "Realworld" if instance.is_realworld else "Synthetic"

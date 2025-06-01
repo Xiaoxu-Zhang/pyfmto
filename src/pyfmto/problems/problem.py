@@ -471,7 +471,11 @@ class MultiTaskProblem(ABC):
     def __init__(self, is_realworld, *args, **kwargs):
         self.is_realworld = is_realworld
         self.seed = kwargs.pop('seed', 123)
+        self.random_ctrl = kwargs.pop('random_ctrl', 'weak')
+        _init_solutions = kwargs.pop('_init_solutions', True)
         self._problem = self.__init_tasks(*args, **kwargs)
+        if _init_solutions:
+            self._init_solutions()
 
     def __init_tasks(self, *args, **kwargs):
         problem = self._init_tasks(*args, **kwargs)
@@ -504,28 +508,28 @@ class MultiTaskProblem(ABC):
         else:
             raise TypeError(f"Index must be an integer or a slice, but {type(index)} given.")
 
-    def init_solutions(self, random_ctrl: Literal['no', 'weak', 'strong']):
-        if random_ctrl == 'no':
-            self._init_partition()
-            self._init_solutions()
-        elif random_ctrl == 'weak':
+    def _init_solutions(self):
+        if self.random_ctrl == 'no':
+            self.__init_partition()
+            self.__init_solutions()
+        elif self.random_ctrl == 'weak':
             self._set_seed()
-            self._init_partition()
+            self.__init_partition()
             self._unset_seed()
-            self._init_solutions()
-        elif random_ctrl == 'strong':
+            self.__init_solutions()
+        elif self.random_ctrl == 'strong':
             self._set_seed()
-            self._init_partition()
-            self._init_solutions()
+            self.__init_partition()
+            self.__init_solutions()
             self._unset_seed()
         else:
             raise ValueError('Invalid random_ctrl option.')
 
-    def _init_partition(self):
+    def __init_partition(self):
         for p in self._problem:
             p.init_partition()
 
-    def _init_solutions(self):
+    def __init_solutions(self):
         for p in self._problem:
             p.init_solutions()
 

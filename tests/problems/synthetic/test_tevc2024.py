@@ -10,7 +10,7 @@ _ORIGINAL_PROBLEMS = ["Griewank", "Rastrigin", "Ackley", "Schwefel", "Sphere", "
 
 class TestTevc2024(unittest.TestCase):
     def test_init(self):
-        problems = load_problem('tevc2024')
+        problems = load_problem('tevc2024', _init_solutions=False)
         prob = problems[0]
         self.assertEqual(prob.dim, 10)
         self.assertEqual(prob.obj, 1)

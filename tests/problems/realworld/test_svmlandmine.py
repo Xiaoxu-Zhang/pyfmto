@@ -7,7 +7,7 @@ from pyfmto.problems import load_problem
 
 class TestSvmLandmine(unittest.TestCase):
     def test_init_svm_landmine(self):
-        problem = load_problem('svm_landmine')
+        problem = load_problem('svm_landmine', _init_solutions=False)
         self.assertEqual(29, len(problem))
         task = problem[0]
         x_test = task.random_uniform_x(10)
