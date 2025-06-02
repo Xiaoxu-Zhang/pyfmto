@@ -21,7 +21,7 @@
 
 ### Install
 
-Install with pip:
+Install with pip
 
 ```bash
 pip install https://pyfmto.oss-cn-hangzhou.aliyuncs.com/dist/pyfmto-0.1.0-py3-none-any.whl
@@ -62,30 +62,22 @@ Play with a problem
 ```python
 from pyfmto.problems import load_problem
 
-# load a problem with default args
-prob = load_problem(prob_name='arxiv2017')
-print(prob)
-
-
 # load a problem with customized args
-prob = load_problem('arxiv2017', dim=2, init_fe=20, max_fe=50, np_per_dim=2)
+prob = load_problem('arxiv2017', dim=2, init_fe=20, max_fe=50, np_per_dim=5)
+
+# show distribution of init solutions in 2d space, if dim>2, only the first two dimensions will be shown
+prob.show_distribution(f'distribution plot.png')
 
 # visualize one of the tasks (require problem dim>=2)
 first_task = prob[0]
 first_task.visualize_2d(f'visualize2D T{first_task.id}')
 first_task.visualize_3d(f'visualize3D T{first_task.id}')
-
-# show distribution of init solutions in 2d space, if dim>2, only the first two dimensions will be shown
-prob = load_problem('arxiv2017', dim=2)
-for i in range(3):
-    # prob.init_solutions('no')  # choices: no, weak, strong
-    prob.show_distribution(f'distribution plot {i + 1}.png')
 ```
 
 Implement a federated optimization algorithm
 
 ```python
-# server.py
+# your_algorithm_server.py
 from pyfmto.framework import Server, ClientPackage, ServerPackage
 
 
@@ -104,7 +96,7 @@ class MyServer(Server):
 ```
 
 ```python
-# client.py
+# your_algorithm_client.py
 from pyfmto.framework import Client
 
 
@@ -125,6 +117,7 @@ The following parameters are available for all problems and can be optionally cu
 - `fe_max`: int $\in [1, +\infty)$ (default: `11*dim`)
 - `fe_init`: int $\in [1, \text{fe_max}]$ (default: `5*dim`)
 - `np_per_dim`: int $\in [1, +\infty)$ (default: `1`)
+- `random_ctrl`: str $\in$ {'no', 'weak', 'strong'}
 
 Available problems and their configurable parameters are listed below:
 
@@ -137,7 +130,7 @@ Available problems and their configurable parameters are listed below:
   - **tetci2019**
     - `dim`: int $\in [1, 50]$ # If dim > 25, the number of tasks will be 8, else 10
   - **cec2022**
-    - `dim`: int $\in \{10, 20\}$
+    - `dim`: int $\in$ {10, 20}
 
 - **Realworld**
   - **svm_landmine**
