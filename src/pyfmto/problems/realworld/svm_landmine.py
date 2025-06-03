@@ -35,24 +35,24 @@ class _SingleSvmProblem(Stp):
 
 
 class SvmLandmine(Mtp):
-    """
-    SvmLandmine Problem
-
-    This module implements a multitask SVM optimization problem based on the Landmine dataset.
-    Each task corresponds to training an SVM model with RBF kernel, optimizing hyperparameters
-    (C and gamma) to minimize the classification error (1 - AUC score).
-
-    References
-    ----------
-    Definition:
+    is_realworld = True
+    intro = """
+        A multitask Svm Landmine Detection hyperparameter optimization problem based on the Landmine dataset.
+        Each task corresponds to training an SVM model with RBF kernel, optimizing hyperparameters
+        (C and gamma) to minimize the classification error (1 - AUC score).
+        """
+    references = [
+        """
         Qi, Y., Liu, D., Dunson, D., & Carin, L. (2008). Multitask compressive sensing
         with Dirichlet process priors. Proceedings of the 25th International Conference
-        on Machine Learning - ICML'08, 768–775. https://doi.org/10.1145/1390156.1390253
-    Implementation:
+        on Machine Learning - ICML'08, 768–775. https://doi.org/10.1145/1390156.1390253.
+        """,
+        """
         Zhu, H., Wang, X., & Jin, Y. (2023). Federated Many-Task Bayesian
         Optimization. IEEE Transactions on Evolutionary Computation, 1–1.
         https://doi.org/10.1109/TEVC.2023.3279775
-    """
+        """
+    ]
 
     def __init__(self, **kwargs):
         super().__init__(True, **kwargs)
@@ -73,7 +73,7 @@ class SvmLandmine(Mtp):
         return tasks
 
     def __str__(self):
-        info_head = tabulate([[f"{self.problem_name} [Realworld] [{self.task_num} tasks]"]], tablefmt="rst")
+        info_head = tabulate([[f"{self.name} [Realworld] [{self.task_num} tasks]"]], tablefmt="rst")
         headers = ["DecDim", "Lower(C,gamma)", "Upper"]
         data = [[2, '[1e-4, 1e-2]', (10, 10)]]
         tab = tabulate(data, headers=headers, tablefmt='rounded_grid')

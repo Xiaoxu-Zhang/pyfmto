@@ -468,8 +468,12 @@ T_Tasks = Union[List[SingleTaskProblem], Tuple[SingleTaskProblem]]
 
 
 class MultiTaskProblem(ABC):
-    def __init__(self, is_realworld, *args, **kwargs):
-        self.is_realworld = is_realworld
+
+    is_realworld: bool
+    intro = ""
+    notes = ""
+    references: list[str] = []
+    def __init__(self, *args, **kwargs):
         self.seed = kwargs.pop('seed', 123)
         self.random_ctrl = kwargs.pop('random_ctrl', 'weak')
         _init_solutions = kwargs.pop('_init_solutions', True)
@@ -503,7 +507,7 @@ class MultiTaskProblem(ABC):
             if index < 0:
                 raise IndexError(f"Index {index} < 0 is invalid.")
             if index >= len(self._problem):
-                raise IndexError(f"Index {index} > total tasks={len(self._problem)} in problem {self.problem_name}")
+                raise IndexError(f"Index {index} > total tasks={len(self._problem)} in problem {self.name}")
             return self._problem[index]
         else:
             raise TypeError(f"Index must be an integer or a slice, but {type(index)} given.")
@@ -570,7 +574,7 @@ class MultiTaskProblem(ABC):
             plt.show()
 
     @property
-    def problem_name(self) -> str:
+    def name(self) -> str:
         return self.__class__.__name__
 
     @property
@@ -579,18 +583,33 @@ class MultiTaskProblem(ABC):
 
     @property
     def docstring(self):
-        return self.__class__.__doc__
+        info_list = {
+            "ProbName": [self.name],
+            "ProbType": ['Realworld' if self.is_realworld else 'Synthetic'],
+            "TaskNum": [len(self._problem)],
+            "DecDim": [self._problem[0].dim],
+            "ObjDim": [self._problem[0].obj]
+        }
+        tab = tabulate(info_list, headers="keys", tablefmt="rounded_grid")
+        ref = '\n'.join(self.references)
+
+        return (
+            f"{tab}\n"
+            f"Introduction:\n{self.intro}\n"
+            f"Notes:\n{self.notes}\n"
+            f"References\n{ref}"
+        )
 
     def __len__(self):
         return len(self._problem) if self._problem is not None else 0
 
     def __repr__(self):
         t = "realworld" if self.is_realworld else "synthetic"
-        return f"{self.problem_name}({len(self._problem)} {t} tasks)"
+        return f"{self.name}({len(self._problem)} {t} tasks)"
 
     def __str__(self):
         info_list = {
-            "ProbName": [self.problem_name],
+            "ProbName": [self.name],
             "ProbType": ['Realworld' if self.is_realworld else 'Synthetic'],
             "TaskNum": [len(self._problem)],
             "DecDim": [self._problem[0].dim],

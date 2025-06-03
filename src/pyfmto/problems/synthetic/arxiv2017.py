@@ -17,46 +17,45 @@ __all__ = ["Arxiv2017"]
 
 
 class Arxiv2017(Mtp):
+    is_realworld = False
+    intro = """
+        A many-task single-objective optimization problem based on transformed versions
+        of classical single-objective benchmark functions. Each task corresponds to an 
+        individual optimization problem.
     """
-    Multi-Task Single-Objective Benchmark from Arxiv 2017
-
-    This module implements a many-task optimization problem set based on transformed versions of classical
-    single-objective benchmark functions. Each task corresponds to an individual optimization problem.
-
-    Notes
-    -----
-    - The number of tasks is either 17 or 18, depending on the input dimension:
-        - If dim <= 25: 18 tasks
-        - If dim > 25: 17 tasks (due to Weierstrass function only support 1 <= dim <= 25)
-    - All tasks share the same dimensionality.
-    - Tasks differ by rotation matrices and shift vectors applied to their base functions.
-    - This benchmark was used in federated many-task Bayesian optimization experiments.
-    - task10 same with task13
-    - task6 same with task18
-
-    References
-    ----------
-    Definition:
+    notes = """
+        - The number of tasks is either 17 or 18, depending on the input dimension:
+            - If dim <= 25: 18 tasks
+            - If dim > 25: 17 tasks (due to Weierstrass function only support 1 <= dim <= 25)
+        - All tasks share the same dimensionality.
+        - Tasks differ by rotation matrices and shift vectors applied to their base functions.
+        - This benchmark was used in federated many-task Bayesian optimization experiments.
+        - task10 same with task13
+        - task6 same with task18
+    """
+    references = [
+        """
         B. Da, Y.-S. Ong, L. Feng, A. K. Qin, A. Gupta, Z. Zhu, C.-K. Ting,
         K. Tang, and X. Yao, "Evolutionary multitasking for single-objective
         continuous optimization: Benchmark problems, performance metric, and
         baseline results," arXiv preprint arXiv:1706.03470, 2017.
-
-    Implementation:
+        """,
+        """
         Zhu, H., Wang, X., & Jin, Y. (2023). Federated Many-Task Bayesian
         Optimization. IEEE Transactions on Evolutionary Computation, 1–1.
         https://doi.org/10.1109/TEVC.2023.3279775
-    """
+        """
+    ]
 
     def __init__(self, dim=10, **kwargs):
         if dim is None:
             raise ValueError("dim did not specified")
         if not 1 <= dim <= 50:
             raise ValueError(f"dim must be in [1, 50], but got {dim}")
-        super().__init__(False, dim, **kwargs)
+        super().__init__(dim, **kwargs)
 
     def __str__(self):
-        info_head = tabulate([[f"{self.problem_name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
+        info_head = tabulate([[f"{self.name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
 
         task_id = [t.id for t in self._problem]
         task_name = [t.name for t in self._problem]

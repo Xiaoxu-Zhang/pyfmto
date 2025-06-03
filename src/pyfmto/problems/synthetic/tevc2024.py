@@ -14,27 +14,25 @@ T_SrcProblem = Literal[
 
 
 class Tevc2024(Mtp):
+    is_realworld = False
+    intro = """
+        This module implements a multi-task optimization benchmark derived from a single base function,
+        with each task being transformed using different rotation matrices. The tasks share the same
+        dimensionality and search space bounds, but differ in their problem landscapes due to rotations.
+        The number of tasks is fixed at 10. Each task is a transformed version of the specified source problem.
     """
-    Multi-Task Single-Objective Benchmark from Tevc2024
-
-    This module implements a multi-task optimization benchmark derived from a single base function,
-    with each task being transformed using different rotation matrices. The tasks share the same
-    dimensionality and search space bounds, but differ in their problem landscapes due to rotations.
-
-    The number of tasks is fixed at 10. Each task is a transformed version of the specified source problem.
-
-    Notes
-    -----
-    - All tasks are derived from the same base function.
-    - Tasks are differentiated by applying distinct rotation matrices.
-    - No shift transformation is applied.
-
-    References
-    ----------
-    Wang, X., & Jin, Y. (2024). Distilling Ensemble Surrogates for Federated
-    Data-Driven Many-Task Optimization. IEEE Transactions on Evolutionary Computation, 1–1.
-    https://doi.org/10.1109/TEVC.2024.3428701
+    notes = """
+        - All tasks are derived from the same base function.
+        - Tasks are differentiated by applying distinct rotation matrices.
+        - No shift transformation is applied.
     """
+    references = [
+        """
+        Wang, X., & Jin, Y. (2024). Distilling Ensemble Surrogates for Federated Data-Driven 
+        Many-Task Optimization. IEEE Transactions on Evolutionary Computation, 1–1.
+        https://doi.org/10.1109/TEVC.2024.3428701
+        """
+    ]
 
     def __init__(self, dim=10, src_problem: T_SrcProblem='Ackley', **kwargs):
         if not isinstance(src_problem, str):
@@ -45,10 +43,10 @@ class Tevc2024(Mtp):
             raise ValueError(f"{src_problem} is not exist, supported names "
                              f"[Griewank, Rastrigin, Ackley, Schwefel, Sphere"
                              f", Rosenbrock, Weierstrass, Ellipsoid]")
-        super().__init__(False, dim, src_prob_cls, **kwargs)
+        super().__init__(dim, src_prob_cls, **kwargs)
 
     def __str__(self):
-        info_head = tabulate([[f"{self.problem_name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
+        info_head = tabulate([[f"{self.name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
 
         task = self._problem[0]
         task_name = task.name

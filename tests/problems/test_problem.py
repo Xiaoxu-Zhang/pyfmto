@@ -7,8 +7,9 @@ from pathlib import Path
 
 from pyfmto.problems.problem import (
     SingleTaskProblem as _SingleTaskProblem,
-    MultiTaskProblem as _MultiTaskProblem, check_and_transform
+    MultiTaskProblem as _MultiTaskProblem
 )
+
 matplotlib.use('Agg')
 
 TASK_NUM = 4
@@ -81,8 +82,9 @@ class TestSingleTaskProblem(unittest.TestCase):
         self.assertTrue(np.all(err < 1e-10), msg=f"{err < 1e-10}")
 
     def test_uniform_solution(self):
-        stp_np1 = STP(dim=5, obj=1, x_lb=-1, x_ub=1, np_per_dim=1)
-        stp_np2 = STP(dim=5, obj=1, x_lb=-1, x_ub=1, np_per_dim=2)
+
+        stp_np1 = STP(dim=5, obj=1, x_lb=-1, x_ub=1, **{'np_per_dim': 1})
+        stp_np2 = STP(dim=5, obj=1, x_lb=-1, x_ub=1, **{'np_per_dim': 2})
         stp_np1.init_partition()
         stp_np2.init_partition()
         x1 = stp_np1.random_uniform_x(size=100)
@@ -105,7 +107,7 @@ class TestSingleTaskProblem(unittest.TestCase):
         self.assertTrue(np.all(stp.solutions.x <= stp.x_ub))
 
         for np_per_dim in range(2, 10):
-            stp_pb = STP(dim=5, obj=1, x_lb=[-1, -2, -3, -4, -5], x_ub=[6, 7, 8, 9, 10], np_per_dim=np_per_dim)
+            stp_pb = STP(dim=5, obj=1, x_lb=[-1, -2, -3, -4, -5], x_ub=[6, 7, 8, 9, 10], **{'np_per_dim': np_per_dim})
             stp_pb.init_partition()
             self.assertEqual(stp_pb.np_per_dim, np_per_dim)
             band_partition = stp_pb._partition[1] - stp_pb._partition[0]
@@ -145,9 +147,10 @@ class TestSingleTaskProblem(unittest.TestCase):
 
 
 class InitAttrAfterSuper(_MultiTaskProblem):
+    is_realworld = False
 
     def __init__(self, dim: int = 2):
-        super().__init__(is_realworld=False)
+        super().__init__()
         self.dim = dim
 
     def _init_tasks(self, *args, **kwargs):
@@ -155,26 +158,31 @@ class InitAttrAfterSuper(_MultiTaskProblem):
 
 
 class InitWithInvalidReturn(_MultiTaskProblem):
+    is_realworld = False
+
     def __init__(self):
-        super().__init__(is_realworld=False)
+        super().__init__()
 
     def _init_tasks(self, *args, **kwargs):
         return None
 
 
 class SyntheticMtp(_MultiTaskProblem):
+    is_realworld = False
 
     def __init__(self, dim: int = 2):
         self.dim = dim
-        super().__init__(is_realworld=False)
+        super().__init__()
 
     def _init_tasks(self, *args, **kwargs):
         return [STP(self.dim, 1, 0, 1) for _ in range(TASK_NUM)]
 
 
 class RealworldMtp(_MultiTaskProblem):
+    is_realworld = True
+
     def __init__(self):
-        super().__init__(is_realworld=True)
+        super().__init__()
 
     def _init_tasks(self, *args, **kwargs):
         return [STP(2, 1, 0, 1) for _ in range(TASK_NUM)]
@@ -195,14 +203,10 @@ class TestMultiTaskProblem(unittest.TestCase):
         self.assertRaises(AttributeError, InitAttrAfterSuper)
         self.assertRaises(TypeError, InitWithInvalidReturn)
         prob = SyntheticMtp()
-        # prob.init_solutions(random_ctrl='no')
-        # prob.init_solutions(random_ctrl='weak')
-        # prob.init_solutions(random_ctrl='strong')
         filename = self.temp_dir / 'test_show.png'
         prob.show_distribution(str(filename))
         prob.show_distribution()
         self.assertTrue(filename.exists())
-        # self.assertRaises(ValueError, prob.init_solutions, random_ctrl='invalid')
 
     def test_attributes(self):
         realworld = RealworldMtp()

@@ -1,8 +1,4 @@
 import importlib
-from pathlib import Path
-from typing import Optional
-from opfunu import draw_3d
-import numpy as np
 from pyfmto.problems import SingleTaskProblem as Stp, MultiTaskProblem as Mtp
 
 __all__ = ['Cec2022']
@@ -20,10 +16,16 @@ class _BenchmarksCec2022(Stp):
 
 
 class Cec2022(Mtp):
+
+    is_realworld = False
+    intro = """
+        Synthetic of CEC 2022 benchmark problems
+    """
+
     def __init__(self, dim=10, **kwargs):
         if not dim in [10, 20]:
             raise ValueError('CEC2022 only support 10D and 20D')
-        super().__init__(False, dim, **kwargs)
+        super().__init__(dim, **kwargs)
 
     def _init_tasks(self, dim, **kwargs):
         funcs = [_BenchmarksCec2022(fid, dim, **kwargs) for fid in range(1, 13)]

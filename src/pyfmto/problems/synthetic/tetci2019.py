@@ -12,30 +12,29 @@ from ..benchmarks import (
     Weierstrass)
 
 class Tetci2019(Mtp):
+    is_realworld = False
+    intro = ""
+    notes = """
+        - The number of tasks is either 10 or 8, depending on the input dimension:
+            - If dim <= 25: 10 tasks
+            - If dim > 25: 8 tasks (due to Weierstrass function only support 1 <= dim <= 25)
+        - All tasks share the same dimensionality.
+        - Tasks differ by shift vectors applied to their base functions.
     """
-    Multi-Task Single-Objective Benchmark from Tetci 2019
-
-    Notes
-    -----
-    - The number of tasks is either 10 or 8, depending on the input dimension:
-        - If dim <= 25: 10 tasks
-        - If dim > 25: 8 tasks (due to Weierstrass function only support 1 <= dim <= 25)
-    - All tasks share the same dimensionality.
-    - Tasks differ by shift vectors applied to their base functions.
-
-    References
-    ----------
-    CHEN Y, ZHONG J, FENG L, et al. An Adaptive Archive-Based Evolutionary
-    Framework for Many-Task Optimization[J/OL]. IEEE TETCI, 2020: 369-384.
-    DOI:10.1109/tetci.2019.2916051.
-    """
+    references = [
+        """
+        CHEN Y, ZHONG J, FENG L, et al. An Adaptive Archive-Based Evolutionary
+        Framework for Many-Task Optimization[J/OL]. IEEE TETCI, 2020: 369-384.
+        DOI:10.1109/tetci.2019.2916051.
+        """
+    ]
     def __init__(self, dim=10, **kwargs):
         if not 1 <= dim <= 50:
             raise ValueError('dim must be in [1, 50]')
-        super().__init__(False, dim, **kwargs)
+        super().__init__(dim, **kwargs)
 
     def __str__(self):
-        info_head = tabulate([[f"{self.problem_name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
+        info_head = tabulate([[f"{self.name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
         task_id = [t.id for t in self._problem]
         task_name = [t.name for t in self._problem]
         task_dec = [t.dim for t in self._problem]

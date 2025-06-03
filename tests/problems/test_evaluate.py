@@ -7,6 +7,12 @@ from pyfmto.problems import load_problem, list_problems
 
 class TestAllProblemsCanBeEvaluate(unittest.TestCase):
 
+    def test_property_is_set(self):
+        for prob_name in list_problems(print_it=False):
+            problem = load_problem(prob_name, _init_solutions=False)
+            msg = f"Problem {problem.name}'s is_realworld property not set."
+            self.assertTrue(problem.is_realworld in [True, False], msg=msg)
+
     def test_evaluate(self):
         for prob_name in list_problems(print_it=False):
             problem = load_problem(prob_name, _init_solutions=False)

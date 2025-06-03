@@ -24,4 +24,4 @@ class TestTevc2024(unittest.TestCase):
 
     def test_not_rasis(self):
         problems = load_problem('tevc2024')
-        self.assertTrue(problems.problem_name in str(problems))
+        self.assertTrue(problems.name in str(problems))
