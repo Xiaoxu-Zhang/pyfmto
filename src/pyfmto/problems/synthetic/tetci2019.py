@@ -15,11 +15,11 @@ class Tetci2019(Mtp):
     is_realworld = False
     intro = ""
     notes = """
-        - The number of tasks is either 10 or 8, depending on the input dimension:
-            - If dim <= 25: 10 tasks
-            - If dim > 25: 8 tasks (due to Weierstrass function only support 1 <= dim <= 25)
-        - All tasks share the same dimensionality.
-        - Tasks differ by shift vectors applied to their base functions.
+        The number of tasks is either 10 or 8, depending on the input dimension. 
+        If dim <= 25, 10 tasks. 
+        If dim > 25, 8 tasks (due to Weierstrass function only support 1 <= dim <= 25) 
+        All tasks share the same dimensionality. 
+        Tasks differ by shift vectors applied to their base functions. 
     """
     references = [
         """
@@ -33,22 +33,21 @@ class Tetci2019(Mtp):
             raise ValueError('dim must be in [1, 50]')
         super().__init__(dim, **kwargs)
 
-    def __str__(self):
-        info_head = tabulate([[f"{self.name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
-        task_id = [t.id for t in self._problem]
-        task_name = [t.name for t in self._problem]
-        task_dec = [t.dim for t in self._problem]
-        task_lb = [t.x_lb[0] for t in self._problem]
-        task_ub = [t.x_ub[0] for t in self._problem]
+    def get_info(self):
         category = ['Easy']*4 + ['Complex']*6
-        assisted_task = [None, None, None, None, 'T1', 'T2', 'T3,T4', None, 'T4', None]
+        assisted_task = [None]*4 + ['T1', 'T2', 'T3,T4', None, 'T4', None]
         if self.task_num == 8:
             del category[6], category[3]
             del assisted_task[6], assisted_task[3]
-        tab_headers = ["TaskID", "TaskName", "DecDim", "Lower", "Upper", "Category", "Assisted By"]
-        tab = tabulate(zip(task_id, task_name, task_dec, task_lb, task_ub, category, assisted_task), headers=tab_headers,
-                          tablefmt="rounded_grid")
-        return f"{info_head}\n{tab}"
+        return {
+            "TaskID": [t.id for t in self._problem],
+            "TaskName": [t.name for t in self._problem],
+            "DecDim": [t.dim for t in self._problem],
+            "Lower": [t.x_lb[0] for t in self._problem],
+            "Upper": [t.x_ub[0] for t in self._problem],
+            "Category": category,
+            "Assisted By": assisted_task
+        }
 
     def _init_tasks(self, dim, **kwargs) -> T_Tasks:
         f1 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)

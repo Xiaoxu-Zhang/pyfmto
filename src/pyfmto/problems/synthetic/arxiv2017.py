@@ -24,14 +24,12 @@ class Arxiv2017(Mtp):
         individual optimization problem.
     """
     notes = """
-        - The number of tasks is either 17 or 18, depending on the input dimension:
-            - If dim <= 25: 18 tasks
-            - If dim > 25: 17 tasks (due to Weierstrass function only support 1 <= dim <= 25)
-        - All tasks share the same dimensionality.
-        - Tasks differ by rotation matrices and shift vectors applied to their base functions.
-        - This benchmark was used in federated many-task Bayesian optimization experiments.
-        - task10 same with task13
-        - task6 same with task18
+        The number of tasks is either 17 or 18, depending on the input dimension.
+        If dim <= 25, 18 tasks, If dim > 25, 17 tasks (due to Weierstrass function only support 1 <= dim <= 25)
+        All tasks share the same dimensionality.
+        Tasks differ by rotation matrices and shift vectors applied to their base functions.
+        This benchmark was used in federated many-task Bayesian optimization experiments.
+        Task10 same with task13. Task6 same with task18.
     """
     references = [
         """
@@ -54,19 +52,15 @@ class Arxiv2017(Mtp):
             raise ValueError(f"dim must be in [1, 50], but got {dim}")
         super().__init__(dim, **kwargs)
 
-    def __str__(self):
-        info_head = tabulate([[f"{self.name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
+    def get_info(self):
+        return {
+            "TaskID": [t.id for t in self._problem],
+            "TaskName": [t.name for t in self._problem],
+            "DecDim": [t.dim for t in self._problem],
+            "Lower": [t.x_lb[0] for t in self._problem],
+            "Upper": [t.x_ub[0] for t in self._problem]
+        }
 
-        task_id = [t.id for t in self._problem]
-        task_name = [t.name for t in self._problem]
-        task_dec = [t.dim for t in self._problem]
-        task_lb = [t.x_lb[0] for t in self._problem]
-        task_ub = [t.x_ub[0] for t in self._problem]
-        tab_headers = ["TaskID", "TaskName", "DecDim", "Lower", "Upper"]
-        table2 = tabulate(zip(task_id, task_name, task_dec, task_lb, task_ub), headers=tab_headers,
-                          tablefmt="rounded_grid")
-
-        return f"{info_head}\n{table2}"
 
     def _init_tasks(self, dim, **kwargs):
         datasets = Path(__file__).parents[1] / 'datasets' / 'mtso_arxiv2017'

@@ -2,6 +2,7 @@ import copy
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import textwrap
 import wrapt
 from abc import ABC, abstractmethod
 from matplotlib import pyplot as plt
@@ -468,11 +469,11 @@ T_Tasks = Union[List[SingleTaskProblem], Tuple[SingleTaskProblem]]
 
 
 class MultiTaskProblem(ABC):
-
     is_realworld: bool
-    intro = ""
-    notes = ""
-    references: list[str] = []
+    intro = "Not set"
+    notes = "Not set"
+    references: list[str] = ["Not set"]
+
     def __init__(self, *args, **kwargs):
         self.seed = kwargs.pop('seed', 123)
         self.random_ctrl = kwargs.pop('random_ctrl', 'weak')
@@ -581,24 +582,14 @@ class MultiTaskProblem(ABC):
     def task_num(self):
         return len(self._problem)
 
-    @property
-    def docstring(self):
-        info_list = {
+    def get_info(self) -> dict:
+        return {
             "ProbName": [self.name],
             "ProbType": ['Realworld' if self.is_realworld else 'Synthetic'],
             "TaskNum": [len(self._problem)],
             "DecDim": [self._problem[0].dim],
             "ObjDim": [self._problem[0].obj]
         }
-        tab = tabulate(info_list, headers="keys", tablefmt="rounded_grid")
-        ref = '\n'.join(self.references)
-
-        return (
-            f"{tab}\n"
-            f"Introduction:\n{self.intro}\n"
-            f"Notes:\n{self.notes}\n"
-            f"References\n{ref}"
-        )
 
     def __len__(self):
         return len(self._problem) if self._problem is not None else 0
@@ -608,11 +599,30 @@ class MultiTaskProblem(ABC):
         return f"{self.name}({len(self._problem)} {t} tasks)"
 
     def __str__(self):
-        info_list = {
-            "ProbName": [self.name],
-            "ProbType": ['Realworld' if self.is_realworld else 'Synthetic'],
-            "TaskNum": [len(self._problem)],
-            "DecDim": [self._problem[0].dim],
-            "ObjDim": [self._problem[0].obj]
-        }
-        return tabulate(info_list, headers="keys", tablefmt="rounded_grid")
+        def _reformat_lines(text, width=80):
+            _dedent = textwrap.dedent(text)
+            _width = textwrap.fill(_dedent, width=width)
+            _indent = textwrap.indent(_width, ' ' * 4)
+            if not _indent.startswith('\n'):
+                _indent = '\n' + _indent
+            if not _indent.endswith('\n'):
+                _indent += '\n'
+            return _indent
+
+        tab = tabulate(self.get_info(), headers="keys", tablefmt="rounded_grid")
+        tab = textwrap.indent(tab, " " * 8)
+        tab_width = tab.find('\n') + 8
+        prob_name = self.name.center(tab_width-16, '=')
+        prob_name  = textwrap.indent(prob_name, " " * 8)
+        intro = _reformat_lines(self.intro, tab_width)
+        notes = _reformat_lines(self.notes, tab_width)
+        ref = [_reformat_lines(txt, tab_width) for txt in self.references]
+        ref = "\n".join(ref)
+
+        return (
+            f"{prob_name}\n"
+            f"{tab}\n"
+            f"Introduction:{intro}\n"
+            f"Notes:{notes}\n"
+            f"References:{ref}"
+        ).replace('\n\n\n', '\n\n')

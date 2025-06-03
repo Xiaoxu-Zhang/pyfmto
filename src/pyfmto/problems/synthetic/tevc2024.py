@@ -22,9 +22,9 @@ class Tevc2024(Mtp):
         The number of tasks is fixed at 10. Each task is a transformed version of the specified source problem.
     """
     notes = """
-        - All tasks are derived from the same base function.
-        - Tasks are differentiated by applying distinct rotation matrices.
-        - No shift transformation is applied.
+        All tasks are derived from the same base function.
+        Tasks are differentiated by applying distinct rotation matrices.
+        No shift transformation is applied.
     """
     references = [
         """
@@ -45,19 +45,14 @@ class Tevc2024(Mtp):
                              f", Rosenbrock, Weierstrass, Ellipsoid]")
         super().__init__(dim, src_prob_cls, **kwargs)
 
-    def __str__(self):
-        info_head = tabulate([[f"{self.name} [Synthetic] [{self.task_num} tasks]"]], tablefmt="rst")
-
+    def get_info(self):
         task = self._problem[0]
-        task_name = task.name
-        task_dim = task.dim
-        task_lb = task.x_lb[0]
-        task_ub = task.x_ub[0]
-
-        header2 = ["TaskSrc", "DecDim", "Lower", "Upper"]
-        info_data = [[task_name, task_dim, task_lb, task_ub]]
-        table_str = tabulate(info_data, headers=header2, tablefmt="rounded_grid")
-        return f"{info_head}\n{table_str}"
+        return {
+            "TaskSrc": [task.name],
+            "DecDim": [task.dim],
+            "Lower": [task.x_lb[0]],
+            "Upper": [task.x_ub[0]]
+        }
 
     def _init_tasks(self, dim: int, src_prob_cls: Type[SingleTaskProblem], **kwargs):
         funcs = [src_prob_cls(dim, **kwargs) for _ in range(10)]

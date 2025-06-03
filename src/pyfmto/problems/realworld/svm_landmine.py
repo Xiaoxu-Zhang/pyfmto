@@ -72,9 +72,11 @@ class SvmLandmine(Mtp):
             tasks.append(t)
         return tasks
 
-    def __str__(self):
-        info_head = tabulate([[f"{self.name} [Realworld] [{self.task_num} tasks]"]], tablefmt="rst")
-        headers = ["DecDim", "Lower(C,gamma)", "Upper"]
-        data = [[2, '[1e-4, 1e-2]', (10, 10)]]
-        tab = tabulate(data, headers=headers, tablefmt='rounded_grid')
-        return f"{info_head}\n{tab}"
+
+    def get_info(self):
+        return {
+            "DecDim": [2],
+            "Params": ["C, gamma"],
+            "Lower": ['[1e-4, 1e-2]'],
+            "Upper": ['[10, 10]']
+        }
