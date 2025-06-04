@@ -19,16 +19,16 @@ class BatchEval(SingleTaskProblem):
         super().__init__(dim=dim, obj=obj, x_lb=x_lb, x_ub=x_ub)
 
     @check_and_transform()
-    def _eval_single(self, x):
+    def evaluate(self, x):
         res = []
         if x.ndim == 1:
-            res.append(self._eval_one(x))
+            res.append(self._eval_single(x))
         else:
             for xi in x:
-                res.append(self._eval_one(xi))
+                res.append(self._eval_single(xi))
         return np.array(res).reshape(-1, 1)
 
-    def _eval_one(self, x):
+    def _eval_single(self, x: np.ndarray):
         pass
 
 
@@ -37,7 +37,7 @@ class OrigGriewank(BatchEval):
     def __init__(self, x_lb=-600, x_ub=600, d=10):
         super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
 
-    def _eval_one(self, x):
+    def _eval_single(self, x):
         F1 = 0
         F2 = 1
         d_x = len(x)
@@ -54,7 +54,7 @@ class OrigRastrigin(BatchEval):
     def __init__(self, x_lb=-5, x_ub=5, d=10):
         super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
 
-    def _eval_one(self, x):
+    def _eval_single(self, x):
         F = 0
         d_x = len(x)
         for i in range(0, d_x):
@@ -68,7 +68,7 @@ class OrigAckley(BatchEval):
     def __init__(self, x_lb=-32.768, x_ub=32.768, d=10):
         super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
 
-    def _eval_one(self, x):
+    def _eval_single(self, x):
         sum1 = 0
         sum2 = 0
         d_x = len(x)
@@ -85,7 +85,7 @@ class OrigSchwefel(BatchEval):
     def __init__(self, x_lb=-500, x_ub=500, d=10):
         super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
 
-    def _eval_one(self, x):
+    def _eval_single(self, x):
         out = 0
         d_x = len(x)
         for i in range(d_x):
@@ -98,7 +98,7 @@ class OrigSphere(BatchEval):
     def __init__(self, x_lb=-100, x_ub=100, d=10):
         super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
 
-    def _eval_one(self, x):
+    def _eval_single(self, x):
         return x.dot(x)
 
 
@@ -106,7 +106,7 @@ class OrigRosenbrock(BatchEval):
     def __init__(self, x_lb=-2.048, x_ub=2.048, d=10):
         super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
 
-    def _eval_one(self, x):
+    def _eval_single(self, x):
         out = 0
         d_x = len(x)
         for i in range(0, d_x - 1):
@@ -120,7 +120,7 @@ class OrigWeierstrass(BatchEval):
     def __init__(self, x_lb=-0.5, x_ub=0.5, d=10):
         super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
 
-    def _eval_one(self, x):
+    def _eval_single(self, x):
         D = len(x)
         a = 0.5
         b = 3
@@ -139,7 +139,7 @@ class OrigEllipsoid(BatchEval):
     def __init__(self, x_lb=-5.12, x_ub=5.12, d=10):
         super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
 
-    def _eval_one(self, x):
+    def _eval_single(self, x):
         out = 0.0
         d = len(x)
         d_L = [i for i in range(1, d + 1)]

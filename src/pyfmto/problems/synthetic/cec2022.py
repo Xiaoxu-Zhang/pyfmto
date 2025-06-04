@@ -11,6 +11,10 @@ class _BenchmarksCec2022(Stp):
         self.func = func
         super().__init__(dim, 1, x_lb=func.lb, x_ub=func.ub, **kwargs)
 
+    @property
+    def name(self) -> str:
+        return f"CEC2022F{self.id}"
+
     def _eval_single(self, x):
          return self.func.evaluate(x)
 
