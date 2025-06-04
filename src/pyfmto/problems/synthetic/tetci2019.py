@@ -1,7 +1,6 @@
 import numpy as np
-from tabulate import tabulate
 
-from ..problem import MultiTaskProblem as Mtp, T_Tasks
+from ..problem import MultiTaskProblem as Mtp
 from ..benchmarks import (
     Ackley,
     Griewank,
@@ -49,7 +48,7 @@ class Tetci2019(Mtp):
             "Assisted By": assisted_task
         }
 
-    def _init_tasks(self, dim, **kwargs) -> T_Tasks:
+    def _init_tasks(self, dim, **kwargs):
         f1 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)
         f2 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)
         f3 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)

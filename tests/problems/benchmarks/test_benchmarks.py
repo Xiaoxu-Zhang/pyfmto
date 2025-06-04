@@ -21,8 +21,11 @@ class BatchEval(SingleTaskProblem):
     @check_and_transform()
     def _eval_single(self, x):
         res = []
-        for xi in x:
-            res.append(self._eval_one(xi))
+        if x.ndim == 1:
+            res.append(self._eval_one(x))
+        else:
+            for xi in x:
+                res.append(self._eval_one(xi))
         return np.array(res).reshape(-1, 1)
 
     def _eval_one(self, x):

@@ -24,12 +24,13 @@ def _check_x(x, dim):
         raise TypeError(f"Only support ndarray as input, got {type(x)} instead.")
 
     if x.ndim == 1:
-        x = x.reshape(-1, dim)
-    elif x.ndim > 2:
+        if x.shape[0] != dim:
+            raise ValueError(f"expect dim={dim}, got dim={x.shape[0]} instead")
+    elif x.ndim == 2:
+        if x.shape[1] != dim:
+            raise ValueError(f"expect dim={dim}, got dim={x.shape[1]} instead")
+    else:
         raise ValueError(f"Expect 1<=datasets.ndim<=2, got ndim={x.ndim} instead")
-
-    if x.shape[1] != dim:
-        raise ValueError(f"expect row dim={dim}, got dim={x.shape[1]} instead")
 
     return x
 
@@ -261,8 +262,10 @@ class SingleTaskProblem(ABC):
     def _plotting(self, drawer, filename, suffix, n_points, **kwargs):
         if self.dim < 2:
             raise ValueError(f"Only supported for 'dim>1' problems, got dim={self.dim} instead.")
+        _affine_transformer = check_and_transform()
+        _transformed_func = _affine_transformer(self._eval_single, self)
         if filename is None:
-            drawer(func=self._eval_single,
+            drawer(func=_transformed_func,
                    lb=self.x_lb, ub=self.x_ub,
                    n_points=n_points,
                    title=f"T{self.id}({self.name})",
@@ -270,7 +273,7 @@ class SingleTaskProblem(ABC):
         else:
             kwargs.pop('exts', None)
             kwargs.pop('verbose', None)
-            drawer(func=self._eval_single,
+            drawer(func=_transformed_func,
                    lb=self.x_lb, ub=self.x_ub,
                    n_points=n_points,
                    title=f"T{self.id}({self.name})",
@@ -393,7 +396,10 @@ class SingleTaskProblem(ABC):
 
     @check_and_transform()
     def evaluate(self, x: np.ndarray):
-        res = np.apply_along_axis(self._eval_single, 1, x)
+        if x.ndim == 1:
+            res = self._eval_single(x)
+        else:
+            res = np.apply_along_axis(self._eval_single, 1, x)
         return res.reshape(-1, self.obj)
 
     @abstractmethod

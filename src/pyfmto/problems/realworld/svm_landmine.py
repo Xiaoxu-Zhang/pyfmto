@@ -23,7 +23,10 @@ class _SingleSvmProblem(Stp):
     @check_and_transform()
     def evaluate(self, x):
         # training svm and get the prediction with real datasets
-        res = [self._eval_single(xi) for xi in x]
+        if x.ndim == 2:
+            res = [self._eval_single(xi) for xi in x]
+        else:
+            res = [self._eval_single(x)]
         return np.array(res).reshape(-1, 1)
 
     def _eval_single(self, x):
