@@ -33,7 +33,7 @@ Implementation:
 
 import numpy as np
 
-from ..problem import SingleTaskProblem as Stp, check_and_transform
+from ..problem import SingleTaskProblem as Stp
 
 __all__ = ["Griewank", "Rastrigin", "Ackley", "Schwefel", "Sphere", "Rosenbrock", "Weierstrass", "Ellipsoid"]
 

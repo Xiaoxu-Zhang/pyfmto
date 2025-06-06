@@ -1,7 +1,6 @@
 import copy
 import numpy as np
 from typing import Optional
-
 from numpy import ndarray
 from tabulate import tabulate
 
