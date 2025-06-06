@@ -1,4 +1,3 @@
-import os
 import matplotlib
 import numpy as np
 import shutil
@@ -10,11 +9,9 @@ from pyfmto.problems.problem import (
     MultiTaskProblem as _MultiTaskProblem
 )
 
+
 matplotlib.use('Agg')
-
 TASK_NUM = 4
-TMP_DIR = Path(__file__).parent / 'tmp_data'
-
 
 class STP(_SingleTaskProblem):
 
@@ -28,17 +25,12 @@ class STP(_SingleTaskProblem):
 class TestSingleTaskProblem(unittest.TestCase):
 
     def setUp(self):
-        if not TMP_DIR.exists():
-            TMP_DIR.mkdir(parents=True)
+        self.tmp_dir = Path('tmp')
+        if not self.tmp_dir.exists():
+            self.tmp_dir.mkdir(parents=True)
 
     def tearDown(self):
-        if TMP_DIR.exists():
-            for file in TMP_DIR.iterdir():
-                if file.is_file():
-                    file.unlink()
-                elif file.is_dir():
-                    shutil.rmtree(file)
-            TMP_DIR.rmdir()
+        shutil.rmtree(self.tmp_dir)
 
     def test_init_instance(self):
         self.assertRaises(ValueError, STP, dim=1., obj=1, x_lb=-1, x_ub=1)
@@ -52,6 +44,9 @@ class TestSingleTaskProblem(unittest.TestCase):
         self.assertRaises(ValueError, STP, dim=2, obj=1, x_lb=[0, 0], x_ub=[1])
         self.assertRaises(ValueError, STP, dim=2, obj=1, x_lb=[0, 0], x_ub=[[1, 1]])
         self.assertRaises(ValueError, STP, dim=2, obj=1, x_lb=-1, x_ub=1, unexpected_arg=1)
+        stp = STP(dim=2, obj=1, x_lb=-1, x_ub=1)
+        self.assertRaises(TypeError, stp.set_transform, rot_mat=[0, 0], shift_mat=None)
+        self.assertRaises(TypeError, stp.set_transform, rot_mat=None, shift_mat='0')
 
     def test_attributes(self):
         stp = STP(dim=2, obj=1, x_lb=-1, x_ub=1)
@@ -128,15 +123,17 @@ class TestSingleTaskProblem(unittest.TestCase):
 
     def test_evaluation(self):
         stp = STP(dim=1, obj=1, x_lb=-1, x_ub=1)
+        stp.evaluate(np.array([1]))
         self.assertRaises(TypeError, stp.evaluate, '1')
         self.assertRaises(ValueError, stp.evaluate, np.array([[[1]]]))
         self.assertRaises(ValueError, stp.evaluate, np.array([[1, 2], [3, 4]]))
+        self.assertRaises(ValueError, stp.evaluate, np.array([1,2]))
 
     def test_visualize(self):
         stp1 = STP(dim=1, obj=1, x_lb=-1, x_ub=1)
         stp2 = STP(dim=2, obj=1, x_lb=-1, x_ub=1)
-        vis_2d = TMP_DIR / 'test_vis_2d'
-        vis_3d = TMP_DIR / 'test_vis_3d'
+        vis_2d = self.tmp_dir / 'test_vis_2d'
+        vis_3d = self.tmp_dir / 'test_vis_3d'
         stp2.visualize_2d(n_points=10)
         stp2.visualize_3d(n_points=10)
         stp2.visualize_2d(filename=str(vis_2d), n_points=10)
@@ -149,12 +146,13 @@ class TestSingleTaskProblem(unittest.TestCase):
 class InitAttrAfterSuper(_MultiTaskProblem):
     is_realworld = False
 
-    def __init__(self, dim: int = 2):
-        super().__init__()
-        self.dim = dim
+    def __init__(self, dim: int = 2, *args, **kwargs):
+        super().__init__(dim, *args, **kwargs)
+        self.test_attr = 'test_attr'
 
-    def _init_tasks(self, *args, **kwargs):
-        return [STP(self.dim, 1, 0, 1) for _ in range(TASK_NUM)]
+    def _init_tasks(self, dim, *args, **kwargs):
+        self.test_attr = self.test_attr + 'new_value'
+        return [STP(dim, 1, 0, 1, **kwargs) for _ in range(TASK_NUM)]
 
 
 class InitWithInvalidReturn(_MultiTaskProblem):
@@ -170,40 +168,40 @@ class InitWithInvalidReturn(_MultiTaskProblem):
 class SyntheticMtp(_MultiTaskProblem):
     is_realworld = False
 
-    def __init__(self, dim: int = 2):
-        self.dim = dim
-        super().__init__()
+    def __init__(self, dim: int = 2, **kwargs):
+        super().__init__(dim, **kwargs)
 
-    def _init_tasks(self, *args, **kwargs):
-        return [STP(self.dim, 1, 0, 1) for _ in range(TASK_NUM)]
+    def _init_tasks(self, dim, **kwargs):
+        return [STP(dim, 1, 0, 1, **kwargs) for _ in range(TASK_NUM)]
 
 
 class RealworldMtp(_MultiTaskProblem):
     is_realworld = True
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-    def _init_tasks(self, *args, **kwargs):
-        return [STP(2, 1, 0, 1) for _ in range(TASK_NUM)]
+    def _init_tasks(self, **kwargs):
+        return [STP(2, 1, 0, 1, **kwargs) for _ in range(TASK_NUM)]
 
 
 class TestMultiTaskProblem(unittest.TestCase):
 
     def setUp(self):
-        self.temp_dir = Path(__file__).parent / 'tmp'
-        self.temp_dir.mkdir(parents=True, exist_ok=True)
+        self.tmp_dir = Path('tmp')
+        self.tmp_dir.mkdir()
 
     def tearDown(self):
-        for f in os.listdir(self.temp_dir):
-            os.remove(self.temp_dir / f)
-        os.rmdir(self.temp_dir)
+        shutil.rmtree(self.tmp_dir)
 
     def test_init(self):
         self.assertRaises(AttributeError, InitAttrAfterSuper)
         self.assertRaises(TypeError, InitWithInvalidReturn)
+        _ = SyntheticMtp(random_ctrl='no')
+        _ = RealworldMtp(random_ctrl='strong')
+        self.assertRaises(ValueError, RealworldMtp, random_ctrl='not_support')
         prob = SyntheticMtp()
-        filename = self.temp_dir / 'test_show.png'
+        filename = self.tmp_dir / 'test_show.png'
         prob.show_distribution(str(filename))
         prob.show_distribution()
         self.assertTrue(filename.exists())

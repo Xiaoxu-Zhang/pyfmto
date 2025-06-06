@@ -1,8 +1,5 @@
-#!usr/bin/env/ python
-# -*- coding:utf-8 -*-
-import unittest
-
 import numpy as np
+import unittest
 
 from pyfmto.problems.solution import Solution
 
@@ -10,7 +7,7 @@ from pyfmto.problems.solution import Solution
 class TestSolution(unittest.TestCase):
     def setUp(self):
         """Setup common test environment."""
-        self.dim = 10
+        self.dim = 20
         self.obj = 1
         self.init_fe = 5 * self.dim
         self.max_fe = 11 * self.dim

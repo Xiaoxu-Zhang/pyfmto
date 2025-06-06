@@ -1,7 +1,6 @@
-import unittest
-import pickle
-from pathlib import Path
 import numpy as np
+import unittest
+from pathlib import Path
 from scipy.io import loadmat
 
 from pyfmto.problems import load_problem

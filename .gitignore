@@ -137,3 +137,6 @@ dmypy.json
 
 # any temp
 temp*
+
+# outputs
+out/

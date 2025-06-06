@@ -1,11 +1,6 @@
-#!usr/bin/env/ python
-# -*- coding:utf-8 -*-
-
 import unittest
 
 from pyfmto.problems import load_problem
-
-_ORIGINAL_PROBLEMS = ["Griewank", "Rastrigin", "Ackley", "Schwefel", "Sphere", "Rosenbrock", "Weierstrass", "Ellipsoid"]
 
 
 class TestTevc2024(unittest.TestCase):

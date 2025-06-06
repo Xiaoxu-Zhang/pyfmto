@@ -10,7 +10,7 @@ from numpy import ndarray
 from opfunu import draw_2d, draw_3d
 from pyDOE import lhs
 from tabulate import tabulate
-from typing import List, Union, Tuple, Optional, Literal
+from typing import List, Union, Tuple, Optional
 
 from .solution import Solution
 
@@ -325,8 +325,6 @@ class SingleTaskProblem(ABC):
             x_init = x_init * (self._partition[1] - self._partition[0]) + self._partition[0]
 
         y_init = np.array(self.evaluate(x_init))
-        if y_init.ndim == 1:
-            y_init = y_init.reshape(-1, self.obj)
         self.solutions.clear()  # Do not remove this line
         self.solutions.append(x_init, y_init)
 

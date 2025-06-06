@@ -1,10 +1,13 @@
-#!usr/bin/env/ python
-# -*- coding:utf-8 -*-
 import unittest
-from pyfmto.framework.packages import Actions, ClientPackage, ServerPackage, DataArchive
+from pyfmto.framework.packages import (
+    Actions,
+    ClientPackage,
+    ServerPackage,
+    DataArchive
+)
 
 
-class TestPackages(unittest.TestCase):
+class TestPackagesForCoverage(unittest.TestCase):
     def test_actions_enum(self):
         self.assertEqual(Actions.REGISTER.name, 'REGISTER')
         self.assertEqual(Actions.PUSH_INIT.name, 'PUSH_INIT')

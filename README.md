@@ -46,7 +46,7 @@ from pyfmto.problems import list_problems, load_problem
 prob_names = list_problems()
 
 # load the first problem
-prob = load_problem(prob_name=prob_names[0])
+prob = load_problem(name=prob_names[0])
 
 # `prob_name` is case-insensitive and ignores underscores to match 'PascalCase' or 'camelCase' class name.
 # For example, the problem `SvmLandmine` can be loaded using any of the following:

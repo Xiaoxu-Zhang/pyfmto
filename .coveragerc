@@ -1,0 +1,4 @@
+[run]
+source = src/pyfmto
+data_file = coverage/.coverage
+omit = src/pyfmto/algorithms/*

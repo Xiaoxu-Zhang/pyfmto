@@ -3,14 +3,14 @@ import numpy as np
 
 from pyfmto.problems.problem import SingleTaskProblem, check_and_transform
 from pyfmto.problems.benchmarks import (
-    Griewank as _Griewank,
-    Rastrigin as _Rastrigin,
-    Ackley as _Ackley,
-    Schwefel as _Schwefel,
-    Sphere as _Sphere,
-    Rosenbrock as _Rosenbrock,
-    Weierstrass as _Weierstrass,
-    Ellipsoid as _Ellipsoid
+    Ackley,
+    Ellipsoid,
+    Griewank,
+    Rastrigin,
+    Rosenbrock,
+    Schwefel,
+    Sphere,
+    Weierstrass,
 )
 
 
@@ -148,8 +148,8 @@ class OrigEllipsoid(BatchEval):
         return out
 
 
-curr_impl: list[SingleTaskProblem] = [_Griewank(), _Rastrigin(), _Ackley(), _Schwefel(), _Sphere(), _Rosenbrock(),
-                                      _Weierstrass(), _Ellipsoid()]
+curr_impl: list[SingleTaskProblem] = [Griewank(), Rastrigin(), Ackley(), Schwefel(), Sphere(), Rosenbrock(),
+                                      Weierstrass(), Ellipsoid()]
 orig_impl: list[SingleTaskProblem] = [OrigGriewank(), OrigRastrigin(), OrigAckley(), OrigSchwefel(), OrigSphere(),
                                       OrigRosenbrock(), OrigWeierstrass(), OrigEllipsoid()]
 

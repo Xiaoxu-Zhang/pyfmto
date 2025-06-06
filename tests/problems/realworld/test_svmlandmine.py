@@ -1,7 +1,5 @@
-#!usr/bin/env/ python
-# -*- coding:utf-8 -*-
-
 import unittest
+
 from pyfmto.problems import load_problem
 
 

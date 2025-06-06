@@ -1,0 +1,3 @@
+client:
+    gamma: 0.5
+    max_gen: 20

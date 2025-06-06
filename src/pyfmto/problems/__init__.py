@@ -33,17 +33,17 @@ PROBLEMS = {name: cls
 _lowercase_map = {name.lower(): name for name in PROBLEMS}
 
 
-def load_problem(prob_name, **kwargs) -> MultiTaskProblem:
-    no_space = prob_name.replace('_', '')
-    if prob_name in PROBLEMS:
-        return PROBLEMS[prob_name](**kwargs)
+def load_problem(name, **kwargs) -> MultiTaskProblem:
+    no_space = name.replace('_', '')
+    if name in PROBLEMS:
+        return PROBLEMS[name](**kwargs)
     elif no_space in _lowercase_map:
         return PROBLEMS[_lowercase_map[no_space]](**kwargs)
     else:
-        raise ValueError(f"Problem '{prob_name}' not found, call list_problems() to see available problems.")
+        raise ValueError(f"Problem '{name}' not found, call list_problems() to see available problems.")
 
 
-def list_problems(print_it=True):
+def list_problems(print_it=False):
     data = defaultdict(list)
     for name, cls in PROBLEMS.items():
         instance: MultiTaskProblem = cls(_init_solutions=False)

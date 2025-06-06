@@ -1,23 +1,30 @@
 import unittest
-import yaml
-from pathlib import Path
 
 from pyfmto.problems import load_problem, list_problems
 
 
-class TestAllProblemsCanBeEvaluate(unittest.TestCase):
+class TestAllProblems(unittest.TestCase):
+    def setUp(self):
+        self.problems = []
+        for prob_name in list_problems():
+            self.problems.append(load_problem(prob_name, _init_solutions=False))
+
+    def test_list_problems(self):
+        list_problems(print_it=True)
 
     def test_property_is_set(self):
-        for prob_name in list_problems(print_it=False):
-            problem = load_problem(prob_name, _init_solutions=False)
-            msg = f"Problem {problem.name}'s is_realworld property not set."
-            self.assertTrue(problem.is_realworld in [True, False], msg=msg)
+        for prob in self.problems:
+            msg = f"Problem {prob.name}'s is_realworld property not set."
+            self.assertTrue(prob.is_realworld in [True, False], msg=msg)
+
+    def test_docstring(self):
+        for prob in self.problems:
+            _ = str(prob)
 
     def test_evaluate(self):
-        for prob_name in list_problems(print_it=False):
-            problem = load_problem(prob_name, _init_solutions=False)
-            for func in problem:
-                msg = f"Problem {prob_name}.func{func.id}({func.name}) evaluation failed."
+        for prob in self.problems:
+            for func in prob:
+                msg = f"Problem {prob.name}.func{func.id}({func.name}) evaluation failed."
                 x1 = func.random_uniform_x(1)
                 x2 = func.random_uniform_x(2)
                 y1 = func.evaluate(x1)
