@@ -18,7 +18,8 @@ LOG_HEAD= r"""
         /_/       /____/                                      
 
 """
-LOG_PATH = Path.cwd() / 'out' / 'logs'
+LOG_PATH = Path('out', 'logs')
+LOG_PATH.mkdir(parents=True, exist_ok=True)
 LOG_FILE = LOG_PATH / 'pyfmto.log'
 LOG_BACKUP = LOG_PATH / 'backup.log'
 LOG_CONF = {
@@ -48,15 +49,12 @@ LOG_CONF = {
 }
 
 
-def _check_path():
-    if not LOG_PATH.exists():
-        LOG_PATH.mkdir(parents=True)
-
-
-def _check_file():
-    if not LOG_FILE.exists():
-        with open(LOG_FILE, 'w', encoding='utf-8') as f:
-            f.write(LOG_HEAD)
+def _init_file():
+    LOG_PATH.mkdir(parents=True, exist_ok=True)
+    if LOG_FILE.exists():
+        shutil.copy(LOG_FILE, LOG_BACKUP)
+    with LOG_FILE.open('w', encoding='utf-8') as f:
+        f.write(LOG_HEAD)
 
 
 def _init_conf():
@@ -64,15 +62,8 @@ def _init_conf():
 
 
 def reset_log():
-    if LOG_FILE.exists():
-        shutil.copy(str(LOG_FILE), str(LOG_BACKUP))
-        LOG_FILE.unlink()
-        with open(LOG_FILE, 'w', encoding='utf-8') as f:
-            f.write(LOG_HEAD)
+    _init_file()
+    _init_conf()
 
-
-_check_path()
-_check_file()
 _init_conf()
-
 logger = logging.getLogger('pyfmto')

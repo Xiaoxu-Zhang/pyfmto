@@ -7,8 +7,40 @@ from typing import Literal, Optional
 __all__ = [
     'colored',
     'timer',
-    'show_in_table'
+    'titled_tabulate',
+    'show_in_table',
+    'tabulate_formats'
 ]
+
+class TabulatesFormats:
+    plain = 'plain'
+    simple = 'simple'
+    grid = 'grid'
+    simple_grid = 'simple_grid'
+    rounded_grid = 'rounded_grid'
+    heavy_grid = 'heavy_grid'
+    mixed_grid = 'mixed_grid'
+    double_grid = 'double_grid'
+    fancy_grid = 'fancy_grid'
+    outline = 'outline'
+    simple_outline = 'simple_outline'
+    rounded_outline = 'rounded_outline'
+    mixed_outline = 'mixed_outline'
+    double_outline = 'double_outline'
+    fancy_outline = 'fancy_outline'
+    pipe = 'pipe'
+    presto = 'presto'
+    orgtbl = 'orgtbl'
+    rst = 'rst'
+    mediawiki = 'mediawiki'
+    html = 'html'
+    latex = 'latex'
+    latex_raw = 'latex_raw'
+    latex_booktabs = 'latex_booktabs'
+    latex_longtable = 'latex_longtable'
+
+
+tabulate_formats = TabulatesFormats()
 
 
 def colored(text: str, color: Literal['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'reset']):
@@ -116,6 +148,14 @@ def timer(name: Optional[str] = None, where: Literal['log', 'console', 'both'] =
         return result
 
     return wrapper
+
+
+def titled_tabulate(title: str, fill_char: str, *args, **kwargs):
+    title = ' ' + title if not title.startswith(' ') else title
+    title = title + ' ' if not title.endswith(' ') else title
+    tab = tabulate(*args, **kwargs)
+    tit = title.center(tab.find('\n'), fill_char)
+    return f"\n{tit}\n{tab}"
 
 
 def show_in_table(**kwargs):

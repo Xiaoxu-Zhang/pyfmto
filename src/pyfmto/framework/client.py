@@ -7,13 +7,12 @@ from abc import abstractmethod, ABC
 from collections import defaultdict
 from numpy import ndarray
 from requests.exceptions import ConnectionError
-from tabulate import tabulate
 from tqdm import tqdm
 from typing import final, Optional, Any
 
 from .packages import ClientPackage, ServerPackage, Actions
 from pyfmto.problems import SingleTaskProblem
-from pyfmto.utilities import logger
+from pyfmto.utilities import logger, titled_tabulate, tabulate_formats as tf
 
 __all__ = [
     'Client',
@@ -80,20 +79,25 @@ class Client(ABC):
         param_dict['IID'].append(self.problem.np_per_dim)
         param_dict['IniFE'].append(self.problem.fe_init)
         param_dict['MaxFE'].append(self.problem.fe_max)
-
-        tab = tabulate(param_dict, headers='keys', tablefmt='simple_grid')
-        logger.info(f"\n{'=' * 30} {self.name} Params {'=' * 30}\n{tab}")
+        tab = titled_tabulate(
+            f"{self.name} Params", '=',
+            param_dict, headers='keys', tablefmt=tf.rounded_grid
+        )
+        logger.info(tab)
 
     def __logging_round_info(self, only_latest: bool):
         if only_latest:
-            temp = {}
+            data = {}
             for k, v in self._round_info.items():
-                temp[k] = v[-1:]
-            tab = tabulate(temp, headers='keys', tablefmt='simple_grid')
+                data[k] = v[-1:]
         else:
-            tab = tabulate(self._round_info, headers='keys', tablefmt='simple_grid')
+            data = self._round_info
         if self._round_info:
-            logger.info(f"\n{'=' * 30} {self.name} {self.problem.name}({self.dim}D) {'=' * 30}\n{tab}")
+            tab = titled_tabulate(
+                f"{self.name} {self.problem.name}({self.dim}D)",
+                '=', data, headers='keys', tablefmt=tf.rounded_grid
+            )
+            logger.info(tab)
 
     def record_round_info(self, name:str, value: str):
         self._round_info[name].append(value)
@@ -114,7 +118,6 @@ class Client(ABC):
             while self.problem.fe_available > 0:
                 self.optimize()
                 pbar.update(self.solutions.num_updated)
-                logger.info(f"round info size {len(self._round_info)}")
                 self.__logging_round_info(only_latest=True)
 
             self.__logging_round_info(only_latest=False)

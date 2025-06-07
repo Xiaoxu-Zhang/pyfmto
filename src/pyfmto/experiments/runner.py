@@ -82,6 +82,9 @@ class Runner:
         client_cls = load_algorithm(alg_name).get('client')
         curr_run = self.update_iter(None, res_path)
         while curr_run <= self.num_runs:
+            reset_log()
+            clear_console()
+
             # Init clients
             problem = load_problem(prob_name, **prob_args)
             clients = [client_cls(p) for p in problem]
@@ -132,8 +135,6 @@ class Runner:
         return (c.result() for c in client_futures)
 
     def update_iter(self, curr_run, res_path):
-        clear_console()
-        reset_log()
         if self.save_res:
             num_res = check_path(res_path)
             return num_res + 1

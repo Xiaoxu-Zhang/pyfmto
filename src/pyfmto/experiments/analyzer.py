@@ -18,7 +18,7 @@ from typing import Union, Optional
 
 from .utils import load_results, RunSolutions, Statistics, MergedSolution, load_analyses_settings, clear_console
 
-__all__ = ['results']
+__all__ = ['AnalyzeResults']
 
 
 class Analyzer:
@@ -610,7 +610,7 @@ class Analyzer:
             print('\n'.join(sorted(result_list)))
 
 
-class Analyzing:
+class AnalyzeResults:
     def __init__(self):
         try:
             settings = load_analyses_settings()
@@ -655,6 +655,3 @@ class Analyzing:
     def to_console(self, **kwargs):
         for comb in self.combinations:
             self.analyzer.to_console(*comb, **kwargs)
-
-
-results = Analyzing()
