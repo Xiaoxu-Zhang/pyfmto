@@ -17,9 +17,7 @@
 - Linux/MacOS
 - Python 3.9+
 
-## Getting Started
-
-### Install
+## Install
 
 Install with pip
 
@@ -35,9 +33,11 @@ cd pyfmto
 pip install .
 ```
 
-### Usage
+## Usage
 
-Show available problems and load a problem
+### Problems
+
+Show available problems or load a problem, available problems and supported args can be found [here](#problem-args).
 
 ```python
 from pyfmto.problems import list_problems, load_problem
@@ -46,7 +46,7 @@ from pyfmto.problems import list_problems, load_problem
 prob_names = list_problems()
 
 # load the first problem
-prob = load_problem(name=prob_names[0])
+_ = load_problem(name=prob_names[0])
 
 # `prob_name` is case-insensitive and ignores underscores to match 'PascalCase' or 'camelCase' class name.
 # For example, the problem `SvmLandmine` can be loaded using any of the following:
@@ -54,13 +54,6 @@ _ = load_problem('svm_landmine')
 _ = load_problem('svmlandmine')
 _ = load_problem('SvmLandmine')
 _ = load_problem('SVM_Landmine')
-
-```
-
-Play with a problem
-
-```python
-from pyfmto.problems import load_problem
 
 # load a problem with customized args
 prob = load_problem('arxiv2017', dim=2, init_fe=20, max_fe=50, np_per_dim=5)
@@ -77,10 +70,81 @@ first_task.visualize_2d(f'visualize2D T{first_task.id}')
 first_task.visualize_3d(f'visualize3D T{first_task.id}')
 ```
 
-Implement a federated optimization algorithm
+### Algorithms
+
+#### Show available algorithms
 
 ```python
-# your_algorithm_server.py
+from pyfmto.algorithms import list_algorithms
+
+list_algorithms(print_it=True)
+```
+
+If you have implemented an algorithm named `MYALG` [in this way](#implement-an-algorithm-named-myalg), you will see it in the console.
+
+```txt
+builtins:
+    FDEMD
+    FMTBO
+yours:
+    MYALG
+```
+
+#### Run algorithms
+
+Add settings.yaml and config
+
+```yaml
+runs: # conf for experiments
+  others:
+    num_runs: 1
+    save_res: False
+    clean_tmp: True
+  algorithms: [FDEMD, FMTBO]
+  problems:
+    cec2022:
+      args:
+        np_per_dim: [1, 2]
+    arxiv2017:
+analyses: # conf for result analysis
+  results: ~
+  algorithms:
+    - [FMTBO, FDEMD]
+  problems: [CEC2022]
+  np_per_dim: [1, 2, 4, 6]
+```
+
+Add run.py and start experiments
+
+```python
+# run.py
+from pyfmto.experiments import exp
+
+exp.run()
+```
+
+#### Implement an algorithm named `MYALG`
+
+1. Create algorithms directory `path/to/your/project/algorithms/`
+2. Create algorithm package and key modules as follows:
+
+```txt
+path/to/your/project/
+    ├── algorithms/
+    │   └── MYALG
+    │       ├── __init__.py
+    │       ├── myalg_client.py
+    │       └── myalg_server.py
+    ├── run.py
+    └── settings.yaml
+```
+
+3. Implement your algorithm `MYALG` (Details coming soon)
+
+Implement the server side
+
+```python
+# myalg_server.py
 from pyfmto.framework import Server, ClientPackage, ServerPackage
 
 
@@ -94,12 +158,12 @@ class MyServer(Server):
 
     def aggregate(self, client_id):
         pass
-
-
 ```
 
+Implement the client side
+
 ```python
-# your_algorithm_client.py
+# myalg_client.py
 from pyfmto.framework import Client
 
 
@@ -113,7 +177,17 @@ class MyClient(Client):
         pass
 ```
 
-## Problems
+Import in `__init__.py` (**important**)
+
+```python
+from .myalg_client import MyClient
+from .myalg_server import MyServer
+```
+
+4. Check if your algorithm can be load [in this way](#show-available-algorithms)
+5. Launch experiments by following the [configuration](#run-algorithms) above
+
+## Problem args
 
 The following parameters are available for all problems and can be optionally customized:
 
