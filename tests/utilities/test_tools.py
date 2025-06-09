@@ -1,7 +1,8 @@
 import unittest
 import time
 
-from pyfmto.utilities.tools import colored, timer, show_in_table
+from pyfmto.utilities import tabulate_formats
+from pyfmto.utilities.tools import colored, timer, show_in_table, titled_tabulate
 
 
 class TestTools(unittest.TestCase):
@@ -49,3 +50,17 @@ class TestTools(unittest.TestCase):
         self.assertIn("\033[32m", colored_table)  # green for float
         self.assertIn("\033[31m", colored_table)  # red for boolean (False)
         self.assertIn("\033[35m", colored_table)  # magenta for int
+
+    def test_titled_tabulate(self):
+        data = {"abc": [1, 2, 3], "bcd": [4, 5, 6], 'cde': [7, 8, 9]}
+        tit = titled_tabulate(
+            "Test",
+            '=',
+            data,
+            headers="keys",
+            tablefmt=tabulate_formats.rounded_grid
+        )
+
+        lines = tit.split('\n')
+        self.assertTrue('Test' in lines[1], f"Titled table is \n {tit}")
+        self.assertEqual(len(tit[1]), len(tit[2]))
