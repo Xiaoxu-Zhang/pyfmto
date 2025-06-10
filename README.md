@@ -12,44 +12,46 @@
 
 # Federated Many-task Optimization Library for Python
 
-## System Requirements
-
-- Linux/MacOS
-- Python 3.9+
+**pyfmto** is a Python library for federated many-task optimization
 
 ## Install
 
-Install with pip
+Require python >= 3.9
 
 ```bash
 pip install https://pyfmto.oss-cn-hangzhou.aliyuncs.com/dist/pyfmto-0.1.0-py3-none-any.whl
 ```
 
-Or installing from the source
-
-```bash
-git clone https://github.com/pyfmto/pyfmto.git
-cd pyfmto
-pip install .
-```
-
 ## Usage
+
+- [Problems](#problems): A collection of synthetic and real-world problems for federated many-task optimization.
+- [Algorithms](#show-available-algorithms): A collection of federated many-task optimization algorithms.
+- [Framework](#implement-an-algorithm-named-myalg): A framework for implementing federated many-task optimization algorithms.
+- [Experiments](#run-algorithms): Tools for running experiments and analyzing results.
 
 ### Problems
 
-Show available problems or load a problem, available problems and supported args can be found [here](#problem-args).
+List problems
 
 ```python
-from pyfmto.problems import list_problems, load_problem
+from pyfmto.problems import list_problems
 
 # list all problems in console and get name list
 prob_names = list_problems()
 
-# load the first problem
+```
+
+Load a problem
+
+```python
+from pyfmto.problems import load_problem, list_problems
+
+# load the first problem in the listed problems
+prob_names = list_problems()
 _ = load_problem(name=prob_names[0])
 
-# `prob_name` is case-insensitive and ignores underscores to match 'PascalCase' or 'camelCase' class name.
-# For example, the problem `SvmLandmine` can be loaded using any of the following:
+# `name` is case-insensitive and ignores underscores to match 'PascalCase' or 'camelCase' class name.
+# So the problem `SvmLandmine` can be loaded using any of the following:
 _ = load_problem('svm_landmine')
 _ = load_problem('svmlandmine')
 _ = load_problem('SvmLandmine')
@@ -69,6 +71,8 @@ first_task = prob[0]
 first_task.visualize_2d(f'visualize2D T{first_task.id}')
 first_task.visualize_3d(f'visualize3D T{first_task.id}')
 ```
+
+Problem supported args can be found [here](#problem-args).
 
 ### Algorithms
 
@@ -90,11 +94,74 @@ yours:
     MYALG
 ```
 
-#### Run algorithms
+### Framework
 
-Add settings.yaml and config
+#### Implement an algorithm named `MYALG`
+
+- Organize your code as follows:
+
+```txt
+path/to/your/project/
+    ├── algorithms/
+    │   └── MYALG
+    │       ├── __init__.py
+    │       ├── myalg_client.py
+    │       └── myalg_server.py
+    ├── run.py
+    └── settings.yaml
+```
+
+- Implement the algorithm `MYALG` (Details coming soon)
+
+```python
+# myalg_server.py
+from pyfmto.framework import Server, ClientPackage, ServerPackage
+
+
+class MyServer(Server):
+
+    def __init__(self):
+        super().__init__()
+
+    def handle_request(self, client_data: ClientPackage) -> ServerPackage:
+        pass
+
+    def aggregate(self, client_id):
+        pass
+```
+
+```python
+# myalg_client.py
+from pyfmto.framework import Client
+
+
+class MyClient(Client):
+
+    def __init__(self, problem):
+        super().__init__(problem)
+        ...
+
+    def optimize(self):
+        pass
+```
+
+```python
+# __init__.py
+from .myalg_client import MyClient
+from .myalg_server import MyServer
+```
+
+- Check if your algorithm can be load [in this way](#show-available-algorithms)
+- Launch experiments by following the [configuration](#run-algorithms) above
+
+### Experiments
+
+#### Configure
+
+Configure the experiments
 
 ```yaml
+# settings.yaml
 runs: # conf for experiments
   others:
     num_runs: 1
@@ -114,7 +181,7 @@ analyses: # conf for result analysis
   np_per_dim: [1, 2, 4, 6]
 ```
 
-Add run.py and start experiments
+Edit run.py
 
 ```python
 # run.py
@@ -123,71 +190,19 @@ from pyfmto.experiments import exp
 exp.run()
 ```
 
-#### Implement an algorithm named `MYALG`
+#### Start experiments
 
-1. Create algorithms directory `path/to/your/project/algorithms/`
-2. Create algorithm package and key modules as follows:
+- Run `run.py` in IDE
+- Run in terminal or cmd
 
-```txt
-path/to/your/project/
-    ├── algorithms/
-    │   └── MYALG
-    │       ├── __init__.py
-    │       ├── myalg_client.py
-    │       └── myalg_server.py
-    ├── run.py
-    └── settings.yaml
-```
+  ```bash
+  cd path/to/your/project
+  python run.py
+  ```
 
-3. Implement your algorithm `MYALG` (Details coming soon)
+## Appendix
 
-Implement the server side
-
-```python
-# myalg_server.py
-from pyfmto.framework import Server, ClientPackage, ServerPackage
-
-
-class MyServer(Server):
-
-    def __init__(self):
-        super().__init__()
-
-    def handle_request(self, client_data: ClientPackage) -> ServerPackage:
-        pass
-
-    def aggregate(self, client_id):
-        pass
-```
-
-Implement the client side
-
-```python
-# myalg_client.py
-from pyfmto.framework import Client
-
-
-class MyClient(Client):
-
-    def __init__(self, problem):
-        super().__init__(problem)
-        ...
-
-    def optimize(self):
-        pass
-```
-
-Import in `__init__.py` (**important**)
-
-```python
-from .myalg_client import MyClient
-from .myalg_server import MyServer
-```
-
-4. Check if your algorithm can be load [in this way](#show-available-algorithms)
-5. Launch experiments by following the [configuration](#run-algorithms) above
-
-## Problem args
+### Problem args
 
 The following parameters are available for all problems and can be optionally customized:
 
@@ -211,3 +226,7 @@ Available problems and their configurable parameters are listed below:
 
 - **Realworld**
   - **svm_landmine**
+
+### Algorithm args
+
+...
