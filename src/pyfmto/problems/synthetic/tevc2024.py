@@ -1,7 +1,5 @@
-import importlib
 from pathlib import Path
 from scipy.io import loadmat
-from tabulate import tabulate
 from typing import Literal, Type
 
 from .. import benchmarks

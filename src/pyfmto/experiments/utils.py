@@ -119,8 +119,10 @@ def gen_path(alg_name, prob_name, prob_args):
     np_per_dim = prob_args.get('np_per_dim')
     dim = prob_args.get('dim')
     dim = '' if dim is None else f'_{dim}D'
+    src_prob = prob_args.get('src_problem', '')
+    src_prob = f'-{src_prob}' if src_prob != '' else ''
     init_data_type = 'IID' if np_per_dim in (1, None) else f'NIID{np_per_dim}'
-    res_root = Path('out', 'results', alg_name, f"{prob_name.upper()}{dim}", init_data_type)
+    res_root = Path('out', 'results', alg_name, f"{prob_name.upper()}{src_prob}{dim}", init_data_type)
     return res_root
 
 

@@ -115,7 +115,7 @@ class FmtboClient(Client):
         else:
             assert theta.shape[0] == self.dim, f"Theta shape[0]={theta.shape[0]} != dim={self.dim}"
         model = DACE(
-            regr=self.regr,
+            regr=regr_constant,
             corr=corr_gauss,
             theta=theta,
             thetaL=1e-5 * np.ones(self.dim),
