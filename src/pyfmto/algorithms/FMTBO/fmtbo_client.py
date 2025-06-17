@@ -28,7 +28,6 @@ class FmtboClient(Client):
         self.global_gp_params = None
         self.global_gp_model = None
         self.local_gp_model = None
-        self.regr = regr_constant
 
         self._ga_operator = GeneticAlgorithm(x_lb=self.x_lb, x_ub=self.x_ub, dim=self.dim,
                                              pop_size=self.fe_init,

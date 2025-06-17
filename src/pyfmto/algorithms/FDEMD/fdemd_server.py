@@ -7,7 +7,7 @@ from typing import Callable
 from pyfmto.framework import Server, ClientPackage, ServerPackage, Actions
 from pyfmto.utilities import logger
 
-from pyfmto.algorithms.FTS import init_samples
+from pyfmto.algorithms.TS import init_samples
 from .fdemd_utils import RadialBasisFunctionNetwork as RBFNetwork, AggData
 
 

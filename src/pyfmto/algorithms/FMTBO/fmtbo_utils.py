@@ -1,6 +1,6 @@
 import numpy as np
 
-from pyfmto.algorithms.FTS import init_samples
+from pyfmto.algorithms.TS import init_samples
 
 
 def power(mat1, mat2):

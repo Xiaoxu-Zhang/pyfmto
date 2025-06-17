@@ -4,8 +4,8 @@ from pydacefit.corr import corr_gauss
 from pydacefit.regr import regr_constant
 from scipy.stats import norm
 
-from pyfmto.algorithms.FTS import ThompsonSampling
 from pyfmto.framework import Client, record_runtime
+from .ts_utils import ThompsonSampling
 
 
 class FtsClient(Client):

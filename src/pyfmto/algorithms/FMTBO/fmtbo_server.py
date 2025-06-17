@@ -4,7 +4,7 @@ from typing import Callable
 from pyfmto.framework import Server, ClientPackage, ServerPackage, Actions, DataArchive
 from pyfmto.utilities import logger
 
-from pyfmto.algorithms.FTS import init_samples
+from pyfmto.algorithms.TS import init_samples
 from .fmtbo_utils import AggData
 
 
