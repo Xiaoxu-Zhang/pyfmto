@@ -1,8 +1,5 @@
 import copy
-import itertools
 import math
-from collections import defaultdict
-
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -10,6 +7,7 @@ import pandas as pd
 import scienceplots  # Do not remove this import
 import seaborn
 import time
+from collections import defaultdict
 from numpy import ndarray
 from pathlib import Path
 from pyfmto.utilities import logger, reset_log
@@ -59,12 +57,7 @@ class Analyzer:
         self._cache = defaultdict(dict)
         reset_log()
 
-    def init_data(
-            self,
-            algorithms: list[str],
-            problems: list[str],
-            np_list: list[int]):
-        combinations = list(itertools.product(algorithms, problems, np_list))
+    def init_data(self, combinations):
         for comb in combinations:
             success = self._merge_one_algorithm(*comb)
             if not success:
@@ -644,20 +637,15 @@ class AnalyzeResults:
     def __init__(self):
         try:
             settings = load_analyses_settings()
-            algorithms = settings.get('algorithms')
-            problems = settings.get('problems')
-            np_per_dim = settings.get('np_per_dim')
-            prod = itertools.product(algorithms, problems, np_per_dim)
-            algors = list(set(sum(algorithms, [])))
-            self.combinations = list(prod)
+            self.combinations = settings.get('analysis_comb')
             self.analyzer = Analyzer(settings.get('results'))
-            self.analyzer.init_data(algors, problems, np_per_dim)
+            self.analyzer.init_data(settings.get('initialize_comb'))
             self.analyzer_available = True
         except FileNotFoundError:
             self.analyzer_available = False
 
     def show_combinations(self):
-        header = ['algorithms in comparison', 'on problem', 'partitions']
+        header = ['algorithms', 'problem', 'arguments']
         tab = tabulate(self.combinations, headers=header, tablefmt='rounded_grid')
         clear_console()
         print(tab)

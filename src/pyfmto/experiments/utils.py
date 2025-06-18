@@ -1,6 +1,7 @@
 import copy
 import os
 
+from itertools import product
 from numpy import ndarray
 from pathlib import Path
 from pyfmto.problems import Solution
@@ -17,11 +18,16 @@ __all__ = [
     'save_results',
     'clear_console',
     'prepare_server',
+    'load_experiments',
     'load_runs_settings',
     'load_analyses_settings',
     'Statistics',
     'RunSolutions'
 ]
+
+
+class Defaults:
+    results = Path('out', 'results')
 
 
 def clear_console():
@@ -31,47 +37,96 @@ def clear_console():
         os.system('clear')
 
 
+def load_experiments():
+    settings = load_runs_settings()
+    alg_settings = settings.get('algorithms', {})
+    prob_settings = settings.get('problems', {})
+    alg_items = list(alg_settings.items())
+    prob_items = combine_args(prob_settings)
+    combinations = [(*alg_item, *prob_item) for alg_item, prob_item in product(alg_items, prob_items)]
+    return combinations, settings
+
+
+def combine_args(args: dict):
+    prob_items = []
+    for prob_name, prob_args in args.items():
+        list_args = {k: v for k, v in prob_args.items() if isinstance(v, list)}
+        non_list_args = {k: v for k, v in prob_args.items() if not isinstance(v, list)}
+
+        if not list_args:
+            args = {**non_list_args}
+            prob_items.append((prob_name, args))
+            continue
+
+        keys, values = zip(*list_args.items())
+        for combination in product(*values):
+            args = {**non_list_args, **dict(zip(keys, combination))}
+            prob_items.append((prob_name, args))
+    return prob_items
+
+
 def load_runs_settings():
-    settings = load_yaml('settings.yaml').get('runs')
-    others = settings.get('others')
-    problems = settings.get('problems')
-    algorithms = settings.get('algorithms')
-    settings['algorithms'] = [algorithms] if isinstance(algorithms, str) else algorithms
-    algorithms = settings['algorithms']
+    settings = load_yaml('settings.yaml')
+
+    runs = settings.get('runs', {})
+    problems = runs.get('problems')
+    algorithms = runs.get('algorithms')
 
     type_errors = []
-    if not isinstance(others, (dict, type(None))):
-        type_errors.append(f"'others' must be a dict, got {type(others)} instead.")
     if not _is_1d_str_list(algorithms):
         type_errors.append(f"'algorithms' must be a list of strings, got {type(algorithms)} instead.")
-    if not isinstance(problems, dict):
-        type_errors.append(f"'problems' must be a dict, got {type(problems)} instead.")
+    if not _is_1d_str_list(problems):
+        type_errors.append(f"'problems' must be a list of strings, got {type(problems)} instead.")
 
     if any(type_errors):
         err_str = '\n'.join(type_errors)
         raise TypeError(f"Invalid settings: \n{err_str}")
     else:
-        return settings
+        res_dir = settings.get('results')
+        res_dir = Defaults.results if res_dir is None else Path(res_dir)
+        prob_args = settings.get('problems', {})
+        alg_args = settings.get('algorithms', {})
+        runs.update(problems={name: prob_args.get(name, {}) for name in problems})
+        runs.update(algorithms={name: alg_args.get(name, {}) for name in algorithms})
+        runs.update(results=res_dir)
+    return runs
 
 
 def load_analyses_settings():
-    settings = load_yaml('settings.yaml').get("analyses")
-    res_path = settings.get('results')
-    settings['results'] = Path('out', 'results') if res_path is None else Path(res_path)
+    settings = load_yaml('settings.yaml')
+    analyses = settings.get('analyses', {})
+    algorithms = analyses.get('algorithms')
+    problems = analyses.get('problems')
 
     type_errors = []
-    if not _is_2d_str_list(settings.get('algorithms')):
+    if not _is_2d_str_list(algorithms):
         type_errors.append("'algorithms' must be a 2D str list")
-    if not _is_1d_str_list(settings.get('problems')):
+    if not _is_1d_str_list(problems):
         type_errors.append("'problems' must be a list of strings")
-    if not _is_1d_int_list(settings.get('np_per_dim')):
-        type_errors.append("'np_per_dim' must be a list of integers")
 
     if any(type_errors):
         err_str = '\n'.join(type_errors)
         raise TypeError(f"Invalid settings: \n{err_str}")
     else:
-        return settings
+        res_dir = settings.get('results')
+        res_dir = Defaults.results if res_dir is None else Path(res_dir)
+        prob_args = settings.get('problems', {})
+        prob_items = []
+        for name, args in combine_args({name: prob_args.get(name, {}) for name in problems}):
+            src_prob = args.get('src_problem')
+            np_per_dim = args.get('np_per_dim', 1)
+            if src_prob:
+                prob_items.append((f"{name.upper()}-{src_prob}", np_per_dim))
+            else:
+                prob_items.append((name.upper(), np_per_dim))
+        analysis_comb = [(alg, *prob_item) for alg, prob_item in product(algorithms, prob_items)]
+        initialize_comb = [(alg, *prob_item) for alg, prob_item in product(sum(algorithms, []), prob_items)]
+        analyses = {
+            'results': res_dir,
+            'analysis_comb': analysis_comb,
+            'initialize_comb': initialize_comb
+        }
+    return analyses
 
 
 def _is_2d_str_list(lst):
@@ -95,7 +150,7 @@ def _is_1d_int_list(lst):
     return isinstance(lst, list) and all(isinstance(item, int) for item in lst)
 
 
-def prepare_server(alg_name):
+def prepare_server(alg_name, alg_args):
     alg_conf = load_algorithm(alg_name)
     pkg_name = f"algorithms.{alg_name}"
     is_builtin = alg_conf['is_builtin_alg']

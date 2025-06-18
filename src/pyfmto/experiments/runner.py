@@ -3,13 +3,13 @@ import os
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
-from itertools import product
 from pyfmto.problems import load_problem
 from pyfmto.utilities import logger, reset_log
 from setproctitle import setproctitle
 from subprocess import Popen
 from typing import Optional
 
+from .utils import load_experiments
 from ..utilities import timer, show_in_table
 from ..algorithms import load_algorithm
 from .utils import clear_console, prepare_server, gen_path, check_path, save_results, load_runs_settings
@@ -18,53 +18,24 @@ __all__ = ['exp']
 
 
 class Runner:
-    def __init__(self, settings: dict):
-        # algorithms & problems
-        alg_list = settings['algorithms']
-        probs = settings['problems']
-        self.combinations = self.gen_combinations(alg_list, probs)
+    def __init__(self):
+        comb, settings = load_experiments()
+        self.combinations = comb
         self.serv_proc: Optional[Popen] = None
 
         # other settings
-        self.num_runs = 5
-        self.save_res = False
-        self.clean_tmp = False
-        self.seed = 123
-        self.__dict__.update(settings.get('others', {}))
+        self.num_runs = settings.get('num_runs', 3)
+        self.res_dir = settings.get('results')
+        self.save_res = settings.get('save_res', True)
+        self.clean_tmp = settings.get('clean_tmp', True)
+        self.seed = settings.get('seed', 42)
         atexit.register(self.stop_server)
-
-
-    @staticmethod
-    def gen_combinations(algorithms, problem_settings):
-        if isinstance(algorithms, str):
-            algorithms = [algorithms]
-        combinations = []
-
-        for algorithm in algorithms:
-            for problem_name, problem_data in problem_settings.items():
-                args = problem_data.get("args")
-                args = args if args else {}
-
-                list_args = {k: v for k, v in args.items() if isinstance(v, list)}
-                non_list_args = {k: v for k, v in args.items() if not isinstance(v, list)}
-
-                if not list_args:
-                    combined_args = {**non_list_args}
-                    combinations.append([algorithm, (problem_name, combined_args)])
-                    continue
-
-                keys, values = zip(*list_args.items())
-                for combination in product(*values):
-                    combined_args = {**non_list_args, **dict(zip(keys, combination))}
-                    combinations.append([algorithm, (problem_name, combined_args)])
-
-        return combinations
 
     def run(self):
         setproctitle("AlgClients")
-        for idx, (alg_name, (prob_name, prob_args)) in enumerate(self.combinations):
+        for idx, (alg_name, alg_args, prob_name, prob_args) in enumerate(self.combinations):
             res_path = gen_path(alg_name, prob_name, prob_args)
-            self.iterating(idx+1, alg_name, prob_name, prob_args, res_path)
+            self.iterating(idx+1, alg_name, alg_args, prob_name, prob_args, res_path)
         clear_console()
 
         print(f'All runs finished.')
@@ -77,8 +48,10 @@ class Runner:
             os.remove("temp_server.py")
         print(colored_tab)
 
-    def iterating(self, comb_id, alg_name, prob_name, prob_args, res_path):
-        prepare_server(alg_name)
+    def iterating(self, comb_id, alg_name, alg_args, prob_name, prob_args, res_path):
+        clt_args = alg_args.get('client', {})
+        srv_args = alg_args.get('server', {})
+        prepare_server(alg_name, srv_args)
         client_cls = load_algorithm(alg_name).get('client')
         curr_run = self.update_iter(None, res_path)
         while curr_run <= self.num_runs:
@@ -87,7 +60,7 @@ class Runner:
 
             # Init clients
             problem = load_problem(prob_name, **prob_args)
-            clients = [client_cls(p) for p in problem]
+            clients = [client_cls(p, **clt_args) for p in problem]
 
             # Show settings
             colored_tab, original_tab = show_in_table(
@@ -159,26 +132,33 @@ class Runner:
     def num_comb(self):
         return len(self.combinations)
 
-
 SETTING_YML = """
+results: out/results
+
 runs:
-  others:
-    num_runs: 5
-    save_res: False
-    clean_tmp: True
+  num_runs: 3
+  save_res: True
+  clean_tmp: True
   algorithms: [FDEMD, FMTBO]
-  problems:
-    cec2022:
-      args:
-        fe_init: 50
-        fe_max: 60
-        np_per_dim: [1, 2]
+  problems: [tetci2019, tevc2024]
+
 analyses:
-  results: ~
   algorithms:
-    - [FMTBO, FDEMD]
-  problems: [CEC2022]
-  np_per_dim: [1, 2]
+    - [FMTBO, FDEMD, ADDFBO]
+  problems: [tetci2019, cec2022]
+
+algorithms:
+  FDEMD:
+    client:
+      max_gen: 20
+    server:
+      ensemble_size: 20
+
+problems:
+  tevc2024:
+    args:
+      src_problem: [Ackley, Ellipsoid]
+      np_per_dim: [1, 2, 4, 6]
 
 """
 
@@ -187,6 +167,4 @@ if not os.path.exists('settings.yaml'):
     with open('settings.yaml', 'w') as f:
         f.write(SETTING_YML)
 
-
-run_conf = load_runs_settings()
-exp = Runner(run_conf)
+exp = Runner()
