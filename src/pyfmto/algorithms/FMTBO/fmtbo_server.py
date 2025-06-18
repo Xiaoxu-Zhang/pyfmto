@@ -6,11 +6,12 @@ from pyfmto.utilities import logger
 
 from pyfmto.algorithms.TS import init_samples
 from .fmtbo_utils import AggData
+from ...utilities.tools import warn_unused_kwargs
 
 
 class FmtboServer(Server):
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         super().__init__()
         self.client_bounds = []
         self.clients_data = defaultdict(DataArchive)
@@ -18,6 +19,7 @@ class FmtboServer(Server):
         self.d_share_size = None
         self.d_share = None
         self.dim = None
+        warn_unused_kwargs('FmtboServer', kwargs)
 
     def create_d_share(self):
         if self.d_share is not None or len(self.client_bounds) < self.num_clients:

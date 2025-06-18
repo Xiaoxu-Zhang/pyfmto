@@ -20,8 +20,7 @@ __all__ = [
     'load_runs_settings',
     'load_analyses_settings',
     'Statistics',
-    'RunSolutions',
-    'MergedSolution'
+    'RunSolutions'
 ]
 
 
@@ -245,22 +244,3 @@ class Statistics:
         self.opt_log = opt_log
         self.fe_init = 0
         self.fe_max = 0
-
-
-class MergedSolution:
-    def __init__(self):
-        self.merged_result = {}
-
-    def append(self, cid: int, sta: Statistics):
-        self.merged_result[cid] = sta
-
-    def get_data(self, cid: int) -> Statistics:
-        return self.merged_result[cid]
-
-    @property
-    def sorted_ids(self) -> list[int]:
-        return sorted(self.merged_result.keys())
-
-    @property
-    def num_clients(self) -> int:
-        return len(self.merged_result)

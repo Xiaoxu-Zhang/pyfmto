@@ -1,7 +1,5 @@
 import numpy as np
-import yaml
 from collections import defaultdict
-from pathlib import Path
 from scipy.spatial.distance import cdist
 from typing import Callable
 from pyfmto.framework import Server, ClientPackage, ServerPackage, Actions
@@ -9,18 +7,22 @@ from pyfmto.utilities import logger
 
 from pyfmto.algorithms.TS import init_samples
 from .fdemd_utils import RadialBasisFunctionNetwork as RBFNetwork, AggData
+from ...utilities.tools import warn_unused_kwargs
 
 
 class FdemdServer(Server):
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         super().__init__()
-        with open(Path(__file__).parent / 'fdemd.yaml') as f:
-            params = yaml.safe_load(f)
         # centers, spreads, w and b can be broadcast to clients
-        server_params = params.get('server', {})
-        self.model_args = params.get('model', {})
-        self.ensemble_size = server_params.get('ensemble_size', 20)
+        self.ensemble_size = kwargs.get('ensemble_size', 20)
+        self.model_args = {
+            'epoch': 5,  # local epoch
+            'optimizer': 'sgd',  # optimizer of RBF network, sgd/m-sgd/max-gd
+            'lr': 0.06,  # learning rate
+            'alpha': 1.0  # noisy
+        }
+        self.model_args.update(kwargs.get('model_args', {}))
 
         # initialize in self._router_pull_init
         self.dim = None
@@ -34,6 +36,7 @@ class FdemdServer(Server):
         self.d_aux = None
         self.clients_data = defaultdict(list)
         self.agg_res = []
+        warn_unused_kwargs('FdemdServer', kwargs)
 
     def handle_request(self, client_data: ClientPackage) -> ServerPackage:
         action_map: dict[Actions, Callable[[ClientPackage], ServerPackage]] = {

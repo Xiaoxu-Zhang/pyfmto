@@ -1,6 +1,8 @@
 import copy
 import itertools
 import math
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -16,7 +18,9 @@ from tabulate import tabulate
 from tqdm import tqdm
 from typing import Union, Optional
 
-from .utils import load_results, RunSolutions, Statistics, MergedSolution, load_analyses_settings, clear_console
+from .utils import load_results, RunSolutions, Statistics, load_analyses_settings, clear_console
+
+T_Sta = dict[str, dict[str, Statistics]]
 
 __all__ = ['AnalyzeResults']
 
@@ -34,8 +38,8 @@ class Analyzer:
     ...    │      ├── <Prob1>/
     ...    │      │      │
     ...    │      │      ├── IID/
-    ...    │      │      │    ├── <Run1>.pkl
-    ...    │      │      │    ├── <Run2>.pkl
+    ...    │      │      │    ├── <Run1>.msgpack
+    ...    │      │      │    ├── <Run2>.msgpack
     ...    │      │      │    └── ...
     ...    │      │      ├── NIID2/
     ...    │      │      ├── NIID4/
@@ -52,31 +56,42 @@ class Analyzer:
 
     def __init__(self, root: str):
         self._root = Path(root)
-        self._cache = {}
+        self._cache = defaultdict(dict)
         reset_log()
 
-    def to_curve(self,
-                 alg_list: list[str],
-                 prob_name: str,
-                 np_per_dim: int,
-                 aspect_ratio:tuple[float, float, float]=(4,3,3),
-                 alpha: float=0.2,
-                 suffix: str='png',
-                 sciplot_style:Union[list[str], tuple[str]]=('science', 'ieee', 'no-latex'),
-                 chosen_ids: Union[list[int], tuple[int]]=None,
-                 showing_size: int=None,
-                 quality: Optional[int]=None,
-                 all_in_one: bool=True,
-                 in_log_scale: bool=False):
+    def init_data(
+            self,
+            algorithms: list[str],
+            problems: list[str],
+            np_list: list[int]):
+        combinations = list(itertools.product(algorithms, problems, np_list))
+        for comb in combinations:
+            success = self._merge_one_algorithm(*comb)
+            if not success:
+                logger.error(f"failed to merge {'+'.join(comb)}")
+
+    def to_curve(
+            self,
+            algorithms: list[str],
+            problem: str,
+            np_per_dim: int,
+            aspect_ratio:tuple[float, float, float]=(4,3,3),
+            alpha: float=0.2,
+            suffix: str='png',
+            sciplot_style:Union[list[str], tuple[str]]=('science', 'ieee', 'no-latex'),
+            showing_size: int=None,
+            quality: Optional[int]=None,
+            all_in_one: bool=True,
+            in_log_scale: bool=False):
         """
         Generate and save plots of performance curves for specified algorithms and problem settings.
 
         Parameters
         ----------
-        alg_list : list[str]
+        algorithms : list[str]
             List of algorithm names to be plotted.
-        prob_name : str
-            Name of the problem.
+        problem : str
+            List of algorithm names, if len>1, squash clients data for each problem.
         np_per_dim : int
             Number of partitions per dimension.
         aspect_ratio : tuple[float, float, float], optional
@@ -87,8 +102,6 @@ class Analyzer:
             File format suffix for the output image. Supported formats include 'png', 'jpg', 'eps', 'svg', 'pdf'.
         sciplot_style : Union[list[str], tuple[str]], optional
             SciencePlots style parameters. Refer to the SciencePlots documentation for available styles.
-        chosen_ids : Union[list[int], tuple[int]], optional
-            Selected client IDs to plot. If None, all available client IDs are used. if None, plot all.
         showing_size : int, optional
             Number of data points to use for plotting, taken from the last `showing_size` iterations of the convergence sequence.
             If None, use `6 * dim`.
@@ -106,26 +119,25 @@ class Analyzer:
             The function saves the generated plots to the specified file path(s) without returning any value.
         """
         # Prepare the data
-        merged_data, sorted_ids = self._merge_algorithms(alg_list, prob_name, np_per_dim)
-        alg_list = list(merged_data.keys())
-        sorted_ids = self._update_ids(sorted_ids, chosen_ids)
-        num_clients = len(sorted_ids)
-        file_name = self._gen_name(alg_list[-1], prob_name, np_per_dim, sorted_ids, suffix, single_file=all_in_one, in_log_scale=in_log_scale)
-        row, col = self._find_grid_shape(num_clients)
+        statistics = self._get_statistics(algorithms, problem, np_per_dim)
+        algorithms = list(statistics.keys()) # Get the list of available algorithms
+        keys = list(list(statistics.values())[0].keys())
+        file_name = self._gen_name(algorithms[-1], problem, np_per_dim, keys, suffix, single_file=all_in_one, in_log_scale=in_log_scale)
+        row, col = self._find_grid_shape(len(keys))
         fig_size = self._aspect_ratio(*aspect_ratio)
         dpi = 100 * quality if quality in range(10) else 'figure'
 
         # Plot the data
-        colors = seaborn.color_palette("bright", len(alg_list)-1).as_hex()
+        colors = seaborn.color_palette("bright", len(algorithms) - 1).as_hex()
         colors.append("#ff0000")
         with plt.style.context(sciplot_style):
             if all_in_one:
                 fig, axes = plt.subplots(row, col, figsize=fig_size)
-                for idx, cid in enumerate(sorted_ids):
+                for idx, key in enumerate(keys):
                     ax = axes[idx // col, idx % col]
-                    for alg, color in zip(alg_list, colors):
-                        opt_start_at = self._plotting(ax, merged_data, alg, cid, showing_size, in_log_scale, alpha, color)
-                        ax.set_title(f"Client {cid}")
+                    for alg, color in zip(algorithms, colors):
+                        opt_start_at = self._plotting(ax, statistics, alg, key, showing_size, in_log_scale, alpha, color)
+                        ax.set_title(key)
                         ax.set_xlabel('Iteration')
                         ax.set_ylabel('Fitness')
                     if opt_start_at > 0:
@@ -134,33 +146,34 @@ class Analyzer:
                 fig.tight_layout()
                 plt.savefig(file_name, dpi=dpi)
             else:
-                for cid in sorted_ids:
-                    for alg, color in zip(alg_list, colors):
-                        opt_start_at = self._plotting(plt, merged_data, alg, cid, showing_size, in_log_scale, alpha, color)
-                        plt.title(f"Client {cid}")
+                for key in keys:
+                    for alg, color in zip(algorithms, colors):
+                        opt_start_at = self._plotting(plt, statistics, alg, key, showing_size, in_log_scale, alpha, color)
+                        plt.title(key)
                         plt.xlabel('Iteration')
                         plt.ylabel('Fitness')
                     if opt_start_at > 0:
                         plt.axvline(x=opt_start_at, color='gray', linestyle='--', label='Start index')
                     plt.legend()
                     plt.tight_layout()
-                    plt.savefig(file_name[cid])
+                    plt.savefig(file_name[key])
                     plt.close()
 
-    def to_excel(self,
-                 alg_list: list[str],
-                 prob_name: str,
-                 np_per_dim: int,
-                 threshold_p: float=0.05,
-                 styles: Union[list[str], tuple[str]]=('color-bg-grey', 'style-font-bold', 'style-font-underline')):
+    def to_excel(
+            self,
+            algorithms: list[str],
+            problem: str,
+            np_per_dim: int,
+            threshold_p: float=0.05,
+            styles: Union[list[str], tuple[str]]=('color-bg-grey', 'style-font-bold', 'style-font-underline')):
         """
         Generate and save an Excel file containing performance statistics for specified algorithms and problem settings.
 
         Parameters
         ----------
-        alg_list : list[str]
+        algorithms : list[str]
             List of algorithm names to be included in the analysis.
-        prob_name : str
+        problem : str
             Name of the problem being analyzed.
         np_per_dim : int
             Number of partitions per dimension.
@@ -201,7 +214,7 @@ class Analyzer:
             "style-font-italic": "font-style: italic",
             "style-font-underline": "text-decoration: underline"
         }
-        df_data = self._get_table_df(alg_list, prob_name, np_per_dim, threshold_p)
+        df_data = self._get_table_df(algorithms, problem, np_per_dim, threshold_p)
         global_df, solo_df, global_index_mat, solo_index_mat, file_name = df_data
         kwargs1 = {'opt_index_mat': global_index_mat, 'src_data': global_df}
         kwargs2 = {'opt_index_mat': solo_index_mat, 'src_data': solo_df}
@@ -219,17 +232,23 @@ class Analyzer:
             global_styled_df.to_excel(writer, index=False, sheet_name='Global')
             solo_styled_df.to_excel(writer, index=False, sheet_name='Solo')
 
-    def _get_table_df(self, alg_list: list[str], prob_name: str, np_per_dim: int, threshold_p: float=0.05):
-        merged_data, sorted_ids = self._merge_algorithms(alg_list, prob_name, np_per_dim)
-        file_name = self._gen_name(alg_list[-1], prob_name, np_per_dim, sorted_ids, 'xlsx', single_file=True, in_log_scale=False)
-        str_table, float_table = self._tabling(merged_data, sorted_ids, threshold_p)
+    def _get_table_df(
+            self,
+            algorithms: list[str],
+            problem: str,
+            np_per_dim: int,
+            threshold_p: float):
+        statistics = self._get_statistics(algorithms, problem, np_per_dim)
+        keys = list(list(statistics.values())[0].keys())
+        file_name = self._gen_name(algorithms[-1], problem, np_per_dim, keys, 'xlsx', single_file=True, in_log_scale=False)
+        str_table, float_table = self._tabling(statistics, keys, threshold_p)
         global_index_mat, solo_index_mat = self._get_optimality_index_mat(float_table)
 
         global_counter = np.sum(global_index_mat, axis=0).reshape(1, -1)
         solo_counter = np.sum(solo_index_mat, axis=0).reshape(1, -1)
 
         df = pd.DataFrame(str_table, index=None)
-        columns = copy.deepcopy(alg_list)
+        columns = copy.deepcopy(algorithms)
         columns.insert(0, "Clients")
 
         global_counter_df = pd.DataFrame(global_counter, columns=columns, index=None)
@@ -241,12 +260,13 @@ class Analyzer:
         solo_df.iloc[-1, 0] = 'Sum'
         return global_df, solo_df, global_index_mat, solo_index_mat, file_name
 
-    def to_latex(self,
-        alg_list: list[str],
-        prob_name: str,
-        np_per_dim: int,
-        threshold_p: float = 0.05):
-        tab_data = self._get_table_df(alg_list, prob_name, np_per_dim, threshold_p)
+    def to_latex(
+            self,
+            algorithms: list[str],
+            problem: str,
+            np_per_dim: int,
+            threshold_p: float = 0.05):
+        tab_data = self._get_table_df(algorithms, problem, np_per_dim, threshold_p)
         data_df, _, hl_bool_mat, _, file_name = tab_data
         file_name = file_name.with_suffix('.tex')
 
@@ -261,21 +281,26 @@ class Analyzer:
         styled_df = data_df.style.apply(highlight_cells, axis=None)
         latex_code = styled_df.to_latex(column_format='|'.join([''] + ['c'] * len(data_df.columns) + ['']),
                                         environment='longtable',
-                                        caption=f"Table generated for {prob_name}, {np_per_dim} partitions",
-                                        label=f"tab:{prob_name}_{np_per_dim}",
+                                        caption=f"Table generated for {problem}, {np_per_dim} partitions",
+                                        label=f"tab:{problem}_{np_per_dim}",
                                         position='htbp')
 
         with open(file_name, 'w') as f:
             f.write(latex_code)
 
-    def to_console(self, alg_list: list[str], prob_name: str, np_per_dim: int, threshold_p: float=0.05):
-        np_name = 'IID' if np_per_dim == 1 else f"NIID{np_per_dim}"
-        merged_data, sorted_ids = self._merge_algorithms(alg_list, prob_name, np_name)
-        str_table, _ = self._tabling(merged_data, sorted_ids, threshold_p)
+    def to_console(
+            self,
+            algorithms: list[str],
+            problem: str,
+            np_per_dim: int,
+            threshold_p: float=0.05):
+        statistics = self._get_statistics(algorithms, problem, np_per_dim)
+        keys = list(list(statistics.values())[0].keys())
+        str_table, _ = self._tabling(statistics, keys, threshold_p)
 
         pd.set_option('display.colheader_justify', 'center')
         df = pd.DataFrame(str_table)
-        print(f"Total {len(sorted_ids)} clients")
+        print(f"Total {len(keys)} clients")
         print(df.to_string(index=False))
 
     @staticmethod
@@ -308,18 +333,18 @@ class Analyzer:
         global_index_mat = np.hstack((add_col, global_index_mat))
         return global_index_mat, solo_index_mat
 
-    def _tabling(self, merged_data, sorted_ids: list[int], threshold_p: float=0.05):
-        alg_list = list(merged_data.keys())
-        obj_alg = alg_list[-1]
-        obj_alg_merged = merged_data[obj_alg]
-        str_table = {"Clients":["Client{:<2}".format(i) for i in sorted_ids]}
+    def _tabling(self, statistics: T_Sta, keys: list[str], threshold_p: float=0.05):
+        algorithms = list(statistics.keys())
+        obj_alg = algorithms[-1]
+        obj_alg_merged = statistics[obj_alg]
+        str_table = {"Clients":[i for i in keys]}
         float_table = {}
-        for alg in alg_list[:-1]:
+        for alg in algorithms[:-1]:
             str_res = []
             float_res = []
-            for cid in sorted_ids:
-                opt_list1 = merged_data[alg].get_data(cid).opt_orig
-                opt_list2 = obj_alg_merged.get_data(cid).opt_orig
+            for key in keys:
+                opt_list1 = statistics[alg][key].opt_orig
+                opt_list2 = obj_alg_merged[key].opt_orig
                 mean1 = np.mean(opt_list1)
                 mean2 = np.mean(opt_list2)
                 suffix = self._get_t_test_suffix(opt_list1, opt_list2, mean1, mean2, threshold_p)
@@ -327,7 +352,7 @@ class Analyzer:
                 float_res.append(mean1)
             str_table.update({alg: str_res})
             float_table.update({alg: float_res})
-        obj_alg_runs_opt = [obj_alg_merged.get_data(cid).opt_orig for cid in sorted_ids]
+        obj_alg_runs_opt = [obj_alg_merged[key].opt_orig for key in keys]
         obj_alg_opt_runs_mean = np.mean(obj_alg_runs_opt, axis=1)
         str_res = [f"{mean:.2e}" for mean in obj_alg_opt_runs_mean]
         str_table.update({obj_alg: str_res})
@@ -360,8 +385,8 @@ class Analyzer:
         return res_ids
 
     @staticmethod
-    def _plotting(ax, merged_data: dict[str, MergedSolution], alg, cid, showing_size, in_log_scale, alpha, color):
-        c_data = merged_data[alg].get_data(cid)
+    def _plotting(ax, statistics: dict[str, dict[str: Statistics]], alg, key, showing_size, in_log_scale, alpha, color):
+        c_data = statistics[alg][key]
         fe_init = c_data.fe_init
         fe_max = c_data.fe_max
         size_optimization = fe_max - fe_init
@@ -384,54 +409,59 @@ class Analyzer:
     def _get_np_name(np_per_dim: int):
         return 'IID' if np_per_dim == 1 else f"NIID{np_per_dim}"
 
-    def _gen_name(self, obj_alg, prob_name, np_per_dim, ids, suffix, single_file, in_log_scale):
+    def _gen_name(self, obj_alg, problem, np_per_dim, keys, suffix, single_file, in_log_scale):
         np_name = self._get_np_name(np_per_dim)
         log_tag = 'Logarithmic' if in_log_scale else 'Original'
-        filedir = self._root / f"{time.strftime('%Y-%m-%d')}" / f"{obj_alg} / {prob_name}"
+        filedir = self._root / f"{time.strftime('%Y-%m-%d')}" / f"{obj_alg} / {problem}"
         if not filedir.exists():
             filedir.mkdir(parents=True)
         if single_file:
             file_name = filedir / f"{log_tag} {np_name}.{suffix}"
         else:
             file_name = {}
-            for cid in ids:
-                file_name[cid]=filedir/ 'One-by-one' / f"Client {cid:02d}.{suffix}"
+            for k in keys:
+                file_name[k]=filedir/ 'One-by-one' / f"{k}.{suffix}"
         return file_name
 
-    def _merge_algorithms(self, alg_list, prob_name, np_per_dim):
-        merged_data: dict[str, MergedSolution] = {}
-        sorted_ids = []
-        for alg in alg_list:
-            curr_alg_merged = self._merge_one_algorithm(alg, prob_name, np_per_dim)
-            if not curr_alg_merged:
+    def _get_statistics(self, algorithms, problem, np_per_dim) -> T_Sta:
+        statistics: T_Sta = {}
+        for alg in algorithms:
+            res = self._cache.get(f"{alg}_{problem}_{np_per_dim}")
+            if not res:
                 continue
-            merged_data[alg] = curr_alg_merged
-            sorted_ids = merged_data[alg].sorted_ids
-        return merged_data, sorted_ids
+            statis: dict[str, Statistics] = {}
+            for k, v in res.items():
+                curr_data = self._calculate_statistics(v['runs'])
+                curr_data.fe_init = v['fe_init']
+                curr_data.fe_max = v['fe_max']
+                statis[k] = curr_data
+            statistics[alg] = statis
+        return statistics
 
-    def _merge_one_algorithm(self, alg_name: str, prob_name: str, np_per_dim: int):
-        runs_path = self._get_runs_path(alg_name, prob_name, np_per_dim)
+    def _merge_one_algorithm(self, alg_name: str, problem: str, np_per_dim: int) -> bool:
+        runs_path = self._get_runs_path(alg_name, problem, np_per_dim)
         if not runs_path:
-            return None
-        cache_key = f"{alg_name}_{prob_name}_{np_per_dim}"
+            return False
+        cache_key = f"{alg_name}_{problem}_{np_per_dim}"
         if cache_key in self._cache:
-            return self._cache[cache_key]
+            return True
 
         runs_list = self._load_runs_data(runs_path)
         sorted_ids = self._check_attributes(runs_path, runs_list)
-        merged_result = MergedSolution()
+        runs_data: dict[str, dict] = {}
         for cid in sorted_ids:
-            client_runs_data, fe_init, fe_max = self._get_runs_y_data(cid, runs_list)
-            client_merged_data = self._calculate_statistics(client_runs_data)
-            client_merged_data.fe_init = fe_init
-            client_merged_data.fe_max = fe_max
-            merged_result.append(cid, client_merged_data)
-        self._cache[cache_key] = merged_result
-        return merged_result
+            y_list, fe_init, fe_max = self._get_runs_y_data(cid, runs_list)
+            runs_data[f"Client {cid:02d}"] = {
+                'runs': y_list,
+                'fe_init': fe_init,
+                'fe_max': fe_max
+            }
+        self._cache[cache_key] = runs_data
+        return True
 
-    def _get_runs_path(self, alg_name: str, prob_name: str, np_per_dim: int):
+    def _get_runs_path(self, alg_name: str, problem: str, np_per_dim: int):
         np_name = self._get_np_name(np_per_dim)
-        res_dir = Path(f"{self._root}/{alg_name}/{prob_name}/{np_name}")
+        res_dir = Path(f"{self._root}/{alg_name}/{problem}/{np_name}")
         if res_dir.exists():
             result_list = os.listdir(res_dir)
             result_list = [res_dir / f_name for f_name in result_list if f_name.endswith('.msgpack')]
@@ -602,11 +632,11 @@ class Analyzer:
     def _aspect_ratio(width, height, scale):
         return width * scale, height * scale
 
-    def show_raw_results(self, alg_name: str, prob_name: str, np_per_dim: int):
-        result_list = self._get_runs_path(alg_name, prob_name, np_per_dim)
+    def show_raw_results(self, alg_name: str, problem: str, np_per_dim: int):
+        result_list = self._get_runs_path(alg_name, problem, np_per_dim)
         result_list = [str(path) for path in result_list]
         if result_list:
-            print(f"{'=' * 10} {alg_name}+{prob_name}+np({np_per_dim}) total {len(result_list)} files {'=' * 10}")
+            print(f"{'=' * 10} {alg_name}+{problem}+np({np_per_dim}) total {len(result_list)} files {'=' * 10}")
             print('\n'.join(sorted(result_list)))
 
 
@@ -618,8 +648,10 @@ class AnalyzeResults:
             problems = settings.get('problems')
             np_per_dim = settings.get('np_per_dim')
             prod = itertools.product(algorithms, problems, np_per_dim)
+            algors = list(set(sum(algorithms, [])))
             self.combinations = list(prod)
             self.analyzer = Analyzer(settings.get('results'))
+            self.analyzer.init_data(algors, problems, np_per_dim)
             self.analyzer_available = True
         except FileNotFoundError:
             self.analyzer_available = False

@@ -1,7 +1,5 @@
 import copy
 import numpy as np
-import yaml
-from pathlib import Path
 from pydacefit.corr import corr_gauss
 from pydacefit.dace import DACE
 from pydacefit.regr import regr_constant
@@ -10,18 +8,17 @@ from typing import Union
 from pyfmto.framework import Client, ClientPackage, Actions, ServerPackage, record_runtime
 
 from .fmtbo_utils import GeneticAlgorithm, AggData
+from ...utilities.tools import warn_unused_kwargs
 
 rng = np.random.default_rng()
 
 
 class FmtboClient(Client):
-    def __init__(self, problem):
+    def __init__(self, problem, **kwargs):
         super().__init__(problem)
-        with open(Path(__file__).parent / 'fmtbo.yaml', 'r') as f:
-            params = yaml.safe_load(f)
 
         # init control args
-        self.gamma = params.get('gamma', 0.5)
+        self.gamma = kwargs.get('gamma', 0.5)
 
         # init model args
         self.d_share = None
@@ -31,9 +28,10 @@ class FmtboClient(Client):
 
         self._ga_operator = GeneticAlgorithm(x_lb=self.x_lb, x_ub=self.x_ub, dim=self.dim,
                                              pop_size=self.fe_init,
-                                             max_gen=params.get('max_gen', 20))
+                                             max_gen=kwargs.get('max_gen', 20))
 
         self.prev_ver = 0
+        warn_unused_kwargs('FmtboClient', kwargs)
 
     @property
     def global_model_params(self):

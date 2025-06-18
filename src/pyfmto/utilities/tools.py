@@ -9,7 +9,8 @@ __all__ = [
     'timer',
     'titled_tabulate',
     'show_in_table',
-    'tabulate_formats'
+    'tabulate_formats',
+    'warn_unused_kwargs'
 ]
 
 class TabulatesFormats:
@@ -165,6 +166,11 @@ def show_in_table(**kwargs):
     colored_tab = tabulate(colored_data, headers='keys', tablefmt='rounded_grid')
     original_tab = tabulate(original_data, headers='keys', tablefmt='rounded_grid')
     return colored_tab, original_tab
+
+
+def warn_unused_kwargs(name, kwargs: dict):
+    if len(kwargs) > 0:
+        logger.warning(f"{name} got unused arguments: {list(kwargs.keys())}")
 
 
 def _mapper(item):

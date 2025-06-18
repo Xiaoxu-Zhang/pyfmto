@@ -16,8 +16,7 @@ from pyfmto.experiments.utils import (
     load_runs_settings,
     load_analyses_settings,
     Statistics,
-    RunSolutions,
-    MergedSolution
+    RunSolutions
 )
 from pyfmto.problems import Solution
 
@@ -289,29 +288,3 @@ class TestRunSolutions(unittest.TestCase):
         rs.clear()
         self.assertEqual(rs.num_clients, 0)
         self.assertEqual(rs.sorted_ids, [])
-
-
-class TestMergedSolution(unittest.TestCase):
-
-    @staticmethod
-    def _create_statistics():
-        return Statistics(
-            mean_orig=np.array([1, 2]),
-            mean_log=np.array([3, 4]),
-            std_orig=np.array([5, 6]),
-            std_log=np.array([7, 8]),
-            se_orig=np.array([9, 10]),
-            se_log=np.array([11, 12]),
-            opt_orig=np.array([13, 14]),
-            opt_log=np.array([15, 16])
-        )
-
-    def test_merged_solution(self):
-        mgd = MergedSolution()
-        for i in range(5):
-            mgd.append(i, self._create_statistics())
-        data = mgd.get_data(2)
-        sortd_ids = mgd.sorted_ids
-        self.assertIsInstance(data, Statistics)
-        self.assertEqual(sortd_ids, [0, 1, 2, 3, 4])
-        self.assertEqual(mgd.num_clients, 5)

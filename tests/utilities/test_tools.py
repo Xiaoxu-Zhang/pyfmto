@@ -1,11 +1,20 @@
+import shutil
 import unittest
 import time
+from pathlib import Path
 
 from pyfmto.utilities import tabulate_formats
-from pyfmto.utilities.tools import colored, timer, show_in_table, titled_tabulate
+from pyfmto.utilities.tools import colored, timer, show_in_table, titled_tabulate, warn_unused_kwargs
 
 
 class TestTools(unittest.TestCase):
+
+    def setUp(self):
+        self.out_path = Path('out')
+
+    def tearDown(self):
+        if self.out_path.exists():
+            shutil.rmtree(self.out_path)
 
     def test_colored(self):
         text = "test"
@@ -64,3 +73,6 @@ class TestTools(unittest.TestCase):
         lines = tit.split('\n')
         self.assertTrue('Test' in lines[1], f"Titled table is \n {tit}")
         self.assertEqual(len(tit[1]), len(tit[2]))
+
+    def test_warn_unused_kwargs(self):
+        warn_unused_kwargs('test', {'a': 1, 'b': 2})

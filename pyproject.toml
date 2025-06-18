@@ -41,7 +41,6 @@ classifiers = [
 
 [tool.setuptools.package-data]
 "pyfmto.problems" = ["*.yaml", "datasets/**/*"]
-"pyfmto.algorithms" = ["**/*.yaml"]
 "pyfmto.utilities" = ["*.yaml"]
 #[project.urls]
 #Homepage = "https://github.com/Xiaoxu-Zhang"
