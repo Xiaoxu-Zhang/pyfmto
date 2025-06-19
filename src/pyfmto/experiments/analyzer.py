@@ -59,9 +59,7 @@ class Analyzer:
 
     def init_data(self, combinations):
         for comb in combinations:
-            success = self._merge_one_algorithm(*comb)
-            if not success:
-                logger.error(f"failed to merge {'+'.join(comb)}")
+            self._merge_one_algorithm(*comb)
 
     def to_curve(
             self,
@@ -662,16 +660,28 @@ class AnalyzeResults:
 
     def to_curve(self, **kwargs):
         for comb in tqdm(self.combinations, desc='Saving', unit='Img', ncols=100):
-            self.analyzer.to_curve(*comb, **kwargs)
+            try:
+                self.analyzer.to_curve(*comb, **kwargs)
+            except Exception:
+                pass
 
     def to_excel(self, **kwargs):
         for comb in self.combinations:
-            self.analyzer.to_excel(*comb, **kwargs)
+            try:
+                self.analyzer.to_excel(*comb, **kwargs)
+            except Exception:
+                pass
 
     def to_latex(self, **kwargs):
         for comb in self.combinations:
-            self.analyzer.to_latex(*comb, **kwargs)
+            try:
+                self.analyzer.to_latex(*comb, **kwargs)
+            except Exception:
+                pass
 
     def to_console(self, **kwargs):
         for comb in self.combinations:
-            self.analyzer.to_console(*comb, **kwargs)
+            try:
+                self.analyzer.to_console(*comb, **kwargs)
+            except Exception:
+                pass

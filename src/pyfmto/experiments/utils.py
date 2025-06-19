@@ -27,7 +27,7 @@ __all__ = [
 
 
 class Defaults:
-    results = Path('out', 'results')
+    results = 'out/results'
 
 
 def clear_console():
