@@ -10,7 +10,7 @@ __all__ = [
     'titled_tabulate',
     'show_in_table',
     'tabulate_formats',
-    'warn_unused_kwargs'
+    'update_kwargs'
 ]
 
 class TabulatesFormats:
@@ -168,11 +168,6 @@ def show_in_table(**kwargs):
     return colored_tab, original_tab
 
 
-def warn_unused_kwargs(name, kwargs: dict):
-    if len(kwargs) > 0:
-        logger.warning(f"{name} got unused arguments: {list(kwargs.keys())}")
-
-
 def _mapper(item):
     k, v = item
     if v is True:
@@ -186,3 +181,30 @@ def _mapper(item):
         return k, [colored(val_str, 'green')], [val_str]
     else:
         return k, [str(v)], [str(v)]
+
+
+def update_kwargs(name, defaults: dict, updates: dict):
+    table_data = []
+
+    for key in set(defaults.keys()).union(updates.keys()):
+        default_val = str(defaults[key]) if key in defaults else '-'
+        updates_val = str(updates[key]) if key in updates else '-'
+        using_val = updates.get(key) if key in defaults else '-'
+        used_val_str = str(using_val) if using_val is not None else '-'
+        table_data.append([key, default_val, updates_val, used_val_str])
+
+    table = titled_tabulate(
+        name,
+        '=',
+        table_data,
+        headers=["Parameter", "Default", "Updates", "Using"],
+        tablefmt="rounded_grid",
+        colalign=("left", "center", "center", "center")
+    )
+    logger.info(table)
+    updated = defaults.copy()
+    for key, value in updates.items():
+        if key in defaults:
+            updated[key] = value
+
+    return updated

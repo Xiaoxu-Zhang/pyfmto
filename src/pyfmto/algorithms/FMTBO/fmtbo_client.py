@@ -6,7 +6,7 @@ from pydacefit.regr import regr_constant
 from scipy.stats import norm
 from typing import Union
 from pyfmto.framework import Client, ClientPackage, Actions, ServerPackage, record_runtime
-from pyfmto.utilities.tools import warn_unused_kwargs
+from pyfmto.utilities.tools import update_kwargs
 
 from .fmtbo_utils import GeneticAlgorithm, AggData
 
@@ -20,9 +20,10 @@ class FmtboClient(Client):
     """
     def __init__(self, problem, **kwargs):
         super().__init__(problem)
+        kwargs = update_kwargs('FmtboClient', self.default_kwargs(), kwargs)
 
         # init control args
-        self.gamma = kwargs.get('gamma', 0.5)
+        self.gamma = kwargs['gamma']
 
         # init model args
         self.d_share = None
@@ -32,10 +33,9 @@ class FmtboClient(Client):
 
         self._ga_operator = GeneticAlgorithm(x_lb=self.x_lb, x_ub=self.x_ub, dim=self.dim,
                                              pop_size=self.fe_init,
-                                             max_gen=kwargs.get('max_gen', 20))
+                                             max_gen=kwargs['max_gen'])
 
         self.prev_ver = 0
-        warn_unused_kwargs('FmtboClient', kwargs)
 
     @property
     def global_model_params(self):

@@ -69,10 +69,10 @@ def download_default_kwargs(name: Union[str, list[str]], directory: str=None):
             clt = cls['client'].__doc__
             srv = cls['server'].__doc__
             docstr += f'{n}:'
-            if clt:
-                docstr += f'\n    client:\n{textwrap.indent(clt, " "*4)}\n'
             if srv:
                 docstr += f'\n    server:\n{textwrap.indent(srv, " "*4)}\n'
+            if clt:
+                docstr += f'\n    client:\n{textwrap.indent(clt, " "*4)}\n'
             if not clt and not srv:
                 docstr += ' {}'
         except RuntimeError as e:
@@ -86,5 +86,5 @@ def download_default_kwargs(name: Union[str, list[str]], directory: str=None):
     except MarkedYAMLError:
         raise
     with open(fdir / f"default_kwargs.yaml", 'w') as f:
-        yaml.dump(data, f)
+        yaml.dump({'algorithms': data}, f)
     return data

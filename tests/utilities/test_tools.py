@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 from pyfmto.utilities import tabulate_formats
-from pyfmto.utilities.tools import colored, timer, show_in_table, titled_tabulate, warn_unused_kwargs
+from pyfmto.utilities.tools import colored, timer, show_in_table, titled_tabulate, update_kwargs
 
 
 class TestTools(unittest.TestCase):
@@ -75,4 +75,4 @@ class TestTools(unittest.TestCase):
         self.assertEqual(len(tit[1]), len(tit[2]))
 
     def test_warn_unused_kwargs(self):
-        warn_unused_kwargs('test', {'a': 1, 'b': 2})
+        update_kwargs('test', {}, {'a': 1, 'b': 2})

@@ -3,7 +3,8 @@ from numpy import ndarray
 from pyfmto.framework import Client, ClientPackage, Actions, ServerPackage, record_runtime
 
 from .fdemd_utils import GeneticAlgorithm, RadialBasisFunctionNetwork as RBFNetwork, AggData
-from ...utilities.tools import warn_unused_kwargs
+from ...utilities import logger, titled_tabulate
+from ...utilities.tools import update_kwargs
 
 ga_op = GeneticAlgorithm()
 
@@ -12,25 +13,27 @@ class FdemdClient(Client):
     """
     lg_type: LG
     max_gen: 20
-    rbfn:
-        epoch: 5         # local epoch
-        optimizer: sgd   # optimizer of RBF network, sgd/m-sgd/max-gd
-        lr: 0.06         # learning rate
-        alpha: 1.0       # noisy
+    epoch: 5         # local epoch
+    optimizer: sgd   # optimizer of RBF network, sgd/m-sgd/max-gd
+    lr: 0.06         # learning rate
+    alpha: 1.0       # noisy
     """
 
     def __init__(self, problem, **kwargs):
         super().__init__(problem)
-        self.lg_type = kwargs.pop('lg_type', 'LG')
-        self.max_gen = kwargs.pop('max_gen', 20)
-
-        model_args = self.load_default_kwargs()
-        model_args.update(kwargs.pop('model_args', {}))
+        kwargs = update_kwargs('FdemdClient', self.default_kwargs, kwargs)
+        self.lg_type = kwargs['lg_type']
+        self.max_gen = kwargs['max_gen']
+        model_args = {
+            'epoch': kwargs['epoch'],
+            'optimizer': kwargs['optimizer'],
+            'lr': kwargs['lr'],
+            'alpha': kwargs['alpha'],
+        }
         self.client_model = RBFNetwork(dim=self.dim, obj=self.obj, kernel_size=2 * self.dim + 1, **model_args)
         self.server_model = RBFNetwork(dim=self.dim, obj=self.obj, kernel_size=2 * self.dim + 1)
 
         self.prev_version = 0
-        warn_unused_kwargs('FdemdClient', kwargs)
 
     def optimize(self):
         if not self.initialized:

@@ -1,11 +1,11 @@
 from pyfmto.framework import Server, ClientPackage, ServerPackage
-from pyfmto.utilities.tools import warn_unused_kwargs
+from pyfmto.utilities.tools import update_kwargs
 
 
 class FtsServer(Server):
     def __init__(self, **kwargs):
         super().__init__()
-        warn_unused_kwargs('FtsServer', kwargs)
+        update_kwargs('FtsServer', self.default_kwargs, kwargs)
 
     def handle_request(self, client_data: ClientPackage) -> ServerPackage:
         pass

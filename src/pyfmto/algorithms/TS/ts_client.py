@@ -6,15 +6,15 @@ from scipy.stats import norm
 
 from pyfmto.framework import Client, record_runtime
 from .ts_utils import ThompsonSampling
-from ...utilities.tools import warn_unused_kwargs
+from ...utilities.tools import update_kwargs
 
 
 class FtsClient(Client):
     def __init__(self, problem, **kwargs):
         super().__init__(problem)
+        update_kwargs('FtsClient', self.default_kwargs, kwargs)
         self.gp = DACE(regr=regr_constant, corr=corr_gauss)
         self.ts = ThompsonSampling(self.x_lb, self.x_ub, self.dim, ts_trials=100)
-        warn_unused_kwargs('FtsClient', kwargs)
 
     @property
     def x(self) -> np.ndarray:

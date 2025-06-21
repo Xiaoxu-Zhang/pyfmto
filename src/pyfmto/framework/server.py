@@ -191,11 +191,10 @@ class Server(ABC):
             self._quit = True
             self._server.should_exit = True
 
-    def load_default_kwargs(self):
-        try:
-            return safe_load(self.__class__.__doc__)
-        except MarkedYAMLError:
-            raise
+    @property
+    def default_kwargs(self):
+        docstr = self.__class__.__doc__
+        return {} if not docstr else safe_load(docstr)
 
     @property
     def sorted_ids(self):

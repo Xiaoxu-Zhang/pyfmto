@@ -234,11 +234,10 @@ class Client(ABC):
         quit_pkg = ClientPackage(self.id, Actions.QUIT)
         self.request_server(quit_pkg)
 
-    def load_default_kwargs(self):
-        try:
-            return safe_load(self.__class__.__doc__)
-        except MarkedYAMLError:
-            raise
+    @property
+    def default_kwargs(self):
+        docstr = self.__class__.__doc__
+        return {} if not docstr else safe_load(docstr)
 
     @property
     def id(self):
