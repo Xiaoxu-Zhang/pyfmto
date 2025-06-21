@@ -1,9 +1,12 @@
+import copy
 import os
 import textwrap
 from pathlib import Path
 import importlib
 import inspect
-from typing import Any
+from typing import Any, Optional, Union
+from ruamel.yaml import YAML
+from yaml import MarkedYAMLError
 
 from pyfmto.utilities import colored
 
@@ -55,3 +58,33 @@ def load_algorithm(name):
     res.update(is_builtin_alg=is_builtin_alg)
     res.update(name=name)
     return res
+
+def download_default_kwargs(name: Union[str, list[str]], directory: str=None):
+    names = [name] if isinstance(name, str) else name
+    fdir = Path(directory) if directory is not None else Path.cwd()
+    docstr = ''
+    for n in names:
+        try:
+            cls = load_algorithm(n)
+            clt = cls['client'].__doc__
+            srv = cls['server'].__doc__
+            docstr += f'{n}:'
+            if clt:
+                docstr += f'\n    client:\n{textwrap.indent(clt, " "*4)}\n'
+            if srv:
+                docstr += f'\n    server:\n{textwrap.indent(srv, " "*4)}\n'
+            if not clt and not srv:
+                docstr += ' {}'
+        except RuntimeError as e:
+            print(e)
+    cleaned_lines = [line for line in docstr.splitlines() if not line.strip() == ""]
+    cleaned_text = "\n".join(cleaned_lines)
+    yaml = YAML()
+    yaml.indent(mapping=2, sequence=4, offset=2)
+    try:
+        data = yaml.load(cleaned_text)
+    except MarkedYAMLError:
+        raise
+    with open(fdir / f"default_kwargs.yaml", 'w') as f:
+        yaml.dump(data, f)
+    return data

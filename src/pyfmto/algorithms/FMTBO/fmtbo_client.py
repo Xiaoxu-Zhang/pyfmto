@@ -6,14 +6,18 @@ from pydacefit.regr import regr_constant
 from scipy.stats import norm
 from typing import Union
 from pyfmto.framework import Client, ClientPackage, Actions, ServerPackage, record_runtime
+from pyfmto.utilities.tools import warn_unused_kwargs
 
 from .fmtbo_utils import GeneticAlgorithm, AggData
-from ...utilities.tools import warn_unused_kwargs
 
 rng = np.random.default_rng()
 
 
 class FmtboClient(Client):
+    """
+    gamma: 0.5
+    max_gen: 20
+    """
     def __init__(self, problem, **kwargs):
         super().__init__(problem)
 

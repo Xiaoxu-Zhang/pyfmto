@@ -9,6 +9,7 @@ from numpy import ndarray
 from requests.exceptions import ConnectionError
 from tqdm import tqdm
 from typing import final, Optional, Any
+from yaml import safe_load, MarkedYAMLError
 
 from .packages import ClientPackage, ServerPackage, Actions
 from pyfmto.problems import SingleTaskProblem
@@ -232,6 +233,12 @@ class Client(ABC):
     def send_quit(self):
         quit_pkg = ClientPackage(self.id, Actions.QUIT)
         self.request_server(quit_pkg)
+
+    def load_default_kwargs(self):
+        try:
+            return safe_load(self.__class__.__doc__)
+        except MarkedYAMLError:
+            raise
 
     @property
     def id(self):

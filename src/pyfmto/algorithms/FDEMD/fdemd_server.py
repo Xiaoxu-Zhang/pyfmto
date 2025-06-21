@@ -11,18 +11,21 @@ from ...utilities.tools import warn_unused_kwargs
 
 
 class FdemdServer(Server):
+    """
+    ensemble_size: 20
+    rbfn:
+        epoch: 5         # local epoch
+        optimizer: sgd   # optimizer of RBF network, sgd/m-sgd/max-gd
+        lr: 0.06         # learning rate
+        alpha: 1.0       # noisy
+    """
 
     def __init__(self, **kwargs):
         super().__init__()
         # centers, spreads, w and b can be broadcast to clients
-        self.ensemble_size = kwargs.get('ensemble_size', 20)
-        self.model_args = {
-            'epoch': 5,  # local epoch
-            'optimizer': 'sgd',  # optimizer of RBF network, sgd/m-sgd/max-gd
-            'lr': 0.06,  # learning rate
-            'alpha': 1.0  # noisy
-        }
-        self.model_args.update(kwargs.get('model_args', {}))
+        self.ensemble_size = kwargs.pop('ensemble_size', 20)
+        self.model_args = self.load_default_kwargs()['rbfn']
+        self.model_args.update(kwargs.pop('rbfn', {}))
 
         # initialize in self._router_pull_init
         self.dim = None

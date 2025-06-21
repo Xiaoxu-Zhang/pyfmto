@@ -9,18 +9,22 @@ ga_op = GeneticAlgorithm()
 
 
 class FdemdClient(Client):
+    """
+    lg_type: LG
+    max_gen: 20
+    rbfn:
+        epoch: 5         # local epoch
+        optimizer: sgd   # optimizer of RBF network, sgd/m-sgd/max-gd
+        lr: 0.06         # learning rate
+        alpha: 1.0       # noisy
+    """
 
     def __init__(self, problem, **kwargs):
         super().__init__(problem)
         self.lg_type = kwargs.pop('lg_type', 'LG')
         self.max_gen = kwargs.pop('max_gen', 20)
 
-        model_args = {
-            'epoch': 5,  # local epoch
-            'optimizer': 'sgd',  # optimizer of RBF network, sgd/m-sgd/max-gd
-            'lr': 0.06,  # learning rate
-            'alpha': 1.0  # noisy
-        }
+        model_args = self.load_default_kwargs()
         model_args.update(kwargs.pop('model_args', {}))
         self.client_model = RBFNetwork(dim=self.dim, obj=self.obj, kernel_size=2 * self.dim + 1, **model_args)
         self.server_model = RBFNetwork(dim=self.dim, obj=self.obj, kernel_size=2 * self.dim + 1)

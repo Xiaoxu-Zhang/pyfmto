@@ -11,6 +11,7 @@ from fastapi import FastAPI, Response, Depends, Request
 from setproctitle import setproctitle
 from tabulate import tabulate
 from typing import final, Optional
+from yaml import safe_load, MarkedYAMLError
 
 from .packages import ServerPackage, ClientPackage, Actions
 from pyfmto.utilities import logger
@@ -189,6 +190,12 @@ class Server(ABC):
             logger.info(f"Server shutting down ({msg})")
             self._quit = True
             self._server.should_exit = True
+
+    def load_default_kwargs(self):
+        try:
+            return safe_load(self.__class__.__doc__)
+        except MarkedYAMLError:
+            raise
 
     @property
     def sorted_ids(self):

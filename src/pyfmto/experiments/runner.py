@@ -3,16 +3,14 @@ import os
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
+from pyfmto.algorithms import load_algorithm
 from pyfmto.problems import load_problem
-from pyfmto.utilities import logger, reset_log
+from pyfmto.utilities import logger, reset_log, timer, show_in_table
 from setproctitle import setproctitle
 from subprocess import Popen
 from typing import Optional
 
-from .utils import load_experiments
-from ..utilities import timer, show_in_table
-from ..algorithms import load_algorithm
-from .utils import clear_console, prepare_server, gen_path, check_path, save_results, load_runs_settings
+from .utils import clear_console, prepare_server, gen_path, check_path, save_results, load_experiments
 
 __all__ = ['exp']
 
@@ -49,9 +47,9 @@ class Runner:
         print(colored_tab)
 
     def iterating(self, comb_id, alg_name, alg_args, prob_name, prob_args, res_path):
-        clt_args = alg_args.get('client', {})
-        srv_args = alg_args.get('server', {})
-        prepare_server(alg_name, srv_args)
+        clt_kwargs = alg_args.get('client', {})
+        srv_kwargs = alg_args.get('server', {})
+        prepare_server(alg_name, **srv_kwargs)
         client_cls = load_algorithm(alg_name).get('client')
         curr_run = self.update_iter(None, res_path)
         while curr_run <= self.num_runs:
@@ -60,7 +58,7 @@ class Runner:
 
             # Init clients
             problem = load_problem(prob_name, **prob_args)
-            clients = [client_cls(p, **clt_args) for p in problem]
+            clients = [client_cls(p, **clt_kwargs) for p in problem]
 
             # Show settings
             colored_tab, original_tab = show_in_table(

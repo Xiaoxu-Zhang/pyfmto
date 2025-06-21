@@ -270,8 +270,8 @@ class Analyzer:
             return df_styles
 
         styled_df = data_df.style.apply(highlight_cells, axis=None)
-        latex_code = styled_df.to_latex(column_format='|'.join([''] + ['c'] * len(data_df.columns) + ['']),
-                                        environment='longtable',
+        latex_code = styled_df.to_latex(column_format='c' * len(data_df.columns),
+                                        environment='table',
                                         caption=f"Table generated for {problem}, {np_per_dim} partitions",
                                         label=f"tab:{problem}_{np_per_dim}",
                                         position='htbp')
