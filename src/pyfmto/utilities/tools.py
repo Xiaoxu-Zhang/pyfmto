@@ -189,9 +189,11 @@ def update_kwargs(name, defaults: dict, updates: dict):
     for key in set(defaults.keys()).union(updates.keys()):
         default_val = str(defaults[key]) if key in defaults else '-'
         updates_val = str(updates[key]) if key in updates else '-'
-        using_val = updates.get(key) if key in defaults else '-'
-        used_val_str = str(using_val) if using_val is not None else '-'
-        table_data.append([key, default_val, updates_val, used_val_str])
+        if key in defaults:
+            using_val = updates.get(key, defaults[key])
+        else:
+            using_val = '-'
+        table_data.append([key, default_val, updates_val, str(using_val)])
 
     table = titled_tabulate(
         name,

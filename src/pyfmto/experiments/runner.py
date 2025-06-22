@@ -3,6 +3,8 @@ import os
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
+from yaml import safe_load
+
 from pyfmto.algorithms import load_algorithm
 from pyfmto.problems import load_problem
 from pyfmto.utilities import logger, reset_log, timer, show_in_table
@@ -10,23 +12,36 @@ from setproctitle import setproctitle
 from subprocess import Popen
 from typing import Optional
 
-from .utils import clear_console, prepare_server, gen_path, check_path, save_results, load_experiments
+from .utils import clear_console, prepare_server, gen_path, check_path, save_results, gen_exp_combinations, load_runs_settings
 
 __all__ = ['exp']
 
 
 class Runner:
+    """
+    repeat: 3         # number of runs repeating
+    dir: out/results  # dir of results
+    save: True        # save results
+    clear: True       # clear temp files
+    seed: 42          # random seed
+    """
     def __init__(self):
-        comb, settings = load_experiments()
-        self.combinations = comb
+        settings = load_runs_settings()
+        self.combinations = gen_exp_combinations(settings)
         self.serv_proc: Optional[Popen] = None
 
         # other settings
-        self.num_runs = settings.get('num_runs', 3)
-        self.res_dir = settings.get('results')
-        self.save_res = settings.get('save_res', True)
-        self.clean_tmp = settings.get('clean_tmp', True)
-        self.seed = settings.get('seed', 42)
+        default_settings = safe_load(self.__class__.__doc__)
+        for k in default_settings.keys():
+            v = settings.get(k)
+            if v:
+                default_settings[k] = v
+        self.repeat = default_settings['repeat']
+        self.dir =    default_settings['dir']
+        self.save =   default_settings['save']
+        self.clear =  default_settings['clear']
+        self.seed =   default_settings['seed']
+
         atexit.register(self.stop_server)
 
     def run(self):
@@ -39,20 +54,21 @@ class Runner:
         print(f'All runs finished.')
         colored_tab, _ = show_in_table(
             comb=len(self.combinations),
-            runs_per_comb=self.num_runs,
-            runs_total=len(self.combinations) * self.num_runs,
+            runs_per_comb=self.repeat,
+            runs_total=len(self.combinations) * self.repeat,
         )
-        if self.clean_tmp:
+        if self.clear:
             os.remove("temp_server.py")
         print(colored_tab)
 
     def iterating(self, comb_id, alg_name, alg_args, prob_name, prob_args, res_path):
         clt_kwargs = alg_args.get('client', {})
         srv_kwargs = alg_args.get('server', {})
-        prepare_server(alg_name, **srv_kwargs)
-        client_cls = load_algorithm(alg_name).get('client')
+        alg_base = alg_args.get('base', alg_name)
+        prepare_server(alg_base, **srv_kwargs)
+        client_cls = load_algorithm(alg_base).get('client')
         curr_run = self.update_iter(None, res_path)
-        while curr_run <= self.num_runs:
+        while curr_run <= self.repeat:
             reset_log()
             clear_console()
 
@@ -62,16 +78,16 @@ class Runner:
 
             # Show settings
             colored_tab, original_tab = show_in_table(
-                comb=f"{comb_id}/{self.num_comb}", runs=f"{curr_run}/{self.num_runs}",
+                comb=f"{comb_id}/{self.num_comb}", runs=f"{curr_run}/{self.repeat}",
                 algorithm=alg_name, problem=problem.name, iid=problem[0].np_per_dim,
-                clients=problem.task_num,save=self.save_res)
+                clients=problem.task_num, save=self.save)
             print(colored_tab)
             logger.info(f"\n{original_tab}")
 
             # Run
             self.start_server()
             c_res = self.start_clients(clients)
-            if self.save_res:
+            if self.save:
                 save_results(c_res, res_path, curr_run)
             curr_run = self.update_iter(curr_run, res_path)
             time.sleep(1)
@@ -106,7 +122,7 @@ class Runner:
         return (c.result() for c in client_futures)
 
     def update_iter(self, curr_run, res_path):
-        if self.save_res:
+        if self.save:
             num_res = check_path(res_path)
             return num_res + 1
         elif curr_run is None:

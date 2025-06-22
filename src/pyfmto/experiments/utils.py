@@ -18,7 +18,7 @@ __all__ = [
     'save_results',
     'clear_console',
     'prepare_server',
-    'load_experiments',
+    'gen_exp_combinations',
     'load_runs_settings',
     'load_analyses_settings',
     'Statistics',
@@ -37,14 +37,13 @@ def clear_console():
         os.system('clear')
 
 
-def load_experiments():
-    settings = load_runs_settings()
+def gen_exp_combinations(settings: dict):
     alg_settings = settings.get('algorithms', {})
     prob_settings = settings.get('problems', {})
     alg_items = list(alg_settings.items())
     prob_items = combine_args(prob_settings)
     combinations = [(*alg_item, *prob_item) for alg_item, prob_item in product(alg_items, prob_items)]
-    return combinations, settings
+    return combinations
 
 
 def combine_args(args: dict):
