@@ -3,8 +3,6 @@ from numpy import ndarray
 from pyfmto.framework import Client, ClientPackage, Actions, ServerPackage, record_runtime
 
 from .fdemd_utils import GeneticAlgorithm, RadialBasisFunctionNetwork as RBFNetwork, AggData
-from ...utilities import logger, titled_tabulate
-from ...utilities.tools import update_kwargs
 
 ga_op = GeneticAlgorithm()
 
@@ -21,7 +19,8 @@ class FdemdClient(Client):
 
     def __init__(self, problem, **kwargs):
         super().__init__(problem)
-        kwargs = update_kwargs('FdemdClient', self.default_kwargs, kwargs)
+        kwargs = self.update_kwargs(kwargs)
+
         self.lg_type = kwargs['lg_type']
         self.max_gen = kwargs['max_gen']
         model_args = {

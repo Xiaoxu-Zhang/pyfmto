@@ -20,6 +20,8 @@ __all__ = [
     'record_runtime'
 ]
 
+from ..utilities.tools import update_kwargs
+
 
 def record_runtime(name=None):
     @wrapt.decorator
@@ -234,10 +236,10 @@ class Client(ABC):
         quit_pkg = ClientPackage(self.id, Actions.QUIT)
         self.request_server(quit_pkg)
 
-    @property
-    def default_kwargs(self):
+    def update_kwargs(self, kwargs: dict):
         docstr = self.__class__.__doc__
-        return {} if not docstr else safe_load(docstr)
+        docstr = {} if not docstr else safe_load(docstr)
+        return update_kwargs(self.__class__.__name__, docstr, kwargs)
 
     @property
     def id(self):

@@ -11,10 +11,12 @@ from fastapi import FastAPI, Response, Depends, Request
 from setproctitle import setproctitle
 from tabulate import tabulate
 from typing import final, Optional
-from yaml import safe_load, MarkedYAMLError
+from yaml import safe_load
 
 from .packages import ServerPackage, ClientPackage, Actions
 from pyfmto.utilities import logger
+from ..utilities.tools import update_kwargs
+
 app = FastAPI()
 
 
@@ -191,10 +193,10 @@ class Server(ABC):
             self._quit = True
             self._server.should_exit = True
 
-    @property
-    def default_kwargs(self):
+    def update_kwargs(self, kwargs: dict):
         docstr = self.__class__.__doc__
-        return {} if not docstr else safe_load(docstr)
+        docstr = {} if not docstr else safe_load(docstr)
+        return update_kwargs(self.__class__.__name__, docstr, kwargs)
 
     @property
     def sorted_ids(self):

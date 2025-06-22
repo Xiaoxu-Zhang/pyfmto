@@ -7,7 +7,6 @@ from pyfmto.utilities import logger
 
 from pyfmto.algorithms.TS import init_samples
 from .fdemd_utils import RadialBasisFunctionNetwork as RBFNetwork, AggData
-from ...utilities.tools import update_kwargs
 
 
 class FdemdServer(Server):
@@ -22,7 +21,7 @@ class FdemdServer(Server):
     def __init__(self, **kwargs):
         super().__init__()
         # centers, spreads, w and b can be broadcast to clients
-        kwargs = update_kwargs('FdemdServer', self.default_kwargs, kwargs)
+        kwargs = self.update_kwargs(kwargs)
         self.ensemble_size = kwargs['ensemble_size']
         self.model_args = {
             'epoch': kwargs['epoch'],

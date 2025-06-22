@@ -6,14 +6,13 @@ from pyfmto.utilities import logger
 
 from pyfmto.algorithms.TS import init_samples
 from .fmtbo_utils import AggData
-from ...utilities.tools import update_kwargs
 
 
 class FmtboServer(Server):
 
     def __init__(self, **kwargs):
         super().__init__()
-        update_kwargs('FmtboServer', self.default_kwargs(), kwargs)
+        self.update_kwargs(kwargs)
         self.client_bounds = []
         self.clients_data = defaultdict(DataArchive)
 

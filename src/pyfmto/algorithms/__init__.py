@@ -1,10 +1,9 @@
-import copy
 import os
 import textwrap
 from pathlib import Path
 import importlib
 import inspect
-from typing import Any, Optional, Union
+from typing import Any, Union
 from ruamel.yaml import YAML
 from yaml import MarkedYAMLError
 
@@ -59,25 +58,10 @@ def load_algorithm(name):
     res.update(name=name)
     return res
 
-def download_default_kwargs(name: Union[str, list[str]], directory: str=None):
+def export_kwargs(name: Union[str, list[str]], directory: str=None):
     names = [name] if isinstance(name, str) else name
-    fdir = Path(directory) if directory is not None else Path.cwd()
-    docstr = ''
-    for n in names:
-        try:
-            cls = load_algorithm(n)
-            clt = cls['client'].__doc__
-            srv = cls['server'].__doc__
-            docstr += f'{n}:'
-            if srv:
-                docstr += f'\n    server:\n{textwrap.indent(srv, " "*4)}\n'
-            if clt:
-                docstr += f'\n    client:\n{textwrap.indent(clt, " "*4)}\n'
-            if not clt and not srv:
-                docstr += ' {}'
-        except RuntimeError as e:
-            print(e)
-    cleaned_lines = [line for line in docstr.splitlines() if not line.strip() == ""]
+    docstr = ''.join([_collect_docstr(n) for n in names])
+    cleaned_lines = [line for line in docstr.splitlines() if not line.strip() == '']
     cleaned_text = "\n".join(cleaned_lines)
     yaml = YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
@@ -85,6 +69,26 @@ def download_default_kwargs(name: Union[str, list[str]], directory: str=None):
         data = yaml.load(cleaned_text)
     except MarkedYAMLError:
         raise
+
+    fdir = Path(directory) if directory is not None else Path.cwd()
     with open(fdir / f"default_kwargs.yaml", 'w') as f:
         yaml.dump({'algorithms': data}, f)
     return data
+
+def _collect_docstr(name):
+    try:
+        cls = load_algorithm(name)
+    except RuntimeError as e:
+        print(e)
+        return ''
+
+    clt = cls['client'].__doc__
+    srv = cls['server'].__doc__
+    if not clt and not srv:
+        return f'{name}: ' + '{}'
+    res = f'{name}:\n'
+    if srv:
+        res += f'    server:\n{textwrap.indent(srv, " " * 4)}\n'
+    if clt:
+        res += f'    client:\n{textwrap.indent(clt, " " * 4)}\n'
+    return res
