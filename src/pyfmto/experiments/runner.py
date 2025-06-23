@@ -12,7 +12,15 @@ from setproctitle import setproctitle
 from subprocess import Popen
 from typing import Optional
 
-from .utils import clear_console, prepare_server, gen_path, check_path, save_results, gen_exp_combinations, load_runs_settings
+from .utils import (
+    clear_console,
+    prepare_server,
+    gen_path,
+    check_path,
+    save_results,
+    gen_exp_combinations,
+    load_runs_settings,
+    backup_kwargs)
 
 __all__ = ['exp']
 
@@ -46,9 +54,9 @@ class Runner:
 
     def run(self):
         setproctitle("AlgClients")
-        for idx, (alg_name, alg_args, prob_name, prob_args) in enumerate(self.combinations):
-            res_path = gen_path(alg_name, prob_name, prob_args)
-            self.iterating(idx+1, alg_name, alg_args, prob_name, prob_args, res_path)
+        for idx, (alg_alias, alg_args, prob_name, prob_args) in enumerate(self.combinations):
+            res_path = gen_path(alg_alias, prob_name, prob_args)
+            self.iterating(idx+1, alg_alias, alg_args, prob_name, prob_args, res_path)
         clear_console()
 
         print(f'All runs finished.')
@@ -61,12 +69,14 @@ class Runner:
             os.remove("temp_server.py")
         print(colored_tab)
 
-    def iterating(self, comb_id, alg_name, alg_args, prob_name, prob_args, res_path):
+    def iterating(self, comb_id, alg_alias, alg_args, prob_name, prob_args, res_path):
+        alg_name = alg_args.get('base', alg_alias)
         clt_kwargs = alg_args.get('client', {})
         srv_kwargs = alg_args.get('server', {})
-        alg_base = alg_args.get('base', alg_name)
-        prepare_server(alg_base, **srv_kwargs)
-        client_cls = load_algorithm(alg_base).get('client')
+        if self.save:
+            backup_kwargs(alg_name, clt_kwargs, srv_kwargs, res_path.parents[1])
+        client_cls = load_algorithm(alg_name)['client']
+        prepare_server(alg_name, **srv_kwargs)
         curr_run = self.update_iter(None, res_path)
         while curr_run <= self.repeat:
             reset_log()
@@ -79,7 +89,7 @@ class Runner:
             # Show settings
             colored_tab, original_tab = show_in_table(
                 comb=f"{comb_id}/{self.num_comb}", runs=f"{curr_run}/{self.repeat}",
-                algorithm=alg_name, problem=problem.name, iid=problem[0].np_per_dim,
+                algorithm=alg_alias, problem=problem.name, iid=problem[0].np_per_dim,
                 clients=problem.task_num, save=self.save)
             print(colored_tab)
             logger.info(f"\n{original_tab}")

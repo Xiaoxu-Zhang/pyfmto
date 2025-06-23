@@ -58,9 +58,16 @@ def load_algorithm(name):
     res.update(name=name)
     return res
 
-def export_kwargs(name: Union[str, list[str]], directory: str=None):
-    names = [name] if isinstance(name, str) else name
-    docstr = ''.join([_collect_docstr(n) for n in names])
+def export_kwargs(algorithms: list[str], directory: str=None):
+    data = {name: get_alg_kwargs(name) for name in algorithms}
+    fdir = Path(directory) if directory is not None else Path.cwd()
+    yaml = YAML()
+    yaml.indent(mapping=2, sequence=4, offset=2)
+    with open(fdir / f"default_kwargs.yaml", 'w') as f:
+        yaml.dump({'algorithms': data}, f)
+
+def get_alg_kwargs(name: str):
+    docstr = _collect_docstr(name)
     cleaned_lines = [line for line in docstr.splitlines() if not line.strip() == '']
     cleaned_text = "\n".join(cleaned_lines)
     yaml = YAML()
@@ -69,10 +76,6 @@ def export_kwargs(name: Union[str, list[str]], directory: str=None):
         data = yaml.load(cleaned_text)
     except MarkedYAMLError:
         raise
-
-    fdir = Path(directory) if directory is not None else Path.cwd()
-    with open(fdir / f"default_kwargs.yaml", 'w') as f:
-        yaml.dump({'algorithms': data}, f)
     return data
 
 def _collect_docstr(name):
@@ -85,8 +88,8 @@ def _collect_docstr(name):
     clt = cls['client'].__doc__
     srv = cls['server'].__doc__
     if not clt and not srv:
-        return f'{name}: ' + '{}'
-    res = f'{name}:\n'
+        return "{}"
+    res = ''
     if srv:
         res += f'    server:\n{textwrap.indent(srv, " " * 4)}\n'
     if clt:

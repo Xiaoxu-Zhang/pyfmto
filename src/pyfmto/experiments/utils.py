@@ -1,14 +1,14 @@
 import copy
 import os
-
 from itertools import product
 from numpy import ndarray
 from pathlib import Path
 from pyfmto.problems import Solution
 from pyfmto.utilities import logger
 from typing import Optional, Union
+from ruamel.yaml import YAML
 
-from ..algorithms import load_algorithm
+from ..algorithms import load_algorithm, get_alg_kwargs
 from ..utilities.io import load_yaml, save_msgpack, load_msgpack
 
 __all__ = [
@@ -16,6 +16,7 @@ __all__ = [
     'check_path',
     'load_results',
     'save_results',
+    'backup_kwargs',
     'clear_console',
     'prepare_server',
     'gen_exp_combinations',
@@ -82,7 +83,7 @@ def load_runs_settings():
         raise TypeError(f"Invalid settings: \n{err_str}")
     else:
         res_dir = settings.get('results')
-        res_dir = Defaults.results if res_dir is None else Path(res_dir)
+        res_dir = Defaults.results if res_dir is None else res_dir
         prob_args = settings.get('problems', {})
         alg_args = settings.get('algorithms', {})
         runs.update(problems={name: prob_args.get(name, {}) for name in problems})
@@ -178,6 +179,26 @@ def gen_path(alg_name, prob_name, prob_args):
     init_data_type = 'IID' if np_per_dim in (1, None) else f'NIID{np_per_dim}'
     res_root = Path('out', 'results', alg_name, f"{prob_name.upper()}{src_prob}{dim}", init_data_type)
     return res_root
+
+
+def backup_kwargs(name, clt_kwargs, srv_kwargs, fdir: Path):
+    kwargs = {}
+    alg_kwargs = get_alg_kwargs(name)
+    if clt_kwargs:
+        kwargs.update(client=clt_kwargs)
+    else:
+        kwargs.update(client=alg_kwargs.get('client', {}))
+    if srv_kwargs:
+        kwargs.update(server=srv_kwargs)
+    else:
+        kwargs.update(server=alg_kwargs.get('server', {}))
+
+    fdir.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    filename = fdir / f"arguments.yaml"
+    if not filename.exists():
+        with open(filename, 'w') as f:
+            yaml.dump(kwargs, f)
 
 
 def check_path(res_root):

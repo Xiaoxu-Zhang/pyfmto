@@ -185,7 +185,8 @@ def _mapper(item):
 
 def update_kwargs(name, defaults: dict, updates: dict):
     table_data = []
-
+    if not defaults and not updates:
+        return {}
     for key in set(defaults.keys()).union(updates.keys()):
         default_val = str(defaults[key]) if key in defaults else '-'
         updates_val = str(updates[key]) if key in updates else '-'
@@ -194,7 +195,6 @@ def update_kwargs(name, defaults: dict, updates: dict):
         else:
             using_val = '-'
         table_data.append([key, default_val, updates_val, str(using_val)])
-
     table = titled_tabulate(
         name,
         '=',
