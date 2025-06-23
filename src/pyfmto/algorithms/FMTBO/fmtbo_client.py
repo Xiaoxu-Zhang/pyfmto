@@ -55,7 +55,7 @@ class FmtboClient(Client):
     def _initializing(self):
         pkg = ClientPackage(
             cid=self.id, action=Actions.PUSH_INIT,
-            data={'dim': self.dim, 'bound': (self.x_lb,self.x_ub), 'd_share_size': self.fe_init})
+            data={'dim': self.dim, 'bound': (self.x_lb,self.x_ub)})
         self.request_server(package=pkg)
         pkg = ClientPackage(cid=self.id, action=Actions.PULL_INIT, data=None)
         server_pkg: ServerPackage = self.request_server(package=pkg)

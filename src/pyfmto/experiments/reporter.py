@@ -16,14 +16,14 @@ from tabulate import tabulate
 from tqdm import tqdm
 from typing import Union, Optional
 
-from .utils import load_results, RunSolutions, Statistics, load_analyses_settings, clear_console
+from .utils import load_results, RunSolutions, Statistics, load_reporter_settings, clear_console
 
 T_Sta = dict[str, dict[str, Statistics]]
 
-__all__ = ['AnalyzeResults']
+__all__ = ['Reports']
 
 
-class Analyzer:
+class Reporter:
     """
     Note:
         1. Please make sure your result organized in the following way
@@ -631,12 +631,12 @@ class Analyzer:
             print('\n'.join(sorted(result_list)))
 
 
-class AnalyzeResults:
+class Reports:
     def __init__(self):
         try:
-            settings = load_analyses_settings()
+            settings = load_reporter_settings()
             self.combinations = settings.get('analysis_comb')
-            self.analyzer = Analyzer(settings.get('results'))
+            self.analyzer = Reporter(settings.get('results'))
             self.analyzer.init_data(settings.get('initialize_comb'))
             self.analyzer_available = True
         except FileNotFoundError:

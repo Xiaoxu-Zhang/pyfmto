@@ -19,13 +19,13 @@ from .utils import (
     check_path,
     save_results,
     gen_exp_combinations,
-    load_runs_settings,
+    load_launcher_settings,
     backup_kwargs)
 
-__all__ = ['exp']
+__all__ = ['Launcher']
 
 
-class Runner:
+class Launcher:
     """
     repeat: 3         # number of runs repeating
     dir: out/results  # dir of results
@@ -34,7 +34,7 @@ class Runner:
     seed: 42          # random seed
     """
     def __init__(self):
-        settings = load_runs_settings()
+        settings = load_launcher_settings()
         self.combinations = gen_exp_combinations(settings)
         self.serv_proc: Optional[Popen] = None
 
@@ -88,9 +88,9 @@ class Runner:
 
             # Show settings
             colored_tab, original_tab = show_in_table(
-                comb=f"{comb_id}/{self.num_comb}", runs=f"{curr_run}/{self.repeat}",
-                algorithm=alg_alias, problem=problem.name, iid=problem[0].np_per_dim,
-                clients=problem.task_num, save=self.save)
+                running=f"{comb_id}/{self.num_comb}", repeat=f"{curr_run}/{self.repeat}",
+                algorithm=alg_name, problem=problem.name, iid=problem[0].np_per_dim,
+                clients=problem.task_num, save=self.save, clear=self.clear)
             print(colored_tab)
             logger.info(f"\n{original_tab}")
 
@@ -190,5 +190,3 @@ problems:
 if not os.path.exists('settings.yaml'):
     with open('settings.yaml', 'w') as f:
         f.write(SETTING_YML)
-
-exp = Runner()

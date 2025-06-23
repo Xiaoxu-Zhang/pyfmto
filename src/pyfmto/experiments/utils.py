@@ -20,8 +20,8 @@ __all__ = [
     'clear_console',
     'prepare_server',
     'gen_exp_combinations',
-    'load_runs_settings',
-    'load_analyses_settings',
+    'load_launcher_settings',
+    'load_reporter_settings',
     'Statistics',
     'RunSolutions'
 ]
@@ -65,10 +65,10 @@ def combine_args(args: dict):
     return prob_items
 
 
-def load_runs_settings():
+def load_launcher_settings():
     settings = load_yaml('settings.yaml')
 
-    runs = settings.get('runs', {})
+    runs = settings.get('launcher', {})
     problems = runs.get('problems')
     algorithms = runs.get('algorithms')
 
@@ -92,9 +92,9 @@ def load_runs_settings():
     return runs
 
 
-def load_analyses_settings():
+def load_reporter_settings():
     settings = load_yaml('settings.yaml')
-    analyses = settings.get('analyses', {})
+    analyses = settings.get('reporter', {})
     algorithms = analyses.get('algorithms')
     problems = analyses.get('problems')
 

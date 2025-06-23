@@ -13,8 +13,8 @@ from pyfmto.experiments.utils import (
     save_results,
     clear_console,
     prepare_server,
-    load_runs_settings,
-    load_analyses_settings,
+    load_launcher_settings,
+    load_reporter_settings,
     Statistics,
     RunSolutions
 )
@@ -145,7 +145,7 @@ class TestExperimentUtils(unittest.TestCase):
         self.assertFalse('pyfmto' in line_import_server, f"content is '{line_import_server}'")
 
     def test_load_runs_settings(self):
-        settings_ok = load_runs_settings()
+        settings_ok = load_launcher_settings()
         self.assertEqual(self.run_settings_ok['runs'], settings_ok)
 
         settings_not_ok = {'runs': copy.deepcopy(settings_ok)}
@@ -156,10 +156,10 @@ class TestExperimentUtils(unittest.TestCase):
             settings_not_ok['runs']['algorithms'] = item
             with open(self.tmp_setting, 'w') as f:
                 yaml.dump(settings_not_ok, f)
-            self.assertRaises(TypeError, load_runs_settings)
+            self.assertRaises(TypeError, load_launcher_settings)
 
     def test_load_analyses_settings(self):
-        settings_ok = load_analyses_settings()
+        settings_ok = load_reporter_settings()
         self.assertEqual(settings_ok.pop('results', None), Path('out', 'results'))
         self.assertEqual(self.run_settings_ok['analyses'], settings_ok,
                          msg=f"orig is\n{self.run_settings_ok['analyses']},"
@@ -175,7 +175,7 @@ class TestExperimentUtils(unittest.TestCase):
             settings_not_ok['analyses']['np_per_dim'] = not_1d_int_list[i]
             with open(self.tmp_setting, 'w') as f:
                 yaml.dump(settings_not_ok, f)
-            self.assertRaises(TypeError, load_analyses_settings)
+            self.assertRaises(TypeError, load_reporter_settings)
 
 
 class TestRunSolutions(unittest.TestCase):

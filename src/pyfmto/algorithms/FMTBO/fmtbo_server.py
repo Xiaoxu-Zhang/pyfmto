@@ -9,14 +9,18 @@ from .fmtbo_utils import AggData
 
 
 class FmtboServer(Server):
-
+    """
+    d_share_size: 50
+    agg_proportion: 0.8
+    """
     def __init__(self, **kwargs):
         super().__init__()
-        self.update_kwargs(kwargs)
+        kwargs = self.update_kwargs(kwargs)
         self.client_bounds = []
         self.clients_data = defaultdict(DataArchive)
 
-        self.d_share_size = None
+        self.d_share_size = kwargs['d_share_size']
+        self.agg_proportion = kwargs['agg_proportion']
         self.d_share = None
         self.dim = None
 
@@ -56,7 +60,6 @@ class FmtboServer(Server):
     def _return_save_status(self, client_data: ClientPackage) -> ServerPackage:
         if client_data.action == Actions.PUSH_INIT:
             self.dim = client_data.data['dim']
-            self.d_share_size = client_data.data['d_share_size']
             self.client_bounds.append(client_data.data['bound'])
             self.create_d_share()
         else:
@@ -105,7 +108,7 @@ class FmtboServer(Server):
         return ls_mat
 
     def _select_updates_for_merge(self, ls_array):
-        clients_number = int(len(ls_array) * 0.8)
+        clients_number = int(len(ls_array) * self.agg_proportion)
         cid_list_of_sorted_array = np.argsort(ls_array)
         selected_cid = cid_list_of_sorted_array[0:clients_number]
         selected_updates = [self.clients_data[cid+1] for cid in selected_cid]
