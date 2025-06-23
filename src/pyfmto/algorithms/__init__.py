@@ -3,35 +3,14 @@ import textwrap
 from pathlib import Path
 import importlib
 import inspect
-from typing import Any, Union
+from typing import Any
 from ruamel.yaml import YAML
 from yaml import MarkedYAMLError
 
 from pyfmto.utilities import colored
 
 
-def is_alg_name(name):
-    return name.isupper()
-
-
-def list_algorithms(print_it=False):
-    algor_yours = os.listdir('algorithms') if os.path.exists('algorithms') else []
-    algor_builtins = os.listdir(Path(__file__).parent)
-    res = {
-        'yours': [alg_name for alg_name in algor_yours if is_alg_name(alg_name)],
-        'builtins': [alg_name for alg_name in algor_builtins if is_alg_name(alg_name)]
-    }
-    if print_it:
-        print(colored("Yours:", 'yellow'))
-        alg_str = '\n'.join(res['yours'])
-        print(textwrap.indent(alg_str, ' ' * 2))
-        alg_str = '\n'.join(res['builtins'])
-        print(colored('Builtins:', 'blue'))
-        print(textwrap.indent(alg_str, ' ' * 2))
-    return res
-
-
-def load_algorithm(name):
+def load_algorithm(name: str):
     all_alg = list_algorithms()
     if name in all_alg['yours']:
         module = importlib.import_module(f"algorithms.{name}")
@@ -58,6 +37,28 @@ def load_algorithm(name):
     res.update(name=name)
     return res
 
+
+def list_algorithms(print_it=False):
+    algor_yours = os.listdir('algorithms') if os.path.exists('algorithms') else []
+    algor_builtins = os.listdir(Path(__file__).parent)
+    res = {
+        'yours': [alg_name for alg_name in algor_yours if _is_alg_name(alg_name)],
+        'builtins': [alg_name for alg_name in algor_builtins if _is_alg_name(alg_name)]
+    }
+    if print_it:
+        print(colored("Yours:", 'yellow'))
+        alg_str = '\n'.join(res['yours'])
+        print(textwrap.indent(alg_str, ' ' * 2))
+        alg_str = '\n'.join(res['builtins'])
+        print(colored('Builtins:', 'blue'))
+        print(textwrap.indent(alg_str, ' ' * 2))
+    return res
+
+
+def _is_alg_name(name: str):
+    return name.isupper()
+
+
 def export_kwargs(algorithms: list[str], directory: str=None):
     data = {name: get_alg_kwargs(name) for name in algorithms}
     fdir = Path(directory) if directory is not None else Path.cwd()
@@ -66,8 +67,9 @@ def export_kwargs(algorithms: list[str], directory: str=None):
     with open(fdir / f"default_kwargs.yaml", 'w') as f:
         yaml.dump({'algorithms': data}, f)
 
+
 def get_alg_kwargs(name: str):
-    docstr = _collect_docstr(name)
+    docstr = _collect_alg_docstr(name)
     cleaned_lines = [line for line in docstr.splitlines() if not line.strip() == '']
     cleaned_text = "\n".join(cleaned_lines)
     yaml = YAML()
@@ -78,7 +80,8 @@ def get_alg_kwargs(name: str):
         raise
     return data
 
-def _collect_docstr(name):
+
+def _collect_alg_docstr(name: str):
     try:
         cls = load_algorithm(name)
     except RuntimeError as e:

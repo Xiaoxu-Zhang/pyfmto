@@ -6,29 +6,9 @@ from pathlib import Path
 from pyfmto.problems import Solution
 from pyfmto.utilities import logger
 from typing import Optional, Union
-from ruamel.yaml import YAML
 
-from ..algorithms import load_algorithm, get_alg_kwargs
+from ..algorithms import load_algorithm
 from ..utilities.io import load_yaml, save_msgpack, load_msgpack
-
-__all__ = [
-    'gen_path',
-    'check_path',
-    'load_results',
-    'save_results',
-    'backup_kwargs',
-    'clear_console',
-    'prepare_server',
-    'gen_exp_combinations',
-    'load_launcher_settings',
-    'load_reporter_settings',
-    'Statistics',
-    'RunSolutions'
-]
-
-
-class Defaults:
-    results = 'out/results'
 
 
 def clear_console():
@@ -42,12 +22,12 @@ def gen_exp_combinations(settings: dict):
     alg_settings = settings.get('algorithms', {})
     prob_settings = settings.get('problems', {})
     alg_items = list(alg_settings.items())
-    prob_items = combine_args(prob_settings)
+    prob_items = _combine_args(prob_settings)
     combinations = [(*alg_item, *prob_item) for alg_item, prob_item in product(alg_items, prob_items)]
     return combinations
 
 
-def combine_args(args: dict):
+def _combine_args(args: dict):
     prob_items = []
     for prob_name, prob_args in args.items():
         list_args = {k: v for k, v in prob_args.items() if isinstance(v, list)}
@@ -83,7 +63,7 @@ def load_launcher_settings():
         raise TypeError(f"Invalid settings: \n{err_str}")
     else:
         res_dir = settings.get('results')
-        res_dir = Defaults.results if res_dir is None else res_dir
+        res_dir = 'out/results' if res_dir is None else res_dir
         prob_args = settings.get('problems', {})
         alg_args = settings.get('algorithms', {})
         runs.update(problems={name: prob_args.get(name, {}) for name in problems})
@@ -109,10 +89,10 @@ def load_reporter_settings():
         raise TypeError(f"Invalid settings: \n{err_str}")
     else:
         res_dir = settings.get('results')
-        res_dir = Defaults.results if res_dir is None else Path(res_dir)
+        res_dir = 'out/results' if res_dir is None else res_dir
         prob_args = settings.get('problems', {})
         prob_items = []
-        for name, args in combine_args({name: prob_args.get(name, {}) for name in problems}):
+        for name, args in _combine_args({name: prob_args.get(name, {}) for name in problems}):
             src_prob = args.get('src_problem')
             np_per_dim = args.get('np_per_dim', 1)
             if src_prob:
@@ -179,26 +159,6 @@ def gen_path(alg_name, prob_name, prob_args):
     init_data_type = 'IID' if np_per_dim in (1, None) else f'NIID{np_per_dim}'
     res_root = Path('out', 'results', alg_name, f"{prob_name.upper()}{src_prob}{dim}", init_data_type)
     return res_root
-
-
-def backup_kwargs(name, clt_kwargs, srv_kwargs, fdir: Path):
-    kwargs = {}
-    alg_kwargs = get_alg_kwargs(name)
-    if clt_kwargs:
-        kwargs.update(client=clt_kwargs)
-    else:
-        kwargs.update(client=alg_kwargs.get('client', {}))
-    if srv_kwargs:
-        kwargs.update(server=srv_kwargs)
-    else:
-        kwargs.update(server=alg_kwargs.get('server', {}))
-
-    fdir.mkdir(parents=True, exist_ok=True)
-    yaml = YAML()
-    filename = fdir / f"arguments.yaml"
-    if not filename.exists():
-        with open(filename, 'w') as f:
-            yaml.dump(kwargs, f)
 
 
 def check_path(res_root):
