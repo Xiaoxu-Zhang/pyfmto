@@ -165,7 +165,11 @@ class Server(ABC):
             self._del_client(data.cid)
             return ServerPackage(desc='quit', data='quit success')
         else:
-            return self.handle_request(data)
+            res = self.handle_request(data)
+            if res is None:
+                raise RuntimeError(f"Got (None) result when handle action: {data.action.name}")
+            else:
+                return res
 
     @abstractmethod
     def handle_request(self, client_data: ClientPackage) -> ServerPackage: ...

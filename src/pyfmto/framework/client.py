@@ -215,12 +215,12 @@ class Client(ABC):
         Parameters
         ----------
         x : Any
-            The response received from the server. It is guaranteed to be non-None.
+            The response received from the server.
 
         Returns
         -------
         bool
-            True if the data within the response is acceptable; otherwise, False.
+            True if the package is acceptable; otherwise, False.
 
         Notes
         -----
