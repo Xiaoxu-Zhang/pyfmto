@@ -4,8 +4,7 @@ from typing import Callable
 from pyfmto.framework import Server, ClientPackage, ServerPackage, Actions, DataArchive
 from pyfmto.utilities import logger
 
-from pyfmto.algorithms.TS import init_samples
-from .fmtbo_utils import AggData
+from .fmtbo_utils import AggData, init_samples
 
 
 class FmtboServer(Server):
@@ -31,10 +30,7 @@ class FmtboServer(Server):
         x_ub = None
         for new_lb, new_ub in self.client_bounds:
             x_lb, x_ub = self._set_bounds(x_lb, x_ub, new_lb, new_ub)
-        self.d_share = init_samples(x_lb=x_lb,
-                               x_ub=x_ub,
-                               size=self.d_share_size,
-                               dim=self.dim)
+        self.d_share = init_samples(lb=x_lb, ub=x_ub, n_samples=self.d_share_size, dim=self.dim)
         logger.debug(f'd_share initialized, shape = {self.d_share.shape}')
 
 

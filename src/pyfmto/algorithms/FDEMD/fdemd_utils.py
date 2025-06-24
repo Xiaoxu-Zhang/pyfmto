@@ -7,7 +7,14 @@ from sklearn.cluster import KMeans
 from tabulate import tabulate
 from pyfmto.utilities import logger
 
-from pyfmto.algorithms.FMTBO import power
+
+def power(mat1, mat2):
+    # ----------------- #
+    # Copied from FMTBO #
+    # ----------------- #
+    # To solve the problem: Numpy does not seem to
+    # allow fractional powers of negative numbers
+    return np.sign(mat1) * np.power(np.abs(mat1), mat2)
 
 
 def mini_batches(input_x, input_y, distance, batch_size=64, seed=0):

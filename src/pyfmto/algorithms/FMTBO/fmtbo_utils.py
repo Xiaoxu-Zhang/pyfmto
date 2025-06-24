@@ -1,6 +1,5 @@
 import numpy as np
-
-from pyfmto.algorithms.TS import init_samples
+from pyDOE import lhs
 
 
 def power(mat1, mat2):
@@ -36,8 +35,7 @@ class GeneticAlgorithm:
         if archive is not None:
             parents = archive[-self.pop_size:]
         else:
-            parents = init_samples(x_lb=self.x_lb, x_ub=self.x_ub, dim=self.dim,
-                                   size=self.pop_size, kind='lhs')
+            parents = init_samples(lb=self.x_lb, ub=self.x_ub, dim=self.dim, n_samples=self.pop_size)
         ac_best = -10000
         x_best = None
         for _ in range(self.max_gen):
@@ -94,3 +92,6 @@ class GeneticAlgorithm:
         detaq[position2] = 1 - power(tmp2, 1 / (dis_m + 1))
         pop_mutation = pop_crossover + detaq * (self.x_ub - self.x_lb)
         return pop_mutation
+
+def init_samples(dim, lb, ub, n_samples):
+    return lhs(dim, samples=n_samples) * (ub - lb) + lb

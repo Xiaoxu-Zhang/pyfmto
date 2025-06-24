@@ -1,11 +1,12 @@
 import numpy as np
 from collections import defaultdict
+
+from pyDOE import lhs
 from scipy.spatial.distance import cdist
 from typing import Callable
 from pyfmto.framework import Server, ClientPackage, ServerPackage, Actions
 from pyfmto.utilities import logger
 
-from pyfmto.algorithms.TS import init_samples
 from .fdemd_utils import RadialBasisFunctionNetwork as RBFNetwork, AggData
 
 
@@ -130,7 +131,7 @@ class FdemdServer(Server):
         variance_biases = sum_squared_diff_biases / num_clients
         variance_std = sum_squared_diff_std / num_clients
 
-        self.d_aux = init_samples(self.x_lb, self.x_ub, self.dim, self.d_aux_size)
+        self._init_samples()
         f_sudo = self._ensemble_predict(variance_centers, variance_std, variance_weights, variance_biases,
                                         mean_centers, mean_weights, mean_biases, mean_std)
         self.model.train(self.d_aux, f_sudo)
@@ -177,3 +178,6 @@ class FdemdServer(Server):
         """
         mat2 = mat2.T
         return cdist(mat1, mat2)
+
+    def _init_samples(self):
+        self.d_aux = lhs(self.dim, samples=self.d_aux_size) * (self.x_ub - self.x_lb) + self.x_lb
