@@ -8,7 +8,6 @@ class BoServer(Server):
         self.update_kwargs(kwargs)
         self.versions = {}
         self.ver_ok = -1
-        self.set_idle_max(10)
         self.set_agg_interval(0.1)
 
     def handle_request(self, client_data: ClientPackage) -> ServerPackage:

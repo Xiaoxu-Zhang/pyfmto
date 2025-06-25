@@ -9,7 +9,7 @@ from numpy import ndarray
 from requests.exceptions import ConnectionError
 from tqdm import tqdm
 from typing import final, Optional, Any
-from yaml import safe_load, MarkedYAMLError
+from yaml import safe_load
 
 from .packages import ClientPackage, ServerPackage, Actions
 from pyfmto.problems import SingleTaskProblem
@@ -131,6 +131,7 @@ class Client(ABC):
             if self.id == 1:
                 print(f"Traceback of {self.name}")
                 traceback.print_exc()
+                logger.error(traceback.format_exc())
             logger.info(f"{self.name} exit with available FE = {self.problem.fe_available}")
             exit(-1)
         return self.id, self.solutions

@@ -18,6 +18,7 @@ from .utils import (
     prepare_server,
     gen_path,
     check_path,
+    kill_server,
     save_results,
     gen_exp_combinations,
     load_launcher_settings)
@@ -36,6 +37,7 @@ class Launcher:
     def __init__(self):
         reset_log()
         clear_console()
+        kill_server()
         settings = load_launcher_settings()
         self.combinations = gen_exp_combinations(settings)
         self.serv_proc: Optional[Popen] = None
@@ -67,7 +69,7 @@ class Launcher:
         self._clt_kwargs = {}
         self._srv_kwargs = {}
 
-        atexit.register(self._stop_server)
+        atexit.register(kill_server)
 
     def run(self):
         self._setup()
@@ -162,26 +164,23 @@ class Launcher:
         print(colored_tab)
         logger.info(f"\n{original_tab}")
 
-    def _start_server(self) -> int:
+    @staticmethod
+    def _start_server():
         """
         Start the server process.
-        Returns
-        -------
-        pid : int
-            Server process id.
         """
         if os.name == 'posix':
-            proc = subprocess.Popen(args=["python", "temp_server.py"], start_new_session=True,
-                                    stdin=subprocess.DEVNULL)
+            subprocess.Popen(args=["python", "temp_server.py"],
+                             start_new_session=True,
+                             stdin=subprocess.DEVNULL)
         elif os.name == 'nt':
-            proc = subprocess.Popen(args=["python", "temp_server.py"], creationflags=subprocess.CREATE_NEW_CONSOLE,
-                                    stdin=subprocess.DEVNULL)
+            subprocess.Popen(args=["python", "temp_server.py"],
+                             creationflags=subprocess.CREATE_NEW_CONSOLE,
+                             stdin=subprocess.DEVNULL)
         else:
             raise OSError(f"Unsupported operating system: {os.name}")
         logger.info("Server started.")
         time.sleep(2)
-        self.serv_proc = proc
-        return os.getpgid(proc.pid)
 
     @timer("Whole run")
     def _start_clients(self, clients):
@@ -203,18 +202,6 @@ class Launcher:
             self._repeat_id = check_path(self._res_dir) + 1
         else:
             self._repeat_id += 1
-
-    def _stop_server(self):
-        if self.serv_proc is None:
-            return
-        try:
-            if os.name == 'posix':
-                pid = os.getpgid(self.serv_proc.pid)
-                os.killpg(pid, 15)
-            else:
-                self.serv_proc.terminate()
-        except Exception as e:
-            logger.warning(f"Failed to terminate process {self.serv_proc.pid}: {e}")
 
     @property
     def _num_comb(self):

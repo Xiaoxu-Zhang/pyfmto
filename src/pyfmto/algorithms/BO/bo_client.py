@@ -63,8 +63,8 @@ class BoClient(Client):
             return x.data >= self.sync_ver
 
     @record_runtime("Fit")
-    def fit(self, x: np.ndarray, y: np.ndarray):
-        self.gp.set_training_values(x, y)
+    def fit(self):
+        self.gp.set_training_values(self.x, self.y)
         self.gp.train()
 
     def predict(self, x, return_mse=False):

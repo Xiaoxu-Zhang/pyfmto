@@ -18,6 +18,13 @@ def clear_console():
         os.system('clear')
 
 
+def kill_server():
+    if os.name == 'win32':
+        os.system("taskkill /f /im AlgServer.exe")
+    else:
+        os.system("pkill -f AlgServer")
+
+
 def gen_exp_combinations(settings: dict):
     alg_settings = settings.get('algorithms', {})
     prob_settings = settings.get('problems', {})

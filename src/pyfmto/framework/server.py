@@ -53,45 +53,28 @@ class Server(ABC):
         self._register_routes()
         self._config = uvicorn.Config(app)
         self.set_addr()
-        self.set_log_print()
+        self._disable_consol_log()
 
         self._quit = False
-        self._idle_max = 0
         self._last_request_time = time.time()
 
     def set_addr(self, host='localhost', port=18510):
         self._config.host = host
         self._config.port = port
 
-    def set_idle_max(self, idle_max: float):
-        """
-        Sets the maximum idle time for the server. If a positive value is provided,
-        the server will automatically shut down after being idle for longer than this duration.
-
-        In some cases, due to client implementation limitations, pressing `Ctrl+C` may fail to
-        terminate the server process properly. By setting an appropriate idle timeout, you can
-        ensure that the server exits gracefully after prolonged inactivity.
-
-        If set to zero or a negative value, automatic termination is disabled and the server
-        will not shut down due to idleness.
-
-        Parameters
-        ----------
-        idle_max : float
-            Maximum idle time in seconds. It is recommended to set this value slightly greater
-            than the maximum interval between client requests to ensure stability and correctness.
-        """
-        self._idle_max = max(0.0, idle_max)
-
     @staticmethod
-    def set_log_print(yes=False):
-        level = logging.INFO if yes else logging.ERROR
-        disabled = not yes
-
+    def enable_consol_log():
         for name in ["uvicorn", "fastapi", "uvicorn.error", "uvicorn.access"]:
             __logger = logging.getLogger(name)
-            __logger.setLevel(level)
-            __logger.disabled = disabled
+            __logger.setLevel(logging.INFO)
+            __logger.disabled = False
+
+    @staticmethod
+    def _disable_consol_log():
+        for name in ["uvicorn", "fastapi", "uvicorn.error", "uvicorn.access"]:
+            __logger = logging.getLogger(name)
+            __logger.setLevel(logging.ERROR)
+            __logger.disabled = True
 
     def set_agg_interval(self, seconds: float):
         self._agg_interval = max(0.01, seconds)
@@ -137,7 +120,6 @@ class Server(ABC):
         await asyncio.sleep(10)
         while not self._quit:
             self._log_server_info()
-            self._idle_quit()
             await asyncio.sleep(3)
 
     @catch_exception()
@@ -146,12 +128,6 @@ class Server(ABC):
             tab = tabulate(self._server_info, headers="keys", tablefmt="psql")
             logger.info(f"\n{'=' * 30} Saved {len(self._server_info)} clients data {'=' * 30}\n{tab}")
             self._updated_server_info = False
-
-    def _idle_quit(self):
-        if self._idle_max > 0:
-            idle_len = time.time() - self._last_request_time
-            if idle_len > self._idle_max:
-                self.shutdown(f"Idle for {idle_len:.2f} seconds")
 
     @final
     @catch_exception()
