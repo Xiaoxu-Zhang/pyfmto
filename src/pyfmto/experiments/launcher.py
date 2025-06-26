@@ -153,9 +153,12 @@ class Launcher:
             os.remove("temp_server.py")
 
     def _show_settings(self):
+        n_rep = self.repeat * (self._running_id - 1) + self._repeat_id
+        n_all_rep = self._num_comb * self.repeat
         colored_tab, original_tab = show_in_table(
             running=f"{self._running_id}/{self._num_comb}",
             repeat=f"{self._repeat_id}/{self.repeat}",
+            progress=f"[{n_rep}/{n_all_rep}][{100*n_rep/n_all_rep:.2f}%]",
             algorithm=self._alg_alias,
             problem=self._prob,
             iid=self._iid_info,

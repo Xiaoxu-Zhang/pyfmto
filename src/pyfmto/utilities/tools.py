@@ -163,8 +163,9 @@ def show_in_table(**kwargs):
     keys, colored_values, original_values = zip(*map(_mapper, kwargs.items()))
     colored_data = dict(zip(keys, colored_values))
     original_data = dict(zip(keys, original_values))
-    colored_tab = tabulate(colored_data, headers='keys', tablefmt='rounded_grid')
-    original_tab = tabulate(original_data, headers='keys', tablefmt='rounded_grid')
+    alignment = ['center'] * len(kwargs)
+    colored_tab = tabulate(colored_data, headers='keys', tablefmt='rounded_grid', colalign=alignment)
+    original_tab = tabulate(original_data, headers='keys', tablefmt='rounded_grid', colalign=alignment)
     return colored_tab, original_tab
 
 
