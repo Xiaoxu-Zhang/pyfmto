@@ -26,7 +26,13 @@ dependencies = [
     "seaborn",
     "matplotlib",
     "pyDOE",
-    "opfunu"
+    "opfunu",
+    "ruamel-yaml",
+    "smt",
+    "egobox",
+    "scienceplots",
+    "msgpack",
+    "pydacefit"
    ]
 classifiers = [
     "Development Status :: 4 - Beta",
