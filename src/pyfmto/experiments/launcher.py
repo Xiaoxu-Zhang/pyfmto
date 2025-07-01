@@ -15,7 +15,6 @@ from pyfmto.problems import load_problem
 from pyfmto.utilities import logger, reset_log, timer, show_in_table
 from .utils import (
     clear_console,
-    prepare_server,
     gen_path,
     check_path,
     kill_server,
@@ -119,7 +118,6 @@ class Launcher:
 
     def _repeating(self):
         client_cls = load_algorithm(self._alg)['client']
-        prepare_server(self._alg, **self._srv_kwargs)
         self._update_repeat_id()
         while not self._finished:
 
@@ -167,17 +165,27 @@ class Launcher:
         print(colored_tab)
         logger.info(f"\n{original_tab}")
 
-    @staticmethod
-    def _start_server():
+    def _start_server(self):
         """
         Start the server process.
         """
+        srv_cls = load_algorithm(self._alg)['server']
+        module_name = srv_cls.__module__
+        class_name = srv_cls.__name__
+
+        cmd = [
+            "python", "-c",
+            f"from {module_name} import {class_name}; "
+            f"srv = {class_name}(**{repr(self._srv_kwargs)}); "
+            f"srv.start()"
+        ]
+
         if os.name == 'posix':
-            subprocess.Popen(args=["python", "temp_server.py"],
+            subprocess.Popen(cmd,
                              start_new_session=True,
                              stdin=subprocess.DEVNULL)
         elif os.name == 'nt':
-            subprocess.Popen(args=["python", "temp_server.py"],
+            subprocess.Popen(cmd,
                              creationflags=subprocess.CREATE_NEW_CONSOLE,
                              stdin=subprocess.DEVNULL)
         else:

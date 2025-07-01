@@ -9,6 +9,8 @@ from yaml import MarkedYAMLError
 
 from pyfmto.utilities import colored
 
+__all__ = ['list_algorithms', 'load_algorithm', 'export_kwargs', 'get_alg_kwargs']
+
 
 def load_algorithm(name: str):
     all_alg = list_algorithms()
@@ -19,7 +21,7 @@ def load_algorithm(name: str):
         module = importlib.import_module(f"pyfmto.algorithms.{name}")
         is_builtin_alg = True
     else:
-        raise RuntimeError(f'algorithm {name} not found.')
+        raise ValueError(f'algorithm {name} not found.')
     attr_names = dir(module)
     res: dict[str: Any] = {}
     for attr_name in attr_names:

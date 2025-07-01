@@ -7,7 +7,6 @@ from pyfmto.problems import Solution
 from pyfmto.utilities import logger
 from typing import Optional, Union
 
-from ..algorithms import load_algorithm
 from ..utilities.io import load_yaml, save_msgpack, load_msgpack
 
 
@@ -135,26 +134,6 @@ def _is_1d_str_list(lst):
 
 def _is_1d_int_list(lst):
     return isinstance(lst, list) and all(isinstance(item, int) for item in lst)
-
-
-def prepare_server(alg_name, **kwargs):
-    alg_conf = load_algorithm(alg_name)
-    pkg_name = f"algorithms.{alg_name}"
-    is_builtin = alg_conf['is_builtin_alg']
-    alg_pkg = f'pyfmto.{pkg_name}' if is_builtin else pkg_name
-    server_name = alg_conf['server'].__name__
-    kwargs_str = ', '.join(f"{k}={repr(v)}" for k, v in kwargs.items())
-    server_content = [
-        f"import sys\n",
-        f"from pathlib import Path\n"
-        f"sys.path.append(str(Path(__file__).parent))\n",
-        f"from {alg_pkg} import {server_name}\n\n\n",
-        f"if __name__ == '__main__':\n",
-        f"    server = {server_name}({kwargs_str})\n",
-        f"    server.start()"
-    ]
-    with open('temp_server.py', 'w') as f:
-        f.writelines(server_content)
 
 
 def gen_path(alg_name, prob_name, prob_args):

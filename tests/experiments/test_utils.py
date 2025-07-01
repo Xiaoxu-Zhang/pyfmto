@@ -12,7 +12,6 @@ from pyfmto.experiments.utils import (
     load_results,
     save_results,
     clear_console,
-    prepare_server,
     load_launcher_settings,
     load_reporter_settings,
     Statistics,
@@ -123,26 +122,6 @@ class TestExperimentUtils(unittest.TestCase):
             with patch('os.name', 'nt'):
                 clear_console()
                 mock_system.assert_called_once_with('cls')
-
-    def test_prepare_server(self):
-        prepare_server('FMTBO')
-        self.assertTrue(self.tmp_server.exists())
-        with open(self.tmp_server, 'r') as f:
-            line_import_server = f.readlines()[3]
-        self.assertTrue('Server' in line_import_server, f"content is '{line_import_server}'")
-        self.assertTrue('pyfmto' in line_import_server, f"content is '{line_import_server}'")
-        tmp_algorithm_path = self.tmp_alg_dir / 'TMP'
-        if not tmp_algorithm_path.exists():
-            tmp_algorithm_path.mkdir(parents=True)
-        with open(tmp_algorithm_path / 'tmp_alg.py', 'w') as f:
-            f.write(TMP_ALG)
-        with open(tmp_algorithm_path / '__init__.py', 'w') as f:
-            f.write(TMP_INIT)
-        prepare_server('TMP')
-        with open(self.tmp_server, 'r') as f:
-            line_import_server = f.readlines()[3]
-        self.assertTrue('Server' in line_import_server, f"content is '{line_import_server}'")
-        self.assertFalse('pyfmto' in line_import_server, f"content is '{line_import_server}'")
 
     def test_load_runs_settings(self):
         settings_ok = load_launcher_settings()
