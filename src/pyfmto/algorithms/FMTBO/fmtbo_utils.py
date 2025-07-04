@@ -1,10 +1,18 @@
 import numpy as np
+from enum import Enum, auto
 from pyDOE import lhs
 
 
 def power(mat1, mat2):
     # To solve the problem: Numpy does not seem to allow fractional powers of negative numbers
     return np.sign(mat1) * np.power(np.abs(mat1), mat2)
+
+
+class Actions(Enum):
+    PUSH_INIT = auto()
+    PULL_INIT = auto()
+    PULL_UPDATE = auto()
+    PUSH_UPDATE = auto()
 
 
 class AggData:

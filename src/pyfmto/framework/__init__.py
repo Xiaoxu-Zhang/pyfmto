@@ -2,7 +2,7 @@ from pathlib import Path
 
 from .client import Client, record_runtime
 from .server import Server
-from .packages import *
+from .packages import ClientPackage, ServerPackage, DataArchive
 from ..utilities import colored
 
 
@@ -24,7 +24,7 @@ def export_alg_template(name: str):
     srv_module = f"{name.lower()}_server"
     clt_module = f"{name.lower()}_client"
     srv_rows = [
-        "from pyfmto.framework import Server, ClientPackage, ServerPackage, Actions",
+        "from pyfmto.framework import Server, ClientPackage, ServerPackage",
         "from pyfmto.utilities import logger\n\n",
         f"class {srv_name}(Server):",
         "    \"\"\"",
@@ -41,7 +41,7 @@ def export_alg_template(name: str):
     ]
 
     clt_rows = [
-        "from pyfmto.framework import Client, record_runtime, ClientPackage, Actions, ServerPackage",
+        "from pyfmto.framework import Client, record_runtime, ClientPackage, ServerPackage",
         "from pyfmto.utilities import logger\n\n",
         f"class {clt_name}(Client):",
         "    \"\"\"",

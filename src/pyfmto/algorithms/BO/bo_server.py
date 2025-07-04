@@ -1,5 +1,5 @@
-from pyfmto.framework import Server, ClientPackage, ServerPackage, Actions
-from pyfmto.utilities import logger
+from pyfmto.framework import Server, ClientPackage, ServerPackage
+from .bo_utils import Actions
 
 
 class BoServer(Server):

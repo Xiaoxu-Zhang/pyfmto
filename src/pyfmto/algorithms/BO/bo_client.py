@@ -2,8 +2,8 @@ import numpy as np
 from smt.surrogate_models import GPX
 from scipy.stats import norm
 
-from pyfmto.framework import Client, record_runtime, ClientPackage, Actions, ServerPackage
-from .bo_utils import ThompsonSampling
+from pyfmto.framework import Client, record_runtime, ClientPackage, ServerPackage
+from .bo_utils import ThompsonSampling, Actions
 
 
 class BoClient(Client):

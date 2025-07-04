@@ -1,6 +1,7 @@
 import copy
 import math
 import numpy as np
+from enum import Enum, auto
 from pyDOE import lhs
 from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
@@ -63,6 +64,13 @@ def index_bootstrap(num_data: int, prob: float):
     if True not in out:
         out = index_bootstrap(num_data, prob)
     return out
+
+
+class Actions(Enum):
+    PUSH_INIT = auto()
+    PULL_INIT = auto()
+    PULL_UPDATE = auto()
+    PUSH_UPDATE = auto()
 
 
 class AggData:

@@ -1,4 +1,3 @@
-
 from enum import Enum, auto
 from typing import Optional, Any
 
@@ -6,10 +5,6 @@ __all__ = ['Actions', 'ClientPackage', 'ServerPackage', 'DataArchive']
 
 class Actions(Enum):
     REGISTER = auto()
-    PUSH_INIT = auto()
-    PULL_INIT = auto()
-    PULL_UPDATE = auto()
-    PUSH_UPDATE = auto()
     QUIT = auto()
 
 

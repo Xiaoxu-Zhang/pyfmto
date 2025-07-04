@@ -30,7 +30,6 @@ class Launcher:
     repeat: 3         # number of runs repeating
     dir: out/results  # dir of results
     save: True        # save results
-    clear: True       # clear temp files
     seed: 42          # random seed
     """
     def __init__(self):
@@ -50,7 +49,6 @@ class Launcher:
         self.repeat = default_settings['repeat']
         self.dir =    default_settings['dir']
         self.save =   default_settings['save']
-        self.clear =  default_settings['clear']
         self.seed =   default_settings['seed']
 
         # Runtime data
@@ -146,9 +144,6 @@ class Launcher:
             rep_total=self._num_comb * self.repeat,
         )
         print(colored_tab)
-
-        if self.clear:
-            os.remove("temp_server.py")
 
     def _show_settings(self):
         n_rep = self.repeat * (self._running_id - 1) + self._repeat_id

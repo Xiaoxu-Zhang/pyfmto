@@ -5,9 +5,9 @@ from pydacefit.dace import DACE
 from pydacefit.regr import regr_constant
 from scipy.stats import norm
 from typing import Union
-from pyfmto.framework import Client, ClientPackage, Actions, ServerPackage, record_runtime
+from pyfmto.framework import Client, ClientPackage, ServerPackage, record_runtime
 
-from .fmtbo_utils import GeneticAlgorithm, AggData
+from .fmtbo_utils import GeneticAlgorithm, AggData, Actions
 
 rng = np.random.default_rng()
 

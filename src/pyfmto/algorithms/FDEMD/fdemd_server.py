@@ -4,10 +4,10 @@ from collections import defaultdict
 from pyDOE import lhs
 from scipy.spatial.distance import cdist
 from typing import Callable
-from pyfmto.framework import Server, ClientPackage, ServerPackage, Actions
+from pyfmto.framework import Server, ClientPackage, ServerPackage
 from pyfmto.utilities import logger
 
-from .fdemd_utils import RadialBasisFunctionNetwork as RBFNetwork, AggData
+from .fdemd_utils import RadialBasisFunctionNetwork as RBFNetwork, AggData, Actions
 
 
 class FdemdServer(Server):

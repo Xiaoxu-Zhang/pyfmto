@@ -1,6 +1,12 @@
 import numpy as np
+from enum import Enum, auto
 from pyDOE import lhs
 from scipy.optimize import minimize
+
+
+class Actions(Enum):
+    PUSH_UPDATE = auto()
+    PULL_UPDATE = auto()
 
 
 class ThompsonSampling:

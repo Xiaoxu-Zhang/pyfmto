@@ -1,8 +1,8 @@
 import numpy as np
 from numpy import ndarray
-from pyfmto.framework import Client, ClientPackage, Actions, ServerPackage, record_runtime
+from pyfmto.framework import Client, ClientPackage, ServerPackage, record_runtime
 
-from .fdemd_utils import GeneticAlgorithm, RadialBasisFunctionNetwork as RBFNetwork, AggData
+from .fdemd_utils import GeneticAlgorithm, RadialBasisFunctionNetwork as RBFNetwork, AggData, Actions
 
 ga_op = GeneticAlgorithm()
 

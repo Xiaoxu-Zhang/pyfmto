@@ -1,10 +1,10 @@
 import numpy as np
 from collections import defaultdict
 from typing import Callable
-from pyfmto.framework import Server, ClientPackage, ServerPackage, Actions, DataArchive
+from pyfmto.framework import Server, ClientPackage, ServerPackage, DataArchive
 from pyfmto.utilities import logger
 
-from .fmtbo_utils import AggData, init_samples
+from .fmtbo_utils import AggData, init_samples, Actions
 
 
 class FmtboServer(Server):
