@@ -20,8 +20,10 @@ T_Bound = Union[int, float, list, tuple, np.ndarray]
 
 
 def _check_x(x, dim):
+    if isinstance(x, (list, tuple)):
+        x = np.array(x)
     if not isinstance(x, np.ndarray):
-        raise TypeError(f"Only support ndarray as input, got {type(x)} instead.")
+        raise TypeError(f"Only support ndarray as input, got {type(x).__name__}={x} instead.")
 
     if x.ndim == 1:
         if x.shape[0] != dim:
@@ -45,7 +47,13 @@ def check_and_transform():
     @wrapt.decorator
     def wrapper(wrapped, instance, args, kwargs):
         dim = instance.dim
-        x = copy.deepcopy(args[0])
+        if 'x' in kwargs:
+            # If the x is passed as a keyword argument, we need to
+            # pop the x from the kwargs rather than kwargs['x'].
+            # Check the return statement for the reason.
+            x = kwargs.pop('x')
+        else:
+            x = copy.deepcopy(args[0])
         x = _check_x(x, dim)
         x = _transform_x(x, instance.rotate_mat, instance.shift_mat)
         x = np.clip(x, instance.x_lb, instance.x_ub)
