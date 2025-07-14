@@ -12,7 +12,7 @@ from yaml import safe_load
 
 from pyfmto.algorithms import load_algorithm, get_alg_kwargs
 from pyfmto.problems import load_problem
-from pyfmto.utilities import logger, reset_log, timer, show_in_table
+from pyfmto.utilities import logger, reset_log, timer, show_in_table, backup_log_to
 from .utils import (
     clear_console,
     gen_path,
@@ -28,6 +28,7 @@ __all__ = ['Launcher']
 class Launcher:
     """
     repeat: 3         # number of runs repeating
+    backup: True      # backup log file to results directory
     dir: out/results  # dir of results
     save: True        # save results
     seed: 42          # random seed
@@ -47,9 +48,10 @@ class Launcher:
             if v is not None:
                 default_settings[k] = v
         self.repeat = default_settings['repeat']
-        self.dir =    default_settings['dir']
-        self.save =   default_settings['save']
-        self.seed =   default_settings['seed']
+        self.dir    = default_settings['dir']
+        self.save   = default_settings['save']
+        self.seed   = default_settings['seed']
+        self.backup = default_settings['backup']
 
         # Runtime data
         self._iid_info = 0
@@ -132,8 +134,14 @@ class Launcher:
             self._save_results()
             self._update_repeat_id()
             reset_log()
+            self._backup_log()
             clear_console()
             time.sleep(1)
+
+    def _backup_log(self):
+        dest_dir = self._res_dir.parent.parent
+        if self.backup:
+            backup_log_to(dest_dir)
 
     def _teardown(self):
         clear_console()

@@ -7,7 +7,7 @@ import logging.handlers
 import shutil
 from pathlib import Path
 
-__all__ = ['logger', 'reset_log']
+__all__ = ['logger', 'reset_log', 'backup_log_to']
 
 LOG_HEAD= r"""
                                ____                __         
@@ -56,6 +56,11 @@ def _init_file():
     with LOG_FILE.open('w', encoding='utf-8') as f:
         f.write(LOG_HEAD)
 
+def backup_log_to(dest_dir: Path):
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dist_file = dest_dir / LOG_BACKUP.name
+    if LOG_BACKUP.exists() and not dist_file.exists():
+        shutil.copy(LOG_BACKUP, dist_file)
 
 def _init_conf():
     logging.config.dictConfig(LOG_CONF)
