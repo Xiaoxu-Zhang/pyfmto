@@ -49,7 +49,7 @@ LOG_CONF = {
 }
 
 
-def _init_file():
+def reset_log():
     LOG_PATH.mkdir(parents=True, exist_ok=True)
     if LOG_FILE.exists():
         shutil.copy(LOG_FILE, LOG_BACKUP)
@@ -62,13 +62,5 @@ def backup_log_to(dest_dir: Path):
     if LOG_BACKUP.exists() and not dist_file.exists():
         shutil.copy(LOG_BACKUP, dist_file)
 
-def _init_conf():
-    logging.config.dictConfig(LOG_CONF)
-
-
-def reset_log():
-    _init_file()
-    _init_conf()
-
-_init_conf()
+logging.config.dictConfig(LOG_CONF)
 logger = logging.getLogger('pyfmto')
