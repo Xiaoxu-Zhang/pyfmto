@@ -328,10 +328,10 @@ class Reporter:
                 img_path = sorted(img_path)
                 n_cell = len(img_path)
                 row, col = self._find_grid_shape(n_cell)
-                img_grid = np.array([['' for _ in range(col)] for _ in range(row)], dtype=str)
+                img_grid = [['' for _ in range(col)] for _ in range(row)]
                 for i, p in enumerate(img_path):
-                    img_grid[i // col, i % col] = p
-                self.merge(img_grid, file_dir.parent / "Solution distribution across dimension.png")
+                    img_grid[i // col][i % col] = p
+                self.merge(np.array(img_grid, dtype=str), file_dir.parent / "Solution distribution across dimension.png")
 
                 if clear:
                     shutil.rmtree(file_dir)
