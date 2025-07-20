@@ -163,12 +163,7 @@ def save_results(clients_res, res_path, curr_run):
     run_solutions = RunSolutions()
     for cid, solution in clients_res:
         run_solutions.update(cid, solution)
-    if run_solutions.num_clients == 0:
-        logger.info('No results found.')
-    else:
-        data = run_solutions.to_dict()
-        save_msgpack(data, file_name)
-        logger.info(f"Results saved to {file_name}")
+    run_solutions.to_msgpack(file_name)
 
 
 def load_results(file_name):
@@ -208,8 +203,17 @@ class RunSolutions:
                 solutions[cid] = self._get_solution(cid)
             return solutions
 
-    def to_dict(self):
-        return copy.deepcopy(self.__dict__)
+    @property
+    def solutions(self) -> list[Solution]:
+        return [Solution(self._solutions[cid]) for cid in self.sorted_ids]
+
+    def to_msgpack(self, filename: Union[str, Path]='results.msgpack'):
+        if self.num_clients == 0:
+            logger.info('Empty RunSolutions.')
+        else:
+            data = copy.deepcopy(self.__dict__)
+            save_msgpack(data, filename)
+            logger.info(f"Results saved to {filename}")
 
     def clear(self):
         self._solutions = {}
@@ -222,11 +226,11 @@ class RunSolutions:
     def sorted_ids(self):
         return sorted(map(int, self._solutions.keys()))
 
-    def _get_solution(self, cid):
-        str_id = cid
-        if str_id not in self._solutions:
+    def _get_solution(self, cid: int):
+        try:
+            return Solution(self._solutions[cid])
+        except KeyError:
             raise KeyError(f"Client {cid} not found in results")
-        return Solution(self._solutions[str_id])
 
 
 class Statistics:

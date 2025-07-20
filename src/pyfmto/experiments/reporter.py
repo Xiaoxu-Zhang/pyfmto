@@ -69,7 +69,7 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
-            aspect_ratio:tuple[float, float, float]=(4,3,3),
+            aspect_ratio:tuple[float, float, float]=(4,4,4),
             alpha: float=0.2,
             suffix: str='png',
             sciplot_style:Union[list[str], tuple[str]]=('science', 'ieee', 'no-latex'),
@@ -395,6 +395,25 @@ class Reporter:
             problem: str,
             np_per_dim: int,
             threshold_p: float=0.05):
+        """
+        Print the performance statistics table of specified algorithms and problem settings to the console.
+
+        Parameters
+        ----------
+        algorithms : list[str]
+            List of algorithm names to be analyzed.
+        problem : str
+            Name of the problem being analyzed.
+        np_per_dim : int
+            Number of partitions per dimension (used as information to match data).
+        threshold_p : float, optional
+            T-test threshold for determining statistical significance. Default is 0.05.
+
+        Returns
+        -------
+        None
+            This method does not return any value; it only prints the results to the console.
+        """
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
         keys = list(list(statistics.values())[0].keys())
         str_table, _ = self._tabling(statistics, keys, threshold_p)
@@ -773,6 +792,18 @@ class Reports:
                     pass
 
     def to_curve(self, **kwargs):
+        """
+        Supported kwargs(``name type default``)
+
+        - ``aspect_ratio tuple[float,float,float] (4,4,4)`` -- Controlling the width-to-height ratio and initial size of the plot. The third value is the scaling factor.
+        - ``alpha float 0.2`` -- Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).
+        - ``suffix str 'png'`` -- File format suffix for the output image. Supported formats include 'png', 'jpg', 'eps', 'svg', 'pdf'.
+        - ``sciplot_style list[str]|tuple[str] ('science','ieee','no-latex')`` -- SciencePlots style parameters. Refer to the SciencePlots documentation for available styles.
+        - ``showing_size None|int None`` -- Number of data points to use for plotting, taken from the last `showing_size` iterations of the convergence sequence. Take all if None
+        - ``quality None|int None`` -- Image quality parameter, affecting the quality of scalar images. Valid values are integers from 1 to 9.
+        - ``all_in_one bool True`` -- If True, all curves are plotted on a single figure. If False, each client's curves are plotted in separate figures.
+        - ``in_log_scale bool False`` -- If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
+        """
         for comb in tqdm(self.combinations, desc='Saving', unit='Img', ncols=100):
             try:
                 self.analyzer.to_curve(*comb, **kwargs)
@@ -780,6 +811,19 @@ class Reports:
                 pass
 
     def to_excel(self, **kwargs):
+        """
+        Supported kwargs(``name type default``)
+
+        - ``threshold_p float 0.05``  -- t-test threshold for determining statistical significance.
+        - ``styles Union[list[str],tuple[str]] ('color-bg-grey','style-font-bold','style-font-underline')``  -- list or tuple of style parameters to apply to the Excel cells.
+
+        Notes
+        -----
+            The following styles are supported for personalized excel style:
+             - ``color-bg-[red|grey|green|blue|yellow|purple|orange|pink]`` ---Background colors (only one can be applied, supported colors are in [])
+             - ``color-font-[red|green|blue|yellow|purple|orange|pink]`` ---Font colors (only one can be applied, supported colors are in [])
+             - ``type-font-[bold|italic|underline]`` ---Font types (multiple can be applied, supported types are in [])
+        """
         for comb in self.combinations:
             try:
                 self.analyzer.to_excel(*comb, **kwargs)
@@ -787,6 +831,11 @@ class Reports:
                 pass
 
     def to_latex(self, **kwargs):
+        """
+        Supported kwargs(``name type default``)
+
+        - ``threshold_p float 0.05`` -- t-test threshold for determining statistical significance.
+        """
         for comb in self.combinations:
             try:
                 self.analyzer.to_latex(*comb, **kwargs)
@@ -794,6 +843,11 @@ class Reports:
                 pass
 
     def to_console(self, **kwargs):
+        """
+        Supported kwargs(``name type default``)
+
+        - ``threshold_p float 0.05`` -- t-test threshold for determining statistical significance.
+        """
         for comb in self.combinations:
             try:
                 self.analyzer.to_console(*comb, **kwargs)
@@ -802,11 +856,11 @@ class Reports:
 
     def to_violin(self, **kwargs):
         """
-        Supported kwargs
+        Supported kwargs(``name type default``)
 
-        - ``suffix:str='png'``  image suffix, such as png, pdf, svg
-        - ``merge:bool=True``  if true, merge all separate images into a single image, and the suffix will be fixed to png
-        - ``clear:bool=True``  clear separate images, and only takes effect when ``merge`` is true
+        - ``suffix str 'png'`` -- image suffix, such as png, pdf, svg
+        - ``merge bool True`` -- if true, merge all separate images into a single image, and the suffix will be fixed to png
+        - ``clear bool True`` -- clear separate images, and only takes effect when ``merge`` is true
         """
         for comb in self.combinations:
             self.analyzer.to_violin(*comb, **kwargs)
