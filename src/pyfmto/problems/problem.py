@@ -245,7 +245,7 @@ class SingleTaskProblem(ABC):
         """
         self._plotting(draw_2d, filename, suffix, n_points, **kwargs)
 
-    def visualize_3d(self, filename: Optional[str]=None, suffix='.png', n_points=300, **kwargs):
+    def visualize_3d(self, filename: Optional[str]=None, suffix='.png', n_points=100, **kwargs):
         """
         Draw 2D contour of the function.
 

@@ -1,4 +1,5 @@
 import copy
+import numpy as np
 import os
 from itertools import product
 from numpy import ndarray
@@ -266,3 +267,4 @@ class Statistics:
         self.opt_log = opt_log
         self.fe_init = 0
         self.fe_max = 0
+        self.x = np.array([])

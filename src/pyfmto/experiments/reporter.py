@@ -6,8 +6,11 @@ import os
 import pandas as pd
 import scienceplots  # Do not remove this import
 import seaborn
+import shutil
 import time
 from collections import defaultdict
+
+from PIL import Image
 from numpy import ndarray
 from pathlib import Path
 from pyfmto.utilities import logger, reset_log
@@ -279,6 +282,113 @@ class Reporter:
         with open(file_name, 'w') as f:
             f.write(latex_code)
 
+    def to_violin(
+            self,
+            algorithms: list[str],
+            problem: str,
+            np_per_dim: int,
+            suffix: str='png',
+            merge: bool=True,
+            clear: bool=True
+    ):
+        """
+        Parameters
+        ----------
+        algorithms: list[str]
+            a list of algorithm names
+        problem: str
+            problem name
+        np_per_dim: int
+            number of partitions per dimension(not a control arg, but a information to match data)
+        suffix: str
+            image suffix, such as png, pdf, svg
+        merge: bool
+            if true, merge all separate images into a single image, and the suffix will be fixed to PNG
+        clear: bool
+            only takes effect when merge is true
+
+        Returns
+        -------
+            None
+        """
+        statistics = self._get_statistics(algorithms, problem, np_per_dim)
+        clients_name = list(list(statistics.values())[0].keys())
+        for alg in algorithms:
+            _suffix = 'png' if merge else suffix
+            file_name = self._gen_name(alg, problem, np_per_dim, keys=clients_name, suffix=_suffix, single_file=False, in_log_scale=False)
+            alg_res = statistics[alg]
+            for clt_name in clients_name:
+                x = alg_res[clt_name].x
+                title = f"[{alg}][{problem}][{clt_name}] Solution Dim Distribution"
+                self.plot_violin(x, file_name[clt_name], title=title)
+            file_dir = file_name[clients_name[0]].parent
+
+            if merge:
+                img_path = [str(item) for item in file_dir.iterdir()]
+                img_path = sorted(img_path)
+                n_cell = len(img_path)
+                row, col = self._find_grid_shape(n_cell)
+                img_grid = np.array([['' for _ in range(col)] for _ in range(row)], dtype=str)
+                for i, p in enumerate(img_path):
+                    img_grid[i // col, i % col] = p
+                self.merge(img_grid, file_dir.parent / "Solution distribution across dimension.png")
+
+                if clear:
+                    shutil.rmtree(file_dir)
+
+    @staticmethod
+    def merge(image_files: ndarray, image_name: Union[str, Path]):
+        n_row, n_col = image_files.shape
+        size_info = []
+        images = []
+        for row in image_files:
+            row_img = []
+            for filename in row:
+                if not filename:
+                    row_img.append(None)
+                    continue
+                image = Image.open(filename)
+                size_info.append(image.size)
+                row_img.append(image)
+            images.append(row_img)
+
+        size_info = np.array(size_info, dtype=int)
+        width, height = np.min(size_info, axis=0)
+
+        canvas_width = width * n_col
+        canvas_height = height * n_row
+
+        merged = Image.new('RGB', (canvas_width, canvas_height), color='white')
+        for row in range(n_row):
+            for col in range(n_col):
+                img = images[row][col]
+                if not img:
+                    continue
+                merged.paste(
+                    img.resize((width, height), Image.Resampling.LANCZOS),
+                    (col * width, row * height)
+                )
+        merged.save(image_name)
+
+    @staticmethod
+    def plot_violin(samples, filename: Path, title='Distribution of x Values Across Dimensions'):
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        n_dims = samples.shape[1]
+        df = pd.DataFrame(samples, columns=[f'x{i + 1}' for i in range(n_dims)])
+        df_melted = df.melt(var_name='Dimension', value_name='Value')
+        plt.figure(figsize=(10, 6))
+        seaborn.violinplot(data=df_melted,
+                       x='Dimension',
+                       y='Value',
+                       hue='Dimension',
+                       inner='quartile')
+        plt.title(title)
+        plt.xlabel('Dimension Index')
+        plt.ylabel('Value')
+        plt.tight_layout()
+        plt.savefig(filename)
+        plt.close()
+
     def to_console(
             self,
             algorithms: list[str],
@@ -422,7 +532,8 @@ class Reporter:
                 continue
             statis: dict[str, Statistics] = {}
             for k, v in res.items():
-                curr_data = self._calculate_statistics(v['runs'])
+                curr_data = self._calculate_statistics(v['runs_y'])
+                curr_data.x = np.vstack(v['runs_x'])
                 curr_data.fe_init = v['fe_init']
                 curr_data.fe_max = v['fe_max']
                 statis[k] = curr_data
@@ -441,9 +552,10 @@ class Reporter:
         sorted_ids = self._check_attributes(runs_path, runs_list)
         runs_data: dict[str, dict] = {}
         for cid in sorted_ids:
-            y_list, fe_init, fe_max = self._get_runs_y_data(cid, runs_list)
+            x_list, y_list, fe_init, fe_max = self._get_runs_data(cid, runs_list)
             runs_data[f"Client {cid:02d}"] = {
-                'runs': y_list,
+                'runs_x': x_list,
+                'runs_y': y_list,
                 'fe_init': fe_init,
                 'fe_max': fe_max
             }
@@ -511,16 +623,18 @@ class Reporter:
         return True, data_mat[0]
 
     @staticmethod
-    def _get_runs_y_data(cid, runs_list):
-        curr_client_runs_data = []
+    def _get_runs_data(cid, runs_list):
+        runs_x_data = []
+        runs_y_data = []
         fe_init = 0
         fe_max = 0
         for run_res in runs_list:
             solution = run_res.get_solutions(cid)
             fe_init = solution.fe_init
             fe_max = solution.size
-            curr_client_runs_data.append(solution.y_homo_decrease)
-        return curr_client_runs_data, fe_init, fe_max
+            runs_x_data.append(solution.x)
+            runs_y_data.append(solution.y_homo_decrease)
+        return runs_x_data, runs_y_data, fe_init, fe_max
 
     @staticmethod
     def _calculate_statistics(data: Union[list, ndarray]) -> Statistics:
@@ -685,3 +799,14 @@ class Reports:
                 self.analyzer.to_console(*comb, **kwargs)
             except Exception:
                 pass
+
+    def to_violin(self, **kwargs):
+        """
+        Supported kwargs
+
+        - ``suffix:str='png'``  image suffix, such as png, pdf, svg
+        - ``merge:bool=True``  if true, merge all separate images into a single image, and the suffix will be fixed to png
+        - ``clear:bool=True``  clear separate images, and only takes effect when ``merge`` is true
+        """
+        for comb in self.combinations:
+            self.analyzer.to_violin(*comb, **kwargs)
