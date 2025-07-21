@@ -69,13 +69,14 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
-            aspect_ratio:tuple[float, float, float]=(4,4,4),
+            figsize:tuple[float, float, float]=(3., 2., 1.),
             alpha: float=0.2,
-            suffix: str='png',
+            suffix: str='.png',
             sciplot_style:Union[list[str], tuple[str]]=('science', 'ieee', 'no-latex'),
             showing_size: int=None,
-            quality: Optional[int]=None,
-            all_in_one: bool=True,
+            quality: Optional[int]=3,
+            merge: bool=True,
+            clear: bool=True,
             in_log_scale: bool=False):
         """
         Generate and save plots of performance curves for specified algorithms and problem settings.
@@ -88,8 +89,8 @@ class Reporter:
             List of algorithm names, if len>1, squash clients data for each problem.
         np_per_dim : int
             Number of partitions per dimension.
-        aspect_ratio : tuple[float, float, float], optional
-            Tuple controlling the width-to-height ratio and initial size of the plot. The third value is the scaling factor.
+        figsize : tuple[float, float, float], optional
+            Controlling the width-to-height ratio and the scale of the ratio. The third value is the scaling factor.
         alpha : float, optional
             Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).
         suffix : str, optional
@@ -101,9 +102,10 @@ class Reporter:
             If None, use `6 * dim`.
         quality : Optional[int], optional
             Image quality parameter, affecting the quality of scalar images. Valid values are integers from 1 to 9.
-            If None, the default figure DPI is used.
-        all_in_one : bool, optional
+        merge : bool, optional
             If True, all curves are plotted on a single figure. If False, each client's curves are plotted in separate figures.
+        clear: bool, optional
+            If True, clear plots output in one_by_one
         in_log_scale : bool, optional
             If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
 
@@ -115,43 +117,34 @@ class Reporter:
         # Prepare the data
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
         algorithms = list(statistics.keys()) # Get the list of available algorithms
-        keys = list(list(statistics.values())[0].keys())
-        file_name = self._gen_name(algorithms[-1], problem, np_per_dim, keys, suffix, single_file=all_in_one, in_log_scale=in_log_scale)
-        row, col = self._find_grid_shape(len(keys))
-        fig_size = self._aspect_ratio(*aspect_ratio)
-        dpi = 100 * quality if quality in range(10) else 'figure'
-
+        client_names = list(list(statistics.values())[0].keys())
+        file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
+        w, h, s = figsize
+        _figsize = w * s, h * s
+        _quality = {'dpi': 100 * quality} if quality in range(10) else {}
+        log_tag = 'log-scale' if in_log_scale else 'ori-scale'
         # Plot the data
         colors = seaborn.color_palette("bright", len(algorithms) - 1).as_hex()
         colors.append("#ff0000")
         with plt.style.context(sciplot_style):
-            if all_in_one:
-                fig, axes = plt.subplots(row, col, figsize=fig_size)
-                for idx, key in enumerate(keys):
-                    ax = axes[idx // col, idx % col]
-                    for alg, color in zip(algorithms, colors):
-                        opt_start_at = self._plotting(ax, statistics, alg, key, showing_size, in_log_scale, alpha, color)
-                        ax.set_title(key)
-                        ax.set_xlabel('Iteration')
-                        ax.set_ylabel('Fitness')
-                    if opt_start_at > 0:
-                        ax.axvline(x=opt_start_at, color='gray', linestyle='--', label='Start index')
-                    ax.legend()
-                fig.tight_layout()
-                plt.savefig(file_name, dpi=dpi)
-            else:
-                for key in keys:
-                    for alg, color in zip(algorithms, colors):
-                        opt_start_at = self._plotting(plt, statistics, alg, key, showing_size, in_log_scale, alpha, color)
-                        plt.title(key)
-                        plt.xlabel('Iteration')
-                        plt.ylabel('Fitness')
-                    if opt_start_at > 0:
-                        plt.axvline(x=opt_start_at, color='gray', linestyle='--', label='Start index')
-                    plt.legend()
-                    plt.tight_layout()
-                    plt.savefig(file_name[key])
-                    plt.close()
+            file_dir = file_dir.parent / f"{file_dir.name} curve {log_tag}"
+            file_dir.mkdir(parents=True, exist_ok=True)
+
+            for c_name in client_names:
+                plt.figure(figsize=_figsize, **_quality)
+                for alg, color in zip(algorithms, colors):
+                    opt_start_at = self._plotting(plt, statistics, alg, c_name, showing_size, in_log_scale, alpha, color)
+                    plt.title(c_name)
+                    plt.xlabel('Iteration')
+                    plt.ylabel('Fitness')
+                if opt_start_at > 0:
+                    plt.axvline(x=opt_start_at, color='gray', linestyle='--', label='Start index')
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig(file_dir / f'{c_name}{suffix}')
+                plt.close()
+            if merge:
+                self._merge_images_in(file_dir, clear)
 
     def to_excel(
             self,
@@ -209,7 +202,8 @@ class Reporter:
             "style-font-underline": "text-decoration: underline"
         }
         df_data = self._get_table_df(algorithms, problem, np_per_dim, threshold_p)
-        global_df, solo_df, global_index_mat, solo_index_mat, file_name = df_data
+        global_df, solo_df, global_index_mat, solo_index_mat = df_data
+        file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
         kwargs1 = {'opt_index_mat': global_index_mat, 'src_data': global_df}
         kwargs2 = {'opt_index_mat': solo_index_mat, 'src_data': solo_df}
 
@@ -222,7 +216,9 @@ class Reporter:
 
         global_styled_df = global_df.style.map(highlight_cells, **kwargs1)
         solo_styled_df = solo_df.style.map(highlight_cells, **kwargs2)
-        with pd.ExcelWriter(file_name, engine='openpyxl') as writer:
+
+        file_dir.mkdir(parents=True, exist_ok=True)
+        with pd.ExcelWriter(file_dir.with_suffix('.xlsx'), engine='openpyxl') as writer:
             global_styled_df.to_excel(writer, index=False, sheet_name='Global')
             solo_styled_df.to_excel(writer, index=False, sheet_name='Solo')
 
@@ -234,7 +230,6 @@ class Reporter:
             threshold_p: float):
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
         keys = list(list(statistics.values())[0].keys())
-        file_name = self._gen_name(algorithms[-1], problem, np_per_dim, keys, 'xlsx', single_file=True, in_log_scale=False)
         str_table, float_table = self._tabling(statistics, keys, threshold_p)
         global_index_mat, solo_index_mat = self._get_optimality_index_mat(float_table)
 
@@ -252,7 +247,7 @@ class Reporter:
 
         global_df.iloc[-1, 0] = 'Sum'
         solo_df.iloc[-1, 0] = 'Sum'
-        return global_df, solo_df, global_index_mat, solo_index_mat, file_name
+        return global_df, solo_df, global_index_mat, solo_index_mat
 
     def to_latex(
             self,
@@ -261,8 +256,8 @@ class Reporter:
             np_per_dim: int,
             threshold_p: float = 0.05):
         tab_data = self._get_table_df(algorithms, problem, np_per_dim, threshold_p)
-        data_df, _, hl_bool_mat, _, file_name = tab_data
-        file_name = file_name.with_suffix('.tex')
+        data_df, _, hl_bool_mat, _ = tab_data
+        file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
 
         def highlight_cells(x):
             df_styles = pd.DataFrame('', index=x.index, columns=x.columns)
@@ -279,7 +274,7 @@ class Reporter:
                                         label=f"tab:{problem}_{np_per_dim}",
                                         position='htbp')
 
-        with open(file_name, 'w') as f:
+        with open(file_dir.with_suffix('.tex'), 'w') as f:
             f.write(latex_code)
 
     def to_violin(
@@ -287,7 +282,8 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
-            suffix: str='png',
+            suffix: str='.png',
+            figsize: tuple=(10, 6, 1),
             merge: bool=True,
             clear: bool=True
     ):
@@ -302,6 +298,8 @@ class Reporter:
             number of partitions per dimension(not a control arg, but a information to match data)
         suffix: str
             image suffix, such as png, pdf, svg
+        figsize: tuple
+            Controlling the (width, height, scale). the figsize is calculated by (width*scale, height*scale)
         merge: bool
             if true, merge all separate images into a single image, and the suffix will be fixed to PNG
         clear: bool
@@ -313,81 +311,19 @@ class Reporter:
         """
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
         clients_name = list(list(statistics.values())[0].keys())
-        for alg in algorithms:
-            _suffix = 'png' if merge else suffix
-            file_name = self._gen_name(alg, problem, np_per_dim, keys=clients_name, suffix=_suffix, single_file=False, in_log_scale=False)
-            alg_res = statistics[alg]
-            for clt_name in clients_name:
-                x = alg_res[clt_name].x
-                title = f"[{alg}][{problem}][{clt_name}] Solution Dim Distribution"
-                self.plot_violin(x, file_name[clt_name], title=title)
-            file_dir = file_name[clients_name[0]].parent
-
-            if merge:
-                img_path = [str(item) for item in file_dir.iterdir()]
-                img_path = sorted(img_path)
-                n_cell = len(img_path)
-                row, col = self._find_grid_shape(n_cell)
-                img_grid = [['' for _ in range(col)] for _ in range(row)]
-                for i, p in enumerate(img_path):
-                    img_grid[i // col][i % col] = p
-                self.merge(np.array(img_grid, dtype=str), file_dir.parent / "Solution distribution across dimension.png")
-
-                if clear:
-                    shutil.rmtree(file_dir)
-
-    @staticmethod
-    def merge(image_files: ndarray, image_name: Union[str, Path]):
-        n_row, n_col = image_files.shape
-        size_info = []
-        images = []
-        for row in image_files:
-            row_img = []
-            for filename in row:
-                if not filename:
-                    row_img.append(None)
-                    continue
-                image = Image.open(filename)
-                size_info.append(image.size)
-                row_img.append(image)
-            images.append(row_img)
-
-        size_info = np.array(size_info, dtype=int)
-        width, height = np.min(size_info, axis=0)
-
-        canvas_width = width * n_col
-        canvas_height = height * n_row
-
-        merged = Image.new('RGB', (canvas_width, canvas_height), color='white')
-        for row in range(n_row):
-            for col in range(n_col):
-                img = images[row][col]
-                if not img:
-                    continue
-                merged.paste(
-                    img.resize((width, height), Image.Resampling.LANCZOS),
-                    (col * width, row * height)
-                )
-        merged.save(image_name)
-
-    @staticmethod
-    def plot_violin(samples, filename: Path, title='Distribution of x Values Across Dimensions'):
-        filename.parent.mkdir(parents=True, exist_ok=True)
-        n_dims = samples.shape[1]
-        df = pd.DataFrame(samples, columns=[f'x{i + 1}' for i in range(n_dims)])
-        df_melted = df.melt(var_name='Dimension', value_name='Value')
-        plt.figure(figsize=(10, 6))
-        seaborn.violinplot(data=df_melted,
-                       x='Dimension',
-                       y='Value',
-                       hue='Dimension',
-                       inner='quartile')
-        plt.title(title)
-        plt.xlabel('Dimension Index')
-        plt.ylabel('Value')
-        plt.tight_layout()
-        plt.savefig(filename)
-        plt.close()
+        _suffix = '.png' if merge else suffix
+        file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
+        file_dir = file_dir.parent / f"{file_dir.name} violin"
+        file_dir.mkdir(parents=True, exist_ok=True)
+        w, h, s = figsize
+        _figsize = w*s, h*s
+        alg_res = statistics[algorithms[-1]]
+        for clt_name in clients_name:
+            x = alg_res[clt_name].x
+            title = f"[{algorithms[-1]}][{problem}][{clt_name}] Solution Dim Distribution"
+            self._plot_violin(x, _figsize, file_dir / f"{clt_name}{_suffix}", title=title)
+        if merge:
+            self._merge_images_in(file_dir, clear)
 
     def to_console(
             self,
@@ -422,6 +358,64 @@ class Reporter:
         df = pd.DataFrame(str_table)
         print(f"Total {len(keys)} clients")
         print(df.to_string(index=False))
+
+    def _merge_images_in(self, file_dir: Path, clear: bool):
+        file_names = [str(name) for name in file_dir.iterdir()]
+        n_row, n_col = self._find_grid_shape(len(file_names))
+        img_grid = [['' for _ in range(n_col)] for _ in range(n_row)]
+        for i, p in enumerate(sorted(file_names)):
+            img_grid[i // n_col][i % n_col] = str(p)
+        merge_from = file_dir.name
+        size_info = []
+        images = []
+        for row in img_grid:
+            row_img = []
+            for filename in row:
+                if not filename:
+                    row_img.append(None)
+                    continue
+                image = Image.open(filename)
+                size_info.append(image.size)
+                row_img.append(image)
+            images.append(row_img)
+
+        size_info = np.array(size_info, dtype=int)
+        width, height = np.min(size_info, axis=0)
+
+        canvas_width = width * n_col
+        canvas_height = height * n_row
+
+        merged = Image.new('RGB', (canvas_width, canvas_height), color='white')
+        for row_id in range(n_row):
+            for col_id in range(n_col):
+                img = images[row_id][col_id]
+                if not img:
+                    continue
+                merged.paste(
+                    img.resize((width, height), Image.Resampling.LANCZOS),
+                    (col_id * width, row_id * height)
+                )
+        merged.save(file_dir.parent / f'{merge_from}.png')
+        if clear:
+            shutil.rmtree(file_dir)
+
+    @staticmethod
+    def _plot_violin(samples, figsize, filename: Path, title='Distribution of x Values Across Dimensions'):
+        n_dims = samples.shape[1]
+        df = pd.DataFrame(samples, columns=[f'x{i + 1}' for i in range(n_dims)])
+        df_melted = df.melt(var_name='Dimension', value_name='Value')
+        plt.figure(figsize=figsize)
+        seaborn.violinplot(data=df_melted,
+                       x='Dimension',
+                       y='Value',
+                       hue='Dimension',
+                       inner='quartile')
+        plt.title(title)
+        plt.xlabel('Dimension Index')
+        plt.ylabel('Value')
+        plt.tight_layout()
+        plt.savefig(filename)
+        plt.close()
 
     @staticmethod
     def _get_optimality_index_mat(mean_dict):
@@ -529,18 +523,11 @@ class Reporter:
     def _get_np_name(np_per_dim: int):
         return 'IID' if np_per_dim == 1 else f"NIID{np_per_dim}"
 
-    def _gen_name(self, obj_alg, problem, np_per_dim, keys, suffix, single_file, in_log_scale):
+    def _get_output_dir(self, algorithm: str, problem: str, np_per_dim: int) -> Path:
         np_name = self._get_np_name(np_per_dim)
-        log_tag = 'Logarithmic' if in_log_scale else 'Original'
-        filedir = self._root / f"{time.strftime('%Y-%m-%d')}" / f"{obj_alg} / {problem}"
-        if not filedir.exists():
-            filedir.mkdir(parents=True)
-        if single_file:
-            file_name = filedir / f"{log_tag} {np_name}.{suffix}"
-        else:
-            file_name = {}
-            for k in keys:
-                file_name[k]=filedir/ 'One-by-one' / f"{k}.{suffix}"
+        filedir = self._root / f"{time.strftime('%Y-%m-%d')}" / f"{algorithm}" / f"{problem}"
+        filedir.mkdir(parents=True, exist_ok=True)
+        file_name = filedir / f"{np_name}"
         return file_name
 
     def _get_statistics(self, algorithms, problem, np_per_dim) -> T_Sta:
@@ -752,10 +739,6 @@ class Reporter:
 
         return (a, b) if a > b else (b, a)
 
-    @staticmethod
-    def _aspect_ratio(width, height, scale):
-        return width * scale, height * scale
-
     def show_raw_results(self, alg_name: str, problem: str, np_per_dim: int):
         result_list = self._get_runs_path(alg_name, problem, np_per_dim)
         result_list = [str(path) for path in result_list]
@@ -795,20 +778,21 @@ class Reports:
         """
         Supported kwargs(``name type default``)
 
-        - ``aspect_ratio tuple[float,float,float] (4,4,4)`` -- Controlling the width-to-height ratio and initial size of the plot. The third value is the scaling factor.
+        - ``figsize tuple[float,float,float] (3.,2.,2.)`` -- Controlling the width-to-height ratio and scale of the ratio. The third value is the scaling factor.
         - ``alpha float 0.2`` -- Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).
         - ``suffix str 'png'`` -- File format suffix for the output image. Supported formats include 'png', 'jpg', 'eps', 'svg', 'pdf'.
         - ``sciplot_style list[str]|tuple[str] ('science','ieee','no-latex')`` -- SciencePlots style parameters. Refer to the SciencePlots documentation for available styles.
         - ``showing_size None|int None`` -- Number of data points to use for plotting, taken from the last `showing_size` iterations of the convergence sequence. Take all if None
-        - ``quality None|int None`` -- Image quality parameter, affecting the quality of scalar images. Valid values are integers from 1 to 9.
-        - ``all_in_one bool True`` -- If True, all curves are plotted on a single figure. If False, each client's curves are plotted in separate figures.
+        - ``quality None|int 3`` -- Image quality parameter, affecting the quality of scalar images. Valid values are integers from 1 to 9.
+        - ``merge bool True`` -- If True, all curves are plotted on a single figure. If False, each client's curves are plotted in separate figures.
+        - ``clear bool True`` -- Clear separate images, and only takes effect when ``merge`` is true
         - ``in_log_scale bool False`` -- If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
         """
         for comb in tqdm(self.combinations, desc='Saving', unit='Img', ncols=100):
             try:
                 self.analyzer.to_curve(*comb, **kwargs)
             except Exception:
-                pass
+                raise
 
     def to_excel(self, **kwargs):
         """
