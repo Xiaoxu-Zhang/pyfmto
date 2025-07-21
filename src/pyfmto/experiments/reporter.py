@@ -69,10 +69,10 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
-            figsize:tuple[float, float, float]=(3., 2., 1.),
+            figsize:tuple[float, float, float]=(3, 2.3, 1),
             alpha: float=0.2,
             suffix: str='.png',
-            sciplot_style:Union[list[str], tuple[str]]=('science', 'ieee', 'no-latex'),
+            styles:Union[list[str], tuple[str]]=('science', 'ieee', 'no-latex'),
             showing_size: int=None,
             quality: Optional[int]=3,
             merge: bool=True,
@@ -95,7 +95,7 @@ class Reporter:
             Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).
         suffix : str, optional
             File format suffix for the output image. Supported formats include 'png', 'jpg', 'eps', 'svg', 'pdf'.
-        sciplot_style : Union[list[str], tuple[str]], optional
+        styles : Union[list[str], tuple[str]], optional
             SciencePlots style parameters. Refer to the SciencePlots documentation for available styles.
         showing_size : int, optional
             Number of data points to use for plotting, taken from the last `showing_size` iterations of the convergence sequence.
@@ -126,7 +126,7 @@ class Reporter:
         # Plot the data
         colors = seaborn.color_palette("bright", len(algorithms) - 1).as_hex()
         colors.append("#ff0000")
-        with plt.style.context(sciplot_style):
+        with plt.style.context(styles):
             file_dir = file_dir.parent / f"{file_dir.name} curve {log_tag}"
             file_dir.mkdir(parents=True, exist_ok=True)
 
@@ -283,7 +283,7 @@ class Reporter:
             problem: str,
             np_per_dim: int,
             suffix: str='.png',
-            figsize: tuple=(10, 6, 1),
+            figsize: tuple=(5, 3, 1),
             merge: bool=True,
             clear: bool=True
     ):
@@ -320,7 +320,7 @@ class Reporter:
         alg_res = statistics[algorithms[-1]]
         for clt_name in clients_name:
             x = alg_res[clt_name].x
-            title = f"[{algorithms[-1]}][{problem}][{clt_name}] Solution Dim Distribution"
+            title = f"{clt_name} of {algorithms[-1]} on {problem}"
             self._plot_violin(x, _figsize, file_dir / f"{clt_name}{_suffix}", title=title)
         if merge:
             self._merge_images_in(file_dir, clear)
@@ -778,10 +778,10 @@ class Reports:
         """
         Supported kwargs(``name type default``)
 
-        - ``figsize tuple[float,float,float] (3.,2.,2.)`` -- Controlling the width-to-height ratio and scale of the ratio. The third value is the scaling factor.
+        - ``figsize tuple (3,2.3,1)`` -- Controlling the width-to-height ratio and scale of the ratio. The third value is the scaling factor.
         - ``alpha float 0.2`` -- Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).
         - ``suffix str 'png'`` -- File format suffix for the output image. Supported formats include 'png', 'jpg', 'eps', 'svg', 'pdf'.
-        - ``sciplot_style list[str]|tuple[str] ('science','ieee','no-latex')`` -- SciencePlots style parameters. Refer to the SciencePlots documentation for available styles.
+        - ``styles tuple ('science','ieee','no-latex')`` -- SciencePlots style parameters. Refer to the SciencePlots documentation for available styles.
         - ``showing_size None|int None`` -- Number of data points to use for plotting, taken from the last `showing_size` iterations of the convergence sequence. Take all if None
         - ``quality None|int 3`` -- Image quality parameter, affecting the quality of scalar images. Valid values are integers from 1 to 9.
         - ``merge bool True`` -- If True, all curves are plotted on a single figure. If False, each client's curves are plotted in separate figures.
@@ -799,7 +799,7 @@ class Reports:
         Supported kwargs(``name type default``)
 
         - ``threshold_p float 0.05``  -- t-test threshold for determining statistical significance.
-        - ``styles Union[list[str],tuple[str]] ('color-bg-grey','style-font-bold','style-font-underline')``  -- list or tuple of style parameters to apply to the Excel cells.
+        - ``styles list[str]|tuple[str] ('color-bg-grey','style-font-bold','style-font-underline')``  -- list or tuple of style parameters to apply to the Excel cells.
 
         Notes
         -----
@@ -843,6 +843,7 @@ class Reports:
         Supported kwargs(``name type default``)
 
         - ``suffix str 'png'`` -- image suffix, such as png, pdf, svg
+        - ``figsize tuple (5,3,1)`` -- controlling the (width, height, scale). the figsize is calculated by (width*scale, height*scale)
         - ``merge bool True`` -- if true, merge all separate images into a single image, and the suffix will be fixed to png
         - ``clear bool True`` -- clear separate images, and only takes effect when ``merge`` is true
         """
