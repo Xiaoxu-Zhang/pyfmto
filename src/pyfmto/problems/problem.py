@@ -19,7 +19,7 @@ __all__ = ['SingleTaskProblem', 'MultiTaskProblem', 'check_and_transform']
 T_Bound = Union[int, float, list, tuple, np.ndarray]
 
 
-def _check_x(x, dim):
+def check_x(x, dim):
     if isinstance(x, (list, tuple)):
         x = np.array(x)
     if not isinstance(x, np.ndarray):
@@ -37,10 +37,12 @@ def _check_x(x, dim):
     return x
 
 
-def _transform_x(x, rot_mat, shift_mat):
-    x = x - shift_mat if shift_mat is not None else x
-    x = x @ rot_mat.T if rot_mat is not None else x
-    return x
+def transform_x(x, rot_mat, shift_mat):
+    return (x - shift_mat) @ rot_mat.T
+
+
+def inverse_transform_x(x, rot_mat, shift_mat):
+    return (x @ np.linalg.inv(rot_mat.T)) + shift_mat
 
 
 def check_and_transform():
@@ -54,8 +56,8 @@ def check_and_transform():
             x = kwargs.pop('x')
         else:
             x = copy.deepcopy(args[0])
-        x = _check_x(x, dim)
-        x = _transform_x(x, instance.rotate_mat, instance.shift_mat)
+        x = check_x(x, dim)
+        x = transform_x(x, instance.rotate_mat, instance.shift_mat)
         x = np.clip(x, instance.x_lb, instance.x_ub)
         return wrapped(x, *args[1:], **kwargs)
 
@@ -122,14 +124,39 @@ class SingleTaskProblem(ABC):
         self._x_ub = np.ones(self.dim)
         self._fe_init = -1
         self._fe_max = -1
+        self._x_global = np.zeros(self.dim)
         self._np_per_dim = np_per_dim
         self._partition = np.zeros((2, self.dim))
         self._init_bounds(x_lb, x_ub)
         self._init_budget(fe_init, fe_max)
         self._solutions = Solution()
+        self.auto_update_solutions = False
 
-        self.rotate_mat: Optional[ndarray] = None
-        self.shift_mat: Optional[ndarray] = None
+        self.rotate_mat: Optional[ndarray] = np.eye(self.dim)
+        self.shift_mat: Optional[ndarray] = np.zeros(self.dim)
+
+    def set_x_global(self, x_global: Optional[ndarray]):
+        """
+        Setting the global optimum solution x.
+
+        Notes
+        -----
+        Default to zero vector if it doesn't set,
+        pass a None if it is unknown.
+        """
+        self._x_global = x_global
+
+    @property
+    def x_global(self):
+        if self._x_global is None:
+            return None
+        return inverse_transform_x(self._x_global, self.rotate_mat, self.shift_mat)
+
+    @property
+    def y_global(self):
+        if self.x_global is None:
+            return None
+        return self.evaluate(self.x_global).squeeze()
 
     def __str__(self):
         lb, ub = self.x_lb, self.x_ub
@@ -289,12 +316,16 @@ class SingleTaskProblem(ABC):
                    verbose=False, **kwargs)
 
     def set_transform(self, rot_mat: Optional[np.ndarray], shift_mat: Optional[np.ndarray]):
-        if rot_mat is not None:
+        if rot_mat is None:
+            self.rotate_mat = np.eye(self.dim)
+        else:
             if isinstance(rot_mat, np.ndarray):
                 self.rotate_mat = rot_mat
             else:
                 raise TypeError('rot_mat must be ndarray or None')
-        if shift_mat is not None:
+        if shift_mat is None:
+            self.shift_mat = np.ones(self.dim)
+        else:
             if isinstance(shift_mat, (int, float)):
                 self.shift_mat = np.ones(self.dim) * shift_mat
             elif isinstance(shift_mat, np.ndarray):
@@ -334,7 +365,19 @@ class SingleTaskProblem(ABC):
 
         y_init = np.array(self.evaluate(x_init))
         self.solutions.clear()  # Do not remove this line
-        self.solutions.append(x_init, y_init)
+
+        self.solutions._x_global = self.x_global
+        if not self.auto_update_solutions:
+            self.solutions.append(x_init, y_init)
+            self.solutions._y_global = self.y_global
+        else:
+            # because the y_global is getting by self.evaluate(), so
+            # we need disable auto_update_solutions temporarily if
+            # it is True
+            self.auto_update_solutions = False
+            self.solutions._y_global = self.y_global
+            self.auto_update_solutions = True
+
 
     def random_uniform_x(self, size, within_partition=True):
         """
@@ -375,8 +418,6 @@ class SingleTaskProblem(ABC):
         self._check_inputs(points)
         if not np.all(self.x_lb <= points) or not np.all(points <= self.x_ub):
             points = np.clip(points, self.x_lb, self.x_ub)
-            # ologger.warning(f"x_lb is {self.x_lb}, x_ub is {self.x_ub}, but not all points are in the range, "
-            #                f"np.clip() is applied to ensure all values are within the range.")
         return (points - self.x_lb) / (self.x_ub - self.x_lb)
 
     def denormalize_x(self, points):
@@ -396,17 +437,27 @@ class SingleTaskProblem(ABC):
         points = self._check_inputs(points)
         if not np.all(0 <= points) or not np.all(points <= 1):
             points = np.clip(points, 0, 1)
-            # ologger.warning("Points to be denormalized contain values outside the range [0, 1]. "
-            #                "np.clip() is applied to ensure all values are within the range.")
         return points * (self.x_ub - self.x_lb) + self.x_lb
 
-    @check_and_transform()
     def evaluate(self, x: np.ndarray):
-        if x.ndim == 1:
-            res = self._eval_single(x)
-        else:
-            res = np.apply_along_axis(self._eval_single, 1, x)
-        return res.reshape(-1, self.obj)
+        _x = self.before_eval(x)
+        y = np.apply_along_axis(self._eval_single, 1, _x)
+        y = self.after_eval(x, y)
+        return y
+
+    def before_eval(self, x):
+        _x = x.copy()
+        _x = check_x(_x, self.dim)
+        _x = transform_x(_x, self.rotate_mat, self.shift_mat)
+        _x = np.clip(_x, self.x_lb, self.x_ub)
+        return _x.reshape(-1, self.dim)
+
+    def after_eval(self, x, y):
+        _x = x.reshape(-1, self.dim)
+        _y = y.reshape(-1, self.obj)
+        if self.auto_update_solutions:
+            self.solutions.append(_x, _y)
+        return _y
 
     @abstractmethod
     def _eval_single(self, x: np.ndarray):
@@ -426,7 +477,7 @@ class SingleTaskProblem(ABC):
         """
 
     def _check_inputs(self, points):
-        return _check_x(points, self.dim)
+        return check_x(points, self.dim)
 
     @property
     def no_partition(self):

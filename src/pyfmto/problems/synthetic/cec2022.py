@@ -8,8 +8,9 @@ class _BenchmarksCec2022(Stp):
     def __init__(self, fid, dim: int, **kwargs):
         cec2022 = importlib.import_module('opfunu.cec_based.cec2022')
         func = getattr(cec2022, f"F{fid}2022")(dim)
-        self.func = func
         super().__init__(dim, 1, x_lb=func.lb, x_ub=func.ub, **kwargs)
+        self.func = func
+        self.set_x_global(func.x_global)
 
     @property
     def name(self) -> str:

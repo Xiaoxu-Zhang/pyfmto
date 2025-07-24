@@ -79,6 +79,7 @@ class Schwefel(Stp):
 
     def __init__(self, dim=10, x_lb=-500, x_ub=500, **kwargs):
         super().__init__(dim=dim, obj=1, x_lb=x_lb, x_ub=x_ub, **kwargs)
+        self.set_x_global(np.ones(self.dim) * 420.9687)
 
     def _eval_single(self, x):
         term = x * np.sin(np.sqrt(np.abs(x)))
@@ -98,6 +99,7 @@ class Sphere(Stp):
 class Rosenbrock(Stp):
     def __init__(self, dim=10, x_lb=-2.048, x_ub=2.048, **kwargs):
         super().__init__(dim=dim, obj=1, x_lb=x_lb, x_ub=x_ub, **kwargs)
+        self.set_x_global(np.ones(self.dim))
 
     def _eval_single(self, x):
         """

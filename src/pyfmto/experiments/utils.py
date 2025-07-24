@@ -271,4 +271,6 @@ class Statistics:
         self.opt_log = opt_log
         self.fe_init = 0
         self.fe_max = 0
-        self.x = np.array([])
+        self.x = None
+        self.x_global = None
+        self.y_global = None

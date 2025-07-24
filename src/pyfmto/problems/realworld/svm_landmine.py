@@ -6,8 +6,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 
 from ..problem import (MultiTaskProblem as Mtp,
-                       SingleTaskProblem as Stp,
-                       check_and_transform)
+                       SingleTaskProblem as Stp)
 
 __all__ = ["SvmLandmine"]
 
@@ -17,15 +16,14 @@ class _SingleSvmProblem(Stp):
         super().__init__(dim=2, obj=1, x_lb=np.array([1e-4, 1e-2]), x_ub=np.array([10.0, 10.0]), **kwargs)
         self.x_train, self.x_test, self.y_train, self.y_test = dataset
         self.data_size = len(self.x_train)
+        self.set_x_global(None)
 
-    @check_and_transform()
     def evaluate(self, x):
         # training svm and get the prediction with real datasets
-        if x.ndim == 2:
-            res = [self._eval_single(xi) for xi in x]
-        else:
-            res = [self._eval_single(x)]
-        return np.array(res).reshape(-1, 1)
+        _x = self.before_eval(x)
+        y = np.array([self._eval_single(xi) for xi in _x])
+        y = self.after_eval(x, y)
+        return y
 
     def _eval_single(self, x):
         clf = svm.SVC(kernel="rbf", C=x[0], gamma=x[1], probability=True)

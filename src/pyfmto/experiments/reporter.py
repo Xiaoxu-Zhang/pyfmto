@@ -77,7 +77,7 @@ class Reporter:
             quality: Optional[int]=3,
             merge: bool=True,
             clear: bool=True,
-            in_log_scale: bool=False):
+            on_log_scale: bool=False):
         """
         Generate and save plots of performance curves for specified algorithms and problem settings.
 
@@ -106,7 +106,7 @@ class Reporter:
             If True, all curves are plotted on a single figure. If False, each client's curves are plotted in separate figures.
         clear: bool, optional
             If True, clear plots output in one_by_one
-        in_log_scale : bool, optional
+        on_log_scale : bool, optional
             If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
 
         Returns
@@ -122,18 +122,18 @@ class Reporter:
         w, h, s = figsize
         _figsize = w * s, h * s
         _quality = {'dpi': 100 * quality} if quality in range(10) else {}
-        log_tag = 'log-scale' if in_log_scale else 'ori-scale'
+        log_tag = ' log' if on_log_scale else ''
         # Plot the data
         colors = seaborn.color_palette("bright", len(algorithms) - 1).as_hex()
         colors.append("#ff0000")
         with plt.style.context(styles):
-            file_dir = file_dir.parent / f"{file_dir.name} curve {log_tag}"
+            file_dir = file_dir.parent / f"{file_dir.name} curve{log_tag}"
             file_dir.mkdir(parents=True, exist_ok=True)
 
             for c_name in client_names:
                 plt.figure(figsize=_figsize, **_quality)
                 for alg, color in zip(algorithms, colors):
-                    opt_start_at = self._plotting(plt, statistics, alg, c_name, showing_size, in_log_scale, alpha, color)
+                    opt_start_at = self._plotting(plt, statistics, alg, c_name, showing_size, on_log_scale, alpha, color)
                     plt.title(c_name)
                     plt.xlabel('Iteration')
                     plt.ylabel('Fitness')
@@ -217,7 +217,6 @@ class Reporter:
         global_styled_df = global_df.style.map(highlight_cells, **kwargs1)
         solo_styled_df = solo_df.style.map(highlight_cells, **kwargs2)
 
-        file_dir.mkdir(parents=True, exist_ok=True)
         with pd.ExcelWriter(file_dir.with_suffix('.xlsx'), engine='openpyxl') as writer:
             global_styled_df.to_excel(writer, index=False, sheet_name='Global')
             solo_styled_df.to_excel(writer, index=False, sheet_name='Solo')
@@ -229,8 +228,8 @@ class Reporter:
             np_per_dim: int,
             threshold_p: float):
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
-        keys = list(list(statistics.values())[0].keys())
-        str_table, float_table = self._tabling(statistics, keys, threshold_p)
+        clients_name = list(list(statistics.values())[0].keys())
+        str_table, float_table = self._tabling(statistics, clients_name, threshold_p)
         global_index_mat, solo_index_mat = self._get_optimality_index_mat(float_table)
 
         global_counter = np.sum(global_index_mat, axis=0).reshape(1, -1)
@@ -310,18 +309,16 @@ class Reporter:
             None
         """
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
-        clients_name = list(list(statistics.values())[0].keys())
         _suffix = '.png' if merge else suffix
         file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
         file_dir = file_dir.parent / f"{file_dir.name} violin"
         file_dir.mkdir(parents=True, exist_ok=True)
         w, h, s = figsize
         _figsize = w*s, h*s
-        alg_res = statistics[algorithms[-1]]
-        for clt_name in clients_name:
-            x = alg_res[clt_name].x
+        alg_res: dict[str, Statistics] = statistics[algorithms[-1]]
+        for clt_name, sta in alg_res.items():
             title = f"{clt_name} of {algorithms[-1]} on {problem}"
-            self._plot_violin(x, _figsize, file_dir / f"{clt_name}{_suffix}", title=title)
+            self._plot_violin(sta, _figsize, file_dir / f"{clt_name}{_suffix}", title=title)
         if merge:
             self._merge_images_in(file_dir, clear)
 
@@ -400,16 +397,23 @@ class Reporter:
             shutil.rmtree(file_dir)
 
     @staticmethod
-    def _plot_violin(samples, figsize, filename: Path, title='Distribution of x Values Across Dimensions'):
+    def _plot_violin(statis: Statistics, figsize, filename: Path, title='Distribution of x Values Across Dimensions'):
+        samples = statis.x
         n_dims = samples.shape[1]
         df = pd.DataFrame(samples, columns=[f'x{i + 1}' for i in range(n_dims)])
         df_melted = df.melt(var_name='Dimension', value_name='Value')
         plt.figure(figsize=figsize)
-        seaborn.violinplot(data=df_melted,
+        ax = seaborn.violinplot(data=df_melted,
                        x='Dimension',
                        y='Value',
                        hue='Dimension',
                        inner='quartile')
+
+        x_global = statis.x_global
+        if x_global is not None:
+            for dim in range(n_dims):
+                ax.plot(dim, x_global[dim], 'r*', markersize=8, markeredgecolor='w', linewidth=0.5)
+
         plt.title(title)
         plt.xlabel('Dimension Index')
         plt.ylabel('Value')
@@ -542,6 +546,8 @@ class Reporter:
                 curr_data.x = np.vstack(v['runs_x'])
                 curr_data.fe_init = v['fe_init']
                 curr_data.fe_max = v['fe_max']
+                curr_data.x_global = v['x_global']
+                curr_data.y_global = v['y_global']
                 statis[k] = curr_data
             statistics[alg] = statis
         return statistics
@@ -553,18 +559,9 @@ class Reporter:
         cache_key = f"{alg_name}_{problem}_{np_per_dim}"
         if cache_key in self._cache:
             return True
-
         runs_list = self._load_runs_data(runs_path)
         sorted_ids = self._check_attributes(runs_path, runs_list)
-        runs_data: dict[str, dict] = {}
-        for cid in sorted_ids:
-            x_list, y_list, fe_init, fe_max = self._get_runs_data(cid, runs_list)
-            runs_data[f"Client {cid:02d}"] = {
-                'runs_x': x_list,
-                'runs_y': y_list,
-                'fe_init': fe_init,
-                'fe_max': fe_max
-            }
+        runs_data = {f"Client {cid:02d}": self._get_runs_data(cid, runs_list) for cid in sorted_ids}
         self._cache[cache_key] = runs_data
         return True
 
@@ -632,15 +629,24 @@ class Reporter:
     def _get_runs_data(cid, runs_list):
         runs_x_data = []
         runs_y_data = []
-        fe_init = 0
-        fe_max = 0
+        tmp = runs_list[0].get_solutions(cid)
+        fe_init = tmp.fe_init
+        fe_max = tmp.size
+        x_global = tmp.x_global
+        y_global = tmp.y_global
         for run_res in runs_list:
             solution = run_res.get_solutions(cid)
-            fe_init = solution.fe_init
-            fe_max = solution.size
             runs_x_data.append(solution.x)
             runs_y_data.append(solution.y_homo_decrease)
-        return runs_x_data, runs_y_data, fe_init, fe_max
+        res = {
+            'runs_x': runs_x_data,
+            'runs_y': runs_y_data,
+            'fe_init': fe_init,
+            'fe_max': fe_max,
+            'x_global': x_global,
+            'y_global': y_global
+        }
+        return res
 
     @staticmethod
     def _calculate_statistics(data: Union[list, ndarray]) -> Statistics:

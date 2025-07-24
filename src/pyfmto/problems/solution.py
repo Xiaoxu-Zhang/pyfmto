@@ -25,6 +25,8 @@ class Solution:
 
         self._x: Optional[ndarray] = None
         self._y: Optional[ndarray] = None
+        self._x_global: Optional[ndarray] = None
+        self._y_global: Optional[ndarray] = None
         self._prev_size = 0
 
         if solution:
@@ -64,6 +66,14 @@ class Solution:
     @property
     def y(self) -> Optional[np.ndarray]:
         return self._y
+
+    @property
+    def x_global(self) -> Optional[np.ndarray]:
+        return self._x_global
+
+    @property
+    def y_global(self) -> Optional[np.ndarray]:
+        return self._y_global
 
     @property
     def initialized(self):
