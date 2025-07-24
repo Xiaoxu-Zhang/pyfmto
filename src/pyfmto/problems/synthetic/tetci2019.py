@@ -71,7 +71,12 @@ class Tetci2019(Mtp):
         s10[: dim//2] = 40
         s10[s10==1] = -40
 
-        shift_mats = [0, 80, -80, -0.4, 0, 40, -0.4, 420.9687, s9, s10]
+        # Here, we set the f8 shift value to 0; if we set it
+        # to 420.9687, which is the setting from the reference
+        # paper and also represents the global optimality of
+        # f8, the global optimum will fall outside the search
+        # space (-500, 500).
+        shift_mats = [0, 80, -80, -0.4, 0, 40, -0.4, 0, s9, s10]
 
         if dim > 25:
             del functions[6], functions[3]

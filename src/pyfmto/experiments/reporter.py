@@ -403,11 +403,13 @@ class Reporter:
         df = pd.DataFrame(samples, columns=[f'x{i + 1}' for i in range(n_dims)])
         df_melted = df.melt(var_name='Dimension', value_name='Value')
         plt.figure(figsize=figsize)
-        ax = seaborn.violinplot(data=df_melted,
-                       x='Dimension',
-                       y='Value',
-                       hue='Dimension',
-                       inner='quartile')
+        ax = seaborn.violinplot(
+            data=df_melted,
+            x='Dimension',
+            y='Value',
+            hue='Dimension',
+            inner='quartile'
+        )
 
         x_global = statis.x_global
         if x_global is not None:
