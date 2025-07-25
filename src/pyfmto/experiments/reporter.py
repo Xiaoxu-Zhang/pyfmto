@@ -13,7 +13,7 @@ from collections import defaultdict
 from PIL import Image
 from numpy import ndarray
 from pathlib import Path
-from pyfmto.utilities import logger, reset_log
+from pyfmto.utilities import logger, reset_log, SeabornPalettes
 from scipy import stats
 from tabulate import tabulate
 from tqdm import tqdm
@@ -71,6 +71,7 @@ class Reporter:
             np_per_dim: int,
             figsize:tuple[float, float, float]=(3, 2.3, 1),
             alpha: float=0.2,
+            palette: Union[str, SeabornPalettes]=SeabornPalettes.bright,
             suffix: str='.png',
             styles:Union[list[str], tuple[str]]=('science', 'ieee', 'no-latex'),
             showing_size: int=None,
@@ -93,6 +94,8 @@ class Reporter:
             Controlling the width-to-height ratio and the scale of the ratio. The third value is the scaling factor.
         alpha : float, optional
             Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).
+        palette :
+            The palette argument in `seaborn.plotviolin`, the `pyfmto.utilities.SeabornPalette` class can help you try different options easier.
         suffix : str, optional
             File format suffix for the output image. Supported formats include 'png', 'jpg', 'eps', 'svg', 'pdf'.
         styles : Union[list[str], tuple[str]], optional
@@ -108,11 +111,6 @@ class Reporter:
             If True, clear plots output in one_by_one
         on_log_scale : bool, optional
             If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
-
-        Returns
-        -------
-        None
-            The function saves the generated plots to the specified file path(s) without returning any value.
         """
         # Prepare the data
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
@@ -124,7 +122,7 @@ class Reporter:
         _quality = {'dpi': 100 * quality} if quality in range(10) else {}
         log_tag = ' log' if on_log_scale else ''
         # Plot the data
-        colors = seaborn.color_palette("bright", len(algorithms) - 1).as_hex()
+        colors = seaborn.color_palette(str(palette), len(algorithms) - 1).as_hex()
         colors.append("#ff0000")
         with plt.style.context(styles):
             file_dir = file_dir.parent / f"{file_dir.name} curve{log_tag}"

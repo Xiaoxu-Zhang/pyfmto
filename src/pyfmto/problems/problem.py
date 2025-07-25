@@ -4,10 +4,10 @@ import seaborn as sns
 import textwrap
 from abc import ABC, abstractmethod
 from matplotlib import pyplot as plt
+from matplotlib.ticker import FuncFormatter
 from numpy import ndarray
 from pyDOE import lhs
-from pyfmto.utilities.plots import plot_func_2d, plot_func_3d
-from pyfmto.utilities.stroptions import Cmaps
+from pyfmto.utilities import Cmaps
 from tabulate import tabulate
 from typing import List, Union, Tuple, Optional
 
@@ -56,7 +56,7 @@ class SingleTaskProblem(ABC):
         obj : int
             Dimension of the objective space (number of output objectives).
         x_lb : T_Bound
-            Lower bounds for the decision variables. Can be a scalar or an array-like of shape `(dim,)`.
+            Lower bounds for the decision variables. Can be a scalar or an array-like of shape (dim,).
         x_ub : T_Bound
             Upper bounds for the decision variables. Must have the same shape as [x_lb].
         **kwargs : dict, optional
@@ -229,16 +229,35 @@ class SingleTaskProblem(ABC):
         partition = np.array([lb, ub]) * (self.x_ub - self.x_lb) + self.x_lb
         self._partition = partition
 
+    def _gen_plot_data(self, dims, n_points, fixed) -> tuple:
+        dim1, dim2 = sorted(dims)
+        if not dim1 in range(self.dim) or not dim2 in range(self.dim):
+            raise ValueError(f"The selected_dims's values should in [0, {self.dim - 1}].")
+        d1 = np.linspace(self.x_lb[dim1], self.x_ub[dim1], n_points)
+        d2 = np.linspace(self.x_lb[dim2], self.x_ub[dim2], n_points)
+        D1, D2 = np.meshgrid(d1, d2)
+        _fixed = (self.x_lb + self.x_ub) / 2 if fixed is None else fixed
+        points = np.ones(shape=(n_points, n_points, self.dim)) * _fixed
+        points[:, :, dim1] = D1
+        points[:, :, dim2] = D2
+
+        Z = np.apply_along_axis(self.evaluate, axis=-1, arr=points)
+        Z = Z.squeeze()
+
+        return D1, D2, Z
+
     def plot_2d(
             self,
             filename: Optional[str]=None,
-            dims: tuple[int, int]=(0, 1),
+            dims: Union[list[int, int], tuple[int, int]]=(0, 1),
             n_points: int=100,
             figsize: tuple[float, float, float]=(5., 4., 1.),
             cmap: Union[str, Cmaps]=Cmaps.viridis,
             levels: int=30,
-            alpha=0.7,
-            fixed=None):
+            labels: tuple[Optional[str], Optional[str]]=(None, None),
+            title: str=None,
+            alpha: float=0.7,
+            fixed: Union[float, np.ndarray, None]=None):
         """
         Plot the function's 2D contour.
 
@@ -253,9 +272,14 @@ class SingleTaskProblem(ABC):
         figsize : tuple
             figsize (width, height, scale)
         cmap : str
-            The cmap of matplotlib.pyplot.contourf function (https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.contourf.html)
+            The cmap of matplotlib.pyplot.contourf function. The `pyfmto.utilities.Cmaps` class
+            can help you try different options easier.
         levels : int
             The levels parameter of contourf function
+        labels : tuple
+            The figure x, y labels.
+        title :
+            The figure title
         alpha : float
             The alpha parameter of contourf function
         fixed : float, np.ndarray
@@ -268,22 +292,19 @@ class SingleTaskProblem(ABC):
         w, h, s = figsize
         figsize = (w * s, h * s)
         plt.figure(figsize=figsize)
-        ax = plot_func_2d(
-            func=self.evaluate,
-            dim=self.dim,
-            cmap=str(cmap),
-            lb=self.x_lb,
-            ub=self.x_ub,
-            dims=dims,
-            levels=levels,
-            n_points=n_points,
-            alpha=alpha,
-            fixed=fixed,
-        )
-        dim1, dim2 = sorted(dims)
-        ax.set_title(f"{self.id} {self.name}")
-        ax.set_xlabel(f'X{dim1}')
-        ax.set_ylabel(f'X{dim2}', rotation=0)
+        D1, D2, Z = self._gen_plot_data(dims, n_points, fixed)
+        cont = plt.contourf(D1, D2, Z, levels=levels, cmap=str(cmap), alpha=alpha)
+        cbar = plt.colorbar(cont)
+        cbar.set_label('Function Value')
+        cbar.formatter = FuncFormatter(lambda x, pos: f'{x:.2e}' if abs(x) > 1e4 else f'{x:.2f}')
+        cbar.update_ticks()
+        xl, yl = labels
+        xl = f'X{min(dims)}' if xl is None else xl
+        yl = f'X{max(dims)}' if yl is None else yl
+        _title = f'T{self.id} {self.name}' if title is None else title
+        plt.xlabel(xl)
+        plt.ylabel(yl, rotation=0)
+        plt.title(_title)
         plt.tight_layout()
         if filename is not None:
             plt.savefig(filename)
@@ -294,13 +315,15 @@ class SingleTaskProblem(ABC):
     def plot_3d(
             self,
             filename: Optional[str] = None,
-            dims: tuple[int, int] = (0, 1),
             n_points: int = 100,
-            figsize: tuple[float, float, float] = (5., 4., 1.5),
+            dims: tuple[int, int]=(0, 1),
+            figsize: tuple[float, float, float] = (5., 4., 1.),
             cmap: Union[str, Cmaps]=Cmaps.viridis,
             levels: int = 30,
+            labels: tuple[Optional[str], Optional[str], Optional[str]]=(None, None, None),
+            title: str=None,
             alpha=0.7,
-            fixed=None
+            fixed=None,
     ):
         """
         Plot the function's 3D surface.
@@ -315,10 +338,14 @@ class SingleTaskProblem(ABC):
             Using total n_points**2 points to draw the contour
         figsize : tuple
             figsize (width, height, scale)
-        cmap : str
-            The cmap of matplotlib.pyplot.contourf function (https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.contourf.html)
+        cmap : Union[str, Cmaps]
+            The cmap of matplotlib.pyplot.contourf function, use Cmaps for easy selection.
         levels : int
             The levels parameter of contourf function
+        labels : tuple
+            The figure x, y, z labels.
+        title :
+            The figure title
         alpha : float
             The alpha parameter of contourf function
         fixed : float, np.ndarray
@@ -328,24 +355,27 @@ class SingleTaskProblem(ABC):
             raise ValueError(f"Only supported for 'dim>1' problems, got dim={self.dim} instead.")
         w, h, s = figsize
         figsize = (w * s, h * s)
-        plt.figure(figsize=figsize)
-        ax = plot_func_3d(
-            func=self.evaluate,
-            dim=self.dim,
-            cmap=str(cmap),
-            lb=self.x_lb,
-            ub=self.x_ub,
-            dims=(0, 1),
-            levels=levels,
-            n_points=n_points,
-            alpha=alpha,
-            fixed=fixed,
-        )
+        D1, D2, Z = self._gen_plot_data(dims, n_points, fixed)
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(111, projection='3d')
+        surf = ax.plot_surface(D1, D2, Z, cmap=str(cmap), edgecolor='none', alpha=alpha)
+        ax.contour(D1, D2, Z, zdir='z', offset=np.min(Z), cmap=str(cmap), levels=levels)
+        cbar = fig.colorbar(surf, ax=ax)
+        cbar.set_label('Function Value')
+        cbar.formatter = FuncFormatter(lambda x, pos: f'{x:.2e}' if abs(x) > 1e4 else f'{x:.2f}')
+        cbar.update_ticks()
+
         dim1, dim2 = sorted(dims)
-        ax.set_title(f"{self.id} {self.name}")
-        ax.set_xlabel(f'X{dim1}')
-        ax.set_ylabel(f'X{dim2}')
-        ax.set_zlabel('Y')
+        xl, yl, zl = labels
+        xl = f'X{dim1}' if xl is None else xl
+        yl = f'X{dim2}' if yl is None else yl
+        zl = 'Y' if zl is None else zl
+        _title = f"T{self.id} {self.name}" if title is None else title
+        ax.view_init(elev=20, azim=-120)
+        ax.set_xlabel(xl)
+        ax.set_ylabel(yl)
+        ax.set_zlabel(zl)
+        ax.set_title(_title)
         plt.tight_layout()
         if filename is not None:
             plt.savefig(filename)
