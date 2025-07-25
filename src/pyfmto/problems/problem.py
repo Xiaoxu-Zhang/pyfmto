@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from numpy import ndarray
 from pyDOE import lhs
-from pyfmto.utilities import Cmaps
+from pyfmto.utilities import Cmaps, colored
 from tabulate import tabulate
 from typing import List, Union, Tuple, Optional
 
@@ -229,21 +229,25 @@ class SingleTaskProblem(ABC):
         partition = np.array([lb, ub]) * (self.x_ub - self.x_lb) + self.x_lb
         self._partition = partition
 
-    def _gen_plot_data(self, dims, n_points, fixed) -> tuple:
+    def gen_plot_data(self, dims=(0, 1), n_points=100, fixed=None, normalize=False) -> tuple:
         dim1, dim2 = sorted(dims)
         if not dim1 in range(self.dim) or not dim2 in range(self.dim):
             raise ValueError(f"The selected_dims's values should in [0, {self.dim - 1}].")
-        d1 = np.linspace(self.x_lb[dim1], self.x_ub[dim1], n_points)
-        d2 = np.linspace(self.x_lb[dim2], self.x_ub[dim2], n_points)
+        lb1, ub1 = self.x_lb[dim1], self.x_ub[dim1]
+        lb2, ub2 = self.x_lb[dim2], self.x_ub[dim2]
+        d1 = np.linspace(lb1, ub1, n_points)
+        d2 = np.linspace(lb2, ub2, n_points)
         D1, D2 = np.meshgrid(d1, d2)
         _fixed = (self.x_lb + self.x_ub) / 2 if fixed is None else fixed
         points = np.ones(shape=(n_points, n_points, self.dim)) * _fixed
         points[:, :, dim1] = D1
         points[:, :, dim2] = D2
-
         Z = np.apply_along_axis(self.evaluate, axis=-1, arr=points)
         Z = Z.squeeze()
-
+        if normalize:
+            dn = np.linspace(0, 1, n_points)
+            D1, D2 = np.meshgrid(dn, dn)
+            Z = (Z - np.min(Z)) / (np.max(Z) - np.min(Z))
         return D1, D2, Z
 
     def plot_2d(
@@ -292,7 +296,7 @@ class SingleTaskProblem(ABC):
         w, h, s = figsize
         figsize = (w * s, h * s)
         plt.figure(figsize=figsize)
-        D1, D2, Z = self._gen_plot_data(dims, n_points, fixed)
+        D1, D2, Z = self.gen_plot_data(dims, n_points, fixed)
         cont = plt.contourf(D1, D2, Z, levels=levels, cmap=str(cmap), alpha=alpha)
         cbar = plt.colorbar(cont)
         cbar.set_label('Function Value')
@@ -323,6 +327,7 @@ class SingleTaskProblem(ABC):
             labels: tuple[Optional[str], Optional[str], Optional[str]]=(None, None, None),
             title: str=None,
             alpha=0.7,
+            interactive: bool=False,
             fixed=None,
     ):
         """
@@ -350,38 +355,50 @@ class SingleTaskProblem(ABC):
             The alpha parameter of contourf function
         fixed : float, np.ndarray
             Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,)
+        interactive :
+            Plotting in an interactive mode.
         """
         if self.dim < 2:
             raise ValueError(f"Only supported for 'dim>1' problems, got dim={self.dim} instead.")
         w, h, s = figsize
         figsize = (w * s, h * s)
-        D1, D2, Z = self._gen_plot_data(dims, n_points, fixed)
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_subplot(111, projection='3d')
-        surf = ax.plot_surface(D1, D2, Z, cmap=str(cmap), edgecolor='none', alpha=alpha)
-        ax.contour(D1, D2, Z, zdir='z', offset=np.min(Z), cmap=str(cmap), levels=levels)
-        cbar = fig.colorbar(surf, ax=ax)
-        cbar.set_label('Function Value')
-        cbar.formatter = FuncFormatter(lambda x, pos: f'{x:.2e}' if abs(x) > 1e4 else f'{x:.2f}')
-        cbar.update_ticks()
-
-        dim1, dim2 = sorted(dims)
-        xl, yl, zl = labels
-        xl = f'X{dim1}' if xl is None else xl
-        yl = f'X{dim2}' if yl is None else yl
-        zl = 'Y' if zl is None else zl
-        _title = f"T{self.id} {self.name}" if title is None else title
-        ax.view_init(elev=20, azim=-120)
-        ax.set_xlabel(xl)
-        ax.set_ylabel(yl)
-        ax.set_zlabel(zl)
-        ax.set_title(_title)
-        plt.tight_layout()
-        if filename is not None:
-            plt.savefig(filename)
+        if interactive:
+            try:
+                import pyvista as pv
+            except ImportError:
+                print(f"Please install {colored('pyvista', 'red')} to use interactive plotting.")
+                return
+            D1, D2, Z = self.gen_plot_data(dims, n_points, fixed, normalize=True)
+            grid = pv.StructuredGrid(D1, D2, Z)
+            grid.plot_curvature()
         else:
-            plt.show()
-        plt.close()
+            D1, D2, Z = self.gen_plot_data(dims, n_points, fixed)
+            fig = plt.figure(figsize=figsize)
+            ax = fig.add_subplot(111, projection='3d')
+            surf = ax.plot_surface(D1, D2, Z, cmap=str(cmap), edgecolor='none', alpha=alpha)
+            ax.contour(D1, D2, Z, zdir='z', offset=np.min(Z), cmap=str(cmap), levels=levels)
+            cbar = fig.colorbar(surf, ax=ax)
+            cbar.set_label('Function Value')
+            cbar.formatter = FuncFormatter(lambda x, pos: f'{x:.2e}' if abs(x) > 1e4 else f'{x:.2f}')
+            cbar.update_ticks()
+
+            dim1, dim2 = sorted(dims)
+            xl, yl, zl = labels
+            xl = f'X{dim1}' if xl is None else xl
+            yl = f'X{dim2}' if yl is None else yl
+            zl = 'Y' if zl is None else zl
+            _title = f"T{self.id} {self.name}" if title is None else title
+            ax.view_init(elev=20, azim=-120)
+            ax.set_xlabel(xl)
+            ax.set_ylabel(yl)
+            ax.set_zlabel(zl)
+            ax.set_title(_title)
+            plt.tight_layout()
+            if filename is not None:
+                plt.savefig(filename)
+            else:
+                plt.show()
+            plt.close()
 
     def set_transform(self, rot_mat: Optional[np.ndarray], shift_mat: Optional[np.ndarray]):
         if rot_mat is None:
@@ -675,6 +692,63 @@ class MultiTaskProblem(ABC):
 
     def _unset_seed(self):
         np.random.set_state(self._rdm_state)
+
+    def plot_interactive(
+            self,
+            func_id: tuple[int]=(1, 2, 3, 4),
+            shape: tuple[int, int]=(2, 2),
+            dims=(0, 1),
+            cmap: Union[str, Cmaps]=Cmaps.viridis,
+            n_points: int=100,
+            coordinates: bool=False,
+    ):
+        """
+        Plot multi functions in an interactive mode.
+
+        Parameters
+        ----------
+        func_id:
+            The functions id to be plotting.
+        shape:
+            The grid shape of multi-plots.
+        cmap:
+            Color map, use `pyfmto.utilities.Cmaps` to easily select alternative options.
+        dims:
+            The selected dims to be plotting.
+        n_points:
+            Number of points in one dimension, total n_points**2 points.
+        coordinates:
+            If show coordinates plane.
+        """
+        if np.any(np.array(func_id) <= 0) or np.any(np.array(func_id) > self.task_num):
+            raise ValueError(f"func_id should in range [1, {self.task_num}]")
+        if len(func_id) > shape[0] * shape[1]:
+            raise ValueError(f"The number of clients {len(func_id)} is larger than the number of cells in shape {shape}")
+        try:
+            import pyvista as pv
+        except ImportError:
+            print(f"Please install {colored('pyvista', 'red')} to use this function")
+            return
+        plotter = pv.Plotter(shape=shape)
+        for fid in func_id:
+            index = fid - 1
+            row, col = index // shape[0], index % shape[0]
+            plotter.subplot(row, col)
+            func = self._problem[index]
+            x, y, z = func.gen_plot_data(dims, n_points=n_points, normalize=True)
+            grid = pv.StructuredGrid(x, y, z)
+            plotter.add_mesh(grid, scalars=grid.points[:, 2], cmap=str(cmap))
+            plotter.add_title(f"T{func.id} {func.name}", font_size=10)
+            if coordinates:
+                plotter.show_grid(
+                    xtitle=f'X{min(dims)}',
+                    ytitle=f'X{max(dims)}',
+                    ztitle='Y',
+                    font_size=8,
+                    location='outer'
+                )
+            plotter.remove_scalar_bar()
+        plotter.show()
 
     def show_distribution(self, filename=None):
         init_x = {f"T{p.id}({p.name})": p.normalize_x(p.solutions.x) for p in self}
