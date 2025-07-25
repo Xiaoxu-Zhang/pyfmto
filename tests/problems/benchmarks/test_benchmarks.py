@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pyfmto.problems.problem import SingleTaskProblem, check_and_transform
+from pyfmto.problems.problem import SingleTaskProblem
 from pyfmto.problems.benchmarks import (
     Ackley,
     Ellipsoid,
@@ -18,7 +18,6 @@ class BatchEval(SingleTaskProblem):
     def __init__(self, dim, obj, x_lb, x_ub):
         super().__init__(dim=dim, obj=obj, x_lb=x_lb, x_ub=x_ub)
 
-    @check_and_transform()
     def evaluate(self, x):
         res = []
         if x.ndim == 1:

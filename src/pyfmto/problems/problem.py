@@ -1,20 +1,19 @@
-import copy
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import textwrap
-import wrapt
 from abc import ABC, abstractmethod
 from matplotlib import pyplot as plt
 from numpy import ndarray
-from opfunu import draw_2d, draw_3d
 from pyDOE import lhs
+from pyfmto.utilities.plots import plot_func_2d, plot_func_3d
+from pyfmto.utilities.stroptions import Cmaps
 from tabulate import tabulate
 from typing import List, Union, Tuple, Optional
 
 from .solution import Solution
 
-__all__ = ['SingleTaskProblem', 'MultiTaskProblem', 'check_and_transform']
+__all__ = ['SingleTaskProblem', 'MultiTaskProblem']
 
 T_Bound = Union[int, float, list, tuple, np.ndarray]
 
@@ -43,25 +42,6 @@ def transform_x(x, rot_mat, shift_mat):
 
 def inverse_transform_x(x, rot_mat, shift_mat):
     return (x @ np.linalg.inv(rot_mat.T)) + shift_mat
-
-
-def check_and_transform():
-    @wrapt.decorator
-    def wrapper(wrapped, instance, args, kwargs):
-        dim = instance.dim
-        if 'x' in kwargs:
-            # If the x is passed as a keyword argument, we need to
-            # pop the x from the kwargs rather than kwargs['x'].
-            # Check the return statement for the reason.
-            x = kwargs.pop('x')
-        else:
-            x = copy.deepcopy(args[0])
-        x = check_x(x, dim)
-        x = transform_x(x, instance.rotate_mat, instance.shift_mat)
-        x = np.clip(x, instance.x_lb, instance.x_ub)
-        return wrapped(x, *args[1:], **kwargs)
-
-    return wrapper
 
 
 class SingleTaskProblem(ABC):
@@ -249,71 +229,129 @@ class SingleTaskProblem(ABC):
         partition = np.array([lb, ub]) * (self.x_ub - self.x_lb) + self.x_lb
         self._partition = partition
 
-    def visualize_2d(self, filename: Optional[str]=None, suffix='.png', n_points=300, **kwargs):
+    def plot_2d(
+            self,
+            filename: Optional[str]=None,
+            dims: tuple[int, int]=(0, 1),
+            n_points: int=100,
+            figsize: tuple[float, float, float]=(5., 4., 1.),
+            cmap: Union[str, Cmaps]=Cmaps.viridis,
+            levels: int=30,
+            alpha=0.7,
+            fixed=None):
         """
-        Draw 2D contour of the function.
+        Plot the function's 2D contour.
 
         Parameters
         ----------
-
-        filename : str, default = None
-            Set the file name, If None, the file will not be saved
-        suffix : list, tuple, np.ndarray
-            The list of suffix to save file, for example: (".png", ".pdf", ".jpg")
+        filename:
+            Filename, show image if pass None
+        dims : list, tuple
+            The selected dimensions indices to be drawn.
         n_points : int
-            The number of points that will be used to draw the contour
-
-        Notes
-        -----
-
-        Additional kwargs will be passed to the `opfunu.draw_2d`.
-        See the documentation(https://opfunu.readthedocs.io/en/latest/) for details.
-
+            Using total n_points**2 points to draw the contour
+        figsize : tuple
+            figsize (width, height, scale)
+        cmap : str
+            The cmap of matplotlib.pyplot.contourf function (https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.contourf.html)
+        levels : int
+            The levels parameter of contourf function
+        alpha : float
+            The alpha parameter of contourf function
+        fixed : float, np.ndarray
+            Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,)
         """
-        self._plotting(draw_2d, filename, suffix, n_points, **kwargs)
-
-    def visualize_3d(self, filename: Optional[str]=None, suffix='.png', n_points=100, **kwargs):
-        """
-        Draw 2D contour of the function.
-
-        Parameters
-        ----------
-
-        filename : str, default = None
-            Set the file name, If None, the file will not be saved
-        suffix : list, tuple, np.ndarray
-            The list of suffix to save file, for example: (".png", ".pdf", ".jpg")
-        n_points : int
-            The number of points that will be used to draw the contour
-
-        Notes
-        -----
-
-        Additional keyword arguments will be passed to the `opfunu.draw_3d`.
-        See the documentation(https://opfunu.readthedocs.io/en/latest/) for details.
-        """
-        self._plotting(draw_3d, filename, suffix, n_points, **kwargs)
-
-    def _plotting(self, drawer, filename, suffix, n_points, **kwargs):
         if self.dim < 2:
             raise ValueError(f"Only supported for 'dim>1' problems, got dim={self.dim} instead.")
-        _affine_transformer = check_and_transform()
-        _transformed_func = _affine_transformer(self._eval_single, self)
-        if filename is None:
-            drawer(func=_transformed_func,
-                   lb=self.x_lb, ub=self.x_ub,
-                   n_points=n_points,
-                   title=f"T{self.id}({self.name})",
-                   **kwargs)
+        if not isinstance(dims, (list, tuple)):
+            raise ValueError('dims should be [int, int] or (int, int)')
+        w, h, s = figsize
+        figsize = (w * s, h * s)
+        plt.figure(figsize=figsize)
+        ax = plot_func_2d(
+            func=self.evaluate,
+            dim=self.dim,
+            cmap=str(cmap),
+            lb=self.x_lb,
+            ub=self.x_ub,
+            dims=dims,
+            levels=levels,
+            n_points=n_points,
+            alpha=alpha,
+            fixed=fixed,
+        )
+        dim1, dim2 = sorted(dims)
+        ax.set_title(f"{self.id} {self.name}")
+        ax.set_xlabel(f'X{dim1}')
+        ax.set_ylabel(f'X{dim2}', rotation=0)
+        plt.tight_layout()
+        if filename is not None:
+            plt.savefig(filename)
         else:
-            kwargs.pop('exts', None)
-            kwargs.pop('verbose', None)
-            drawer(func=_transformed_func,
-                   lb=self.x_lb, ub=self.x_ub,
-                   n_points=n_points,
-                   title=f"T{self.id}({self.name})",
-                   filename=filename, exts=(suffix, ),
-                   verbose=False, **kwargs)
+            plt.show()
+        plt.close()
+
+    def plot_3d(
+            self,
+            filename: Optional[str] = None,
+            dims: tuple[int, int] = (0, 1),
+            n_points: int = 100,
+            figsize: tuple[float, float, float] = (5., 4., 1.5),
+            cmap: Union[str, Cmaps]=Cmaps.viridis,
+            levels: int = 30,
+            alpha=0.7,
+            fixed=None
+    ):
+        """
+        Plot the function's 3D surface.
+
+        Parameters
+        ----------
+        filename:
+            Filename, show image if pass None
+        dims : list, tuple
+            The selected dimensions indices to be drawn.
+        n_points : int
+            Using total n_points**2 points to draw the contour
+        figsize : tuple
+            figsize (width, height, scale)
+        cmap : str
+            The cmap of matplotlib.pyplot.contourf function (https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.contourf.html)
+        levels : int
+            The levels parameter of contourf function
+        alpha : float
+            The alpha parameter of contourf function
+        fixed : float, np.ndarray
+            Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,)
+        """
+        if self.dim < 2:
+            raise ValueError(f"Only supported for 'dim>1' problems, got dim={self.dim} instead.")
+        w, h, s = figsize
+        figsize = (w * s, h * s)
+        plt.figure(figsize=figsize)
+        ax = plot_func_3d(
+            func=self.evaluate,
+            dim=self.dim,
+            cmap=str(cmap),
+            lb=self.x_lb,
+            ub=self.x_ub,
+            dims=(0, 1),
+            levels=levels,
+            n_points=n_points,
+            alpha=alpha,
+            fixed=fixed,
+        )
+        dim1, dim2 = sorted(dims)
+        ax.set_title(f"{self.id} {self.name}")
+        ax.set_xlabel(f'X{dim1}')
+        ax.set_ylabel(f'X{dim2}')
+        ax.set_zlabel('Y')
+        plt.tight_layout()
+        if filename is not None:
+            plt.savefig(filename)
+        else:
+            plt.show()
+        plt.close()
 
     def set_transform(self, rot_mat: Optional[np.ndarray], shift_mat: Optional[np.ndarray]):
         if rot_mat is None:

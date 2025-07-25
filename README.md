@@ -68,8 +68,8 @@ prob.show_distribution(f'distribution plot.png')
 
 # visualize one of the tasks (require problem dim>=2)
 first_task = prob[0]
-first_task.visualize_2d(f'visualize2D T{first_task.id}')
-first_task.visualize_3d(f'visualize3D T{first_task.id}')
+first_task.plot_2d(f'visualize2D T{first_task.id}')
+first_task.plot_3d(f'visualize3D T{first_task.id}')
 ```
 
 Problem supported args can be found [here](#problem-args).

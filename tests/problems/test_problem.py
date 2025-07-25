@@ -134,13 +134,13 @@ class TestSingleTaskProblem(unittest.TestCase):
         stp2 = STP(dim=2, obj=1, x_lb=-1, x_ub=1)
         vis_2d = self.tmp_dir / 'test_vis_2d'
         vis_3d = self.tmp_dir / 'test_vis_3d'
-        stp2.visualize_2d(n_points=10)
-        stp2.visualize_3d(n_points=10)
-        stp2.visualize_2d(filename=str(vis_2d), n_points=10)
-        stp2.visualize_3d(filename=str(vis_3d), n_points=10)
+        stp2.plot_2d(n_points=10)
+        stp2.plot_3d(n_points=10)
+        stp2.plot_2d(filename=str(vis_2d), n_points=10)
+        stp2.plot_3d(filename=str(vis_3d), n_points=10)
         self.assertTrue(vis_2d.with_suffix('.png').exists(), msg="Visualization 2d failed")
         self.assertTrue(vis_3d.with_suffix('.png').exists(), msg="Visualization 3d failed")
-        self.assertRaises(ValueError, stp1.visualize_2d)
+        self.assertRaises(ValueError, stp1.plot_2d)
 
 
 class InitAttrAfterSuper(_MultiTaskProblem):
