@@ -1,29 +1,55 @@
 import msgpack
 import numpy as np
-import yaml
 from pathlib import Path
 from typing import Union, Any
-from yaml import MarkedYAMLError
+from ruamel.yaml import YAML
+from ruamel.yaml.error import MarkedYAMLError
+yaml = YAML()
+yaml.indent(mapping=2, sequence=4, offset=2)
 
 T_Path = Union[str, Path]
 
 __all__ = [
     'load_yaml',
+    'save_yaml',
+    'parse_yaml',
+    'dumps_yaml',
+    'load_msgpack',
     'save_msgpack',
-    'load_msgpack'
 ]
 
 
-def load_yaml(path: T_Path):
-    path = Path(path)
-    if path.exists():
-        try:
-            with open(path, 'r') as f:
-                return yaml.safe_load(f)
-        except MarkedYAMLError:
-            raise
-    else:
-        raise FileNotFoundError(f'File {path} does not exist.')
+def load_yaml(filename: T_Path):
+    with open(filename, 'r') as f:
+        return parse_yaml(f.read())
+
+
+def save_yaml(data, filename):
+    with open(filename, 'w') as f:
+        f.write(dumps_yaml(data))
+
+
+def parse_yaml(text: str):
+    lines = [line for line in text.splitlines() if line.strip() != '']
+    try:
+        return yaml.load('\n'.join(lines))
+    except MarkedYAMLError:
+        raise
+
+
+def dumps_yaml(data):
+    from io import StringIO
+    string_stream = StringIO()
+    yaml.dump(data, string_stream)
+    text = []
+    for line in string_stream.getvalue().splitlines():
+        if text and not line.startswith(' '):
+            # Only add a newline if the line is
+            # not indented and not the first line
+            text.append(f"\n{line}")
+        else:
+            text.append(line)
+    return '\n'.join(text)
 
 
 def save_msgpack(data: dict, filename: T_Path) -> None:

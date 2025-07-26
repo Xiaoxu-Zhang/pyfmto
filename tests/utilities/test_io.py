@@ -2,15 +2,21 @@ import numpy as np
 import shutil
 import unittest
 from pathlib import Path
-from yaml import MarkedYAMLError
+from ruamel.yaml.error import MarkedYAMLError
 
+from pyfmto.utilities import save_yaml, dumps_yaml, parse_yaml
 from pyfmto.utilities.io import load_yaml, save_msgpack, load_msgpack
 
 
 YAML_OK = """
 key1:
   key11: value1
+
   key12: value2
+
+key2:
+  key21: value3
+  key22: value4
 """
 
 YAML_BAD = """
@@ -37,6 +43,14 @@ class TestYaml(unittest.TestCase):
             f.write(YAML_OK)
         with open(self.yaml_bad, 'w') as f:
             f.write(YAML_BAD)
+
+    def test_save_yaml(self):
+        save_yaml({'name': 'save_yaml'}, self.tmp_dir / 'save_yaml.yaml')
+        self.assertTrue((self.tmp_dir / 'save_yaml.yaml').exists())
+
+    def test_dumps_yaml(self):
+        res = dumps_yaml(parse_yaml(YAML_OK))
+        self.assertEqual(len(res.splitlines()), 7, f"res is {res}")
 
     def test_load_yaml(self):
         data = load_yaml(self.yaml_ok)

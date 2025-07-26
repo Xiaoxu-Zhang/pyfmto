@@ -1,13 +1,10 @@
 import os
 import textwrap
-from pathlib import Path
 import importlib
 import inspect
+from pathlib import Path
 from typing import Any
-from ruamel.yaml import YAML
-from yaml import MarkedYAMLError
-
-from pyfmto.utilities import colored
+from pyfmto.utilities import colored, save_yaml, parse_yaml
 
 __all__ = ['list_algorithms', 'load_algorithm', 'export_kwargs', 'get_alg_kwargs']
 
@@ -44,8 +41,9 @@ def list_algorithms(print_it=False):
     algor_yours = os.listdir('algorithms') if os.path.exists('algorithms') else []
     algor_builtins = os.listdir(Path(__file__).parent)
     res = {
-        'yours': [alg_name for alg_name in algor_yours if _is_alg_name(alg_name)],
-        'builtins': [alg_name for alg_name in algor_builtins if _is_alg_name(alg_name)]
+        # We recognize the algorithm name based on whether the name is in uppercase.
+        'yours': [alg_name for alg_name in algor_yours if alg_name.isupper()],
+        'builtins': [alg_name for alg_name in algor_builtins if alg_name.isupper()]
     }
     if print_it:
         print(colored("Yours:", 'yellow'))
@@ -57,46 +55,19 @@ def list_algorithms(print_it=False):
     return res
 
 
-def _is_alg_name(name: str):
-    return name.isupper()
-
-
 def export_kwargs(algorithms: list[str], directory: str=None):
     data = {name: get_alg_kwargs(name) for name in algorithms}
     fdir = Path(directory) if directory is not None else Path.cwd()
-    yaml = YAML()
-    yaml.indent(mapping=2, sequence=4, offset=2)
-    with open(fdir / f"default_kwargs.yaml", 'w') as f:
-        yaml.dump({'algorithms': data}, f)
+    save_yaml({'algorithms': data}, fdir / f"default_kwargs.yaml")
 
 
 def get_alg_kwargs(name: str):
-    docstr = _collect_alg_docstr(name)
-    cleaned_lines = [line for line in docstr.splitlines() if not line.strip() == '']
-    cleaned_text = "\n".join(cleaned_lines)
-    yaml = YAML()
-    yaml.indent(mapping=2, sequence=4, offset=2)
-    try:
-        data = yaml.load(cleaned_text)
-    except MarkedYAMLError:
-        raise
-    return data
-
-
-def _collect_alg_docstr(name: str):
-    try:
-        cls = load_algorithm(name)
-    except RuntimeError as e:
-        print(e)
-        return ''
-
-    clt = cls['client'].__doc__
-    srv = cls['server'].__doc__
-    if not clt and not srv:
-        return "{}"
-    res = ''
-    if srv:
-        res += f'    server:\n{textwrap.indent(srv, " " * 4)}\n'
+    alg_data = load_algorithm(name)
+    clt = alg_data['client'].__doc__
+    srv = alg_data['server'].__doc__
+    data = {}
     if clt:
-        res += f'    client:\n{textwrap.indent(clt, " " * 4)}\n'
-    return res
+        data.update({'client': parse_yaml(clt)})
+    if srv:
+        data.update({'server': parse_yaml(srv)})
+    return data
