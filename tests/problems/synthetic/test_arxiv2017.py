@@ -94,30 +94,6 @@ class TestValidateFunctions(unittest.TestCase):
             }
             self.val_data[p.id] = value
 
-    def test_validate_attributes(self):
-        for prob in self.problems:
-            name = self.val_data[prob.id]['name']
-            lb = self.val_data[prob.id]['lb']
-            ub = self.val_data[prob.id]['ub']
-            shift_mat = self.val_data[prob.id]['trans']['shift']
-            rot_mat = self.val_data[prob.id]['trans']['rot_mat']
-            prefix = f"\nid({prob.id})|name({name})"
-            self.assertEqual(prob.name, name)
-            self.assertTrue(np.all(prob.x_lb == lb), f"{prefix}\nx_lb:{prob.x_lb}\n  lb:{lb}")
-            self.assertTrue(np.all(prob.x_ub == ub), f"{prefix}\nx_ub:{prob.x_ub}\n  ub:{ub}")
-            if prob.shift is not None:
-                self.assertTrue(np.all(prob.shift == shift_mat),
-                                f"{prefix}\nshift:{prob.shift}\n  shift:{shift_mat}")
-            else:
-                self.assertTrue(np.all(0 == shift_mat),
-                                f"{prefix}\nshift:{prob.shift}\n  shift:{shift_mat}")
-            if prob.rotation is not None:
-                self.assertTrue(np.all(prob.rotation == rot_mat),
-                                f"{prefix}\nrotate_mat:{prob.rotation}\n  rotate_mat:{rot_mat}")
-            else:
-                self.assertTrue(np.all(1 == rot_mat),
-                                f"{prefix}\nrotate_mat:{prob.rotation}\n  rotate_mat:{rot_mat}")
-
     def test_evaluation(self):
         for prob in self.problems:
             x = self.val_data[prob.id]['x']

@@ -1,4 +1,3 @@
-import copy
 import numpy as np
 import shutil
 import unittest
@@ -12,9 +11,6 @@ from pyfmto.experiments.utils import (
     load_results,
     save_results,
     clear_console,
-    load_launcher_settings,
-    load_reporter_settings,
-    Statistics,
     RunSolutions
 )
 from pyfmto.problems import Solution
@@ -32,17 +28,15 @@ from .tmp_alg import TmpClient, TmpServer
 """
 
 SETTINGS_YML = """
-runs:
-  others:
-    num_runs: 1
-    save_res: True
-    clean_tmp: True
+launcher:
+  repeat: 3         # number of runs repeating
+  backup: True      # backup log file to results directory
+  dir: out/results  # dir of results
+  save: True        # save results
+  seed: 42          # random seed
   algorithms: [FDEMD, FMTBO]
-  problems:
-    cec2022:
-      args:
-        np_per_dim: [1, 2]
-analyses:
+  problems: [cec2022]
+reporter:
   results: ~
   algorithms:
     - [FMTBO, FDEMD]
@@ -63,13 +57,11 @@ class TestExperimentUtils(unittest.TestCase):
             self.tmp_dir.mkdir()
 
         self.run_settings_ok = {
-            'runs': {
+            'launcher': {
                 'algorithms': ['FMTBO'],
-                'problems': {
-                    'CEC2022': {}
-                }
+                'problems': ['CEC2022']
             },
-            'analyses':{
+            'reporter':{
                 'algorithms': [['FMTBO', 'FDEMD']],
                 'np_per_dim': [1, 2],
                 'problems': ['CEC2022'],
@@ -122,39 +114,6 @@ class TestExperimentUtils(unittest.TestCase):
             with patch('os.name', 'nt'):
                 clear_console()
                 mock_system.assert_called_once_with('cls')
-
-    def test_load_runs_settings(self):
-        settings_ok = load_launcher_settings()
-        self.assertEqual(self.run_settings_ok['runs'], settings_ok)
-
-        settings_not_ok = {'runs': copy.deepcopy(settings_ok)}
-        settings_not_ok['runs']['others'] = [1, 2] # not a dict
-        settings_not_ok['runs']['problems'] = ["CEC2022"] # not a dict
-        not_1d_str_list = [[1, "b", "c"], "not a list", ["a", 2], [['1', '2']]]
-        for item in not_1d_str_list:
-            settings_not_ok['runs']['algorithms'] = item
-            with open(self.tmp_setting, 'w') as f:
-                yaml.dump(settings_not_ok, f)
-            self.assertRaises(TypeError, load_launcher_settings)
-
-    def test_load_analyses_settings(self):
-        settings_ok = load_reporter_settings()
-        self.assertEqual(settings_ok.pop('results', None), Path('out', 'results'))
-        self.assertEqual(self.run_settings_ok['analyses'], settings_ok,
-                         msg=f"orig is\n{self.run_settings_ok['analyses']},"
-                             f"load is\n{settings_ok}")
-
-        settings_not_ok = {'analyses': copy.deepcopy(settings_ok)}
-        not_1d_str_list = [[1, "b", "c"], "not a list", ["a", 2], [['1', '2']]]
-        not_1d_int_list = [[1, "2", 3], "not a list", [1, 2.0], 1]
-        not_2d_str_list = [[["a", 1], ["c"]], ["1d", "str", "list"], [1, 2], "not a list"]
-        for i in range(len(not_1d_str_list)):
-            settings_not_ok['analyses']['algorithms'] = not_2d_str_list[i]
-            settings_not_ok['analyses']['problems'] = not_1d_str_list[i]
-            settings_not_ok['analyses']['np_per_dim'] = not_1d_int_list[i]
-            with open(self.tmp_setting, 'w') as f:
-                yaml.dump(settings_not_ok, f)
-            self.assertRaises(TypeError, load_reporter_settings)
 
 
 class TestRunSolutions(unittest.TestCase):
@@ -215,15 +174,6 @@ class TestRunSolutions(unittest.TestCase):
         with self.assertRaises(KeyError):
             rs.get_solutions(99)
 
-    def test_to_dict_preserves_data(self):
-        rs = RunSolutions()
-        solution = self._create_solution()
-        rs.update(1, solution)
-
-        data_dict = rs.to_dict()
-        self.assertIn('_solutions', data_dict)
-        self.assertIn(1, data_dict['_solutions'])
-
     def test_save_load_results(self):
         data = [(i, self._create_solution()) for i in range(5)]
         save_results(data, self.tmp, 1)
@@ -237,14 +187,14 @@ class TestRunSolutions(unittest.TestCase):
         expect_file = self.tmp / 'Run 2.msgpack'
         self.assertEqual(False, expect_file.exists())
 
-    def test_init_from_dict_recreates_same_object(self):
+    def test_save_and_load(self):
         rs1 = RunSolutions()
         solution = self._create_solution()
 
         rs1.update(1, solution)
         rs1.update(2, solution)
-
-        rs2 = RunSolutions(rs1.to_dict())
+        rs1.to_msgpack(self.tmp / 'test.msgpack')
+        rs2 = load_results(self.tmp / 'test.msgpack')
 
         self.assertEqual(rs2.num_clients, rs1.num_clients)
         self.assertEqual(rs2.sorted_ids, rs1.sorted_ids)

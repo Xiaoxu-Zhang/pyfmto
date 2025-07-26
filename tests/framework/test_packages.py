@@ -10,10 +10,6 @@ from pyfmto.framework.packages import (
 class TestPackagesForCoverage(unittest.TestCase):
     def test_actions_enum(self):
         self.assertEqual(Actions.REGISTER.name, 'REGISTER')
-        self.assertEqual(Actions.PUSH_INIT.name, 'PUSH_INIT')
-        self.assertEqual(Actions.PULL_INIT.name, 'PULL_INIT')
-        self.assertEqual(Actions.PULL_UPDATE.name, 'PULL_UPDATE')
-        self.assertEqual(Actions.PUSH_UPDATE.name, 'PUSH_UPDATE')
         self.assertEqual(Actions.QUIT.name, 'QUIT')
 
     def test_client_package_init(self):

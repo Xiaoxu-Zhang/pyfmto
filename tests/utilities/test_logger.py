@@ -1,8 +1,7 @@
 import unittest
-import logging
 import shutil
 
-from pyfmto.utilities import loggers
+from pyfmto.utilities import loggers, logger, reset_log
 
 
 class TestLoggers(unittest.TestCase):
@@ -11,15 +10,7 @@ class TestLoggers(unittest.TestCase):
         if loggers.LOG_PATH.exists():
             shutil.rmtree(loggers.LOG_PATH)
 
-    def test_check_files_creates_log_files_with_header(self):
-        loggers._init_file()
-        self.assertTrue(loggers.LOG_FILE.exists())
-        with open(loggers.LOG_FILE, 'r', encoding='utf-8') as f:
-            content = f.read(len(loggers.LOG_HEAD))
-            self.assertEqual(content, loggers.LOG_HEAD)
-
     def test_init_conf_loads_config_correctly(self):
-        logger = logging.getLogger('client_logger')
         self.assertIsNotNone(logger)
         self.assertTrue(logger.hasHandlers())
 
@@ -33,3 +24,10 @@ class TestLoggers(unittest.TestCase):
         self.assertTrue(loggers.LOG_BACKUP.exists())
         with open(loggers.LOG_BACKUP, 'r', encoding='utf-8') as f:
             self.assertEqual(f.read(), "Original Content")
+
+    def test_backup_to(self):
+        logger.info("Testing backup")
+        reset_log()
+        backup_to = loggers.LOG_PATH / 'backup'
+        loggers.backup_log_to(backup_to)
+        self.assertTrue((backup_to / 'backup.log').exists())

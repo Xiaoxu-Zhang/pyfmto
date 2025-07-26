@@ -25,6 +25,8 @@ class TestSolution(unittest.TestCase):
         self.assertIsNone(self.solution_empty.fe_init)
         self.assertIsNone(self.solution_empty.x)
         self.assertIsNone(self.solution_empty.y)
+        self.assertIsNone(self.solution_empty.x_global)
+        self.assertIsNone(self.solution_empty.y_global)
         self.assertFalse(self.solution_empty.initialized)
         self.assertEqual(self.solution_empty.size, 0)
 

@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -61,7 +62,7 @@ class Transformer:
             self._rotation = rotation
             self._inv_rot = np.linalg.inv(self._rotation.T)
         else:
-            raise TypeError('rot_mat must be ndarray or None')
+            raise TypeError('rotation matrix must be ndarray or None')
 
         if shift is None:
             pass
@@ -70,7 +71,7 @@ class Transformer:
         elif isinstance(shift, np.ndarray):
             self._shift = shift
         else:
-            raise TypeError('shift must be one of int, float, ndarray, or None')
+            raise TypeError('shift must be int, float, ndarray, or None')
 
     def transform_x(self, x):
         return (x - self.shift) @ self.rotation.T
@@ -645,7 +646,7 @@ class SingleTaskProblem(ABC):
         return y
 
     def before_eval(self, x):
-        _x = x.copy()
+        _x = copy.deepcopy(x)
         _x = check_x(_x, self.dim)
         _x = self.transform_x(_x)
         _x = np.clip(_x, self.x_lb, self.x_ub)
@@ -657,6 +658,14 @@ class SingleTaskProblem(ABC):
         if self.auto_update_solutions:
             self.solutions.append(_x, _y)
         return _y
+
+    @property
+    def shift(self):
+        return self._transformer.shift
+
+    @property
+    def rotation(self):
+        return self._transformer.rotation
 
     @abstractmethod
     def _eval_single(self, x: np.ndarray):

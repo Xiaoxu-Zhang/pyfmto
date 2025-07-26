@@ -75,4 +75,12 @@ class TestTools(unittest.TestCase):
         self.assertEqual(len(tit[1]), len(tit[2]))
 
     def test_warn_unused_kwargs(self):
-        update_kwargs('test', {}, {'a': 1, 'b': 2})
+        empty1 = update_kwargs('test', {}, {'a': 1, 'b': 2})
+        empty2 = update_kwargs('test', {}, {})
+        res1 = update_kwargs('test', {'a': 1, 'b': 2}, {})
+        res2 = update_kwargs('test', {'a': 1, 'b': 2}, {'a': 2})
+
+        self.assertEqual(empty1, {})
+        self.assertEqual(empty2, {})
+        self.assertTrue(res1 == {'a': 1, 'b': 2})
+        self.assertTrue(res2 == {'a': 2, 'b': 2})
