@@ -809,7 +809,7 @@ class MultiTaskProblem(ABC):
 
     def plot_3d_interactive(
             self,
-            tasks_id: tuple[int]=(1, 2, 3, 4),
+            tasks_id: Union[list, tuple, range]=(1, 2, 3, 4),
             shape: tuple[int, int]=(2, 2),
             dims=(0, 1),
             font_size: int=10,
@@ -859,11 +859,11 @@ class MultiTaskProblem(ABC):
             print(f"Please install {colored('pyvista', 'red')} to use this function")
             return
         plotter = pv.Plotter(shape=shape)
-        for index, fid in enumerate(tasks_id):
-            row, col = index // shape[0], index % shape[0]
+        for index, tid in enumerate(tasks_id):
+            row, col = index // shape[1], index % shape[1]
             plotter.subplot(row, col)
-            func = self._problem[fid-1]
-            func.plot_3d_interactive(
+            task = self._problem[tid-1]
+            task.plot_3d_interactive(
                 dims=dims,
                 n_points=n_points,
                 scale_mode=scale_mode,
