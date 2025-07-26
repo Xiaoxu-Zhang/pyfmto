@@ -1,6 +1,6 @@
 from enum import Enum
 
-__all__ = ['StrOptions', 'Cmaps', 'SeabornPalettes']
+__all__ = ['StrOptions', 'Cmaps', 'SeabornPalettes', 'StrColors']
 
 class StrOptions(str, Enum):
     def __str__(self):
@@ -108,3 +108,15 @@ class SeabornPalettes(StrOptions):
     plasma = "Plasma sequential colormap"
     inferno = "Inferno sequential colormap"
     magma = "Magma sequential colormap"
+
+
+class StrColors(StrOptions):
+    black = 'black'
+    gray = 'gray'
+    red = 'red'
+    green = 'green'
+    yellow = 'yellow'
+    blue = 'blue'
+    magenta = 'magenta'
+    cyan = 'cyan'
+    white = 'white'

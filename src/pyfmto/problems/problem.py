@@ -7,10 +7,9 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from numpy import ndarray
 from pyDOE import lhs
-from pyfmto.utilities import Cmaps, colored
+from pyfmto.utilities import StrColors, Cmaps, colored
 from tabulate import tabulate
-from typing import List, Union, Tuple, Optional
-
+from typing import List, Union, Tuple, Optional, Literal
 from .solution import Solution
 
 __all__ = ['SingleTaskProblem', 'MultiTaskProblem']
@@ -36,12 +35,48 @@ def check_x(x, dim):
     return x
 
 
-def transform_x(x, rot_mat, shift_mat):
-    return (x - shift_mat) @ rot_mat.T
+class Transformer:
+    def __init__(self, dim: int):
+        self._dim = dim
+        self._shift = np.zeros(dim)
+        self._rotation = np.eye(dim)
+        self._inv_rot = np.eye(dim)
 
+    @property
+    def dim(self):
+        return self._dim
 
-def inverse_transform_x(x, rot_mat, shift_mat):
-    return (x @ np.linalg.inv(rot_mat.T)) + shift_mat
+    @property
+    def rotation(self):
+        return self._rotation
+
+    @property
+    def shift(self):
+        return self._shift
+
+    def set_transform(self, rotation: Optional[np.ndarray]=None, shift: Union[int, float, np.ndarray, None]=None):
+        if rotation is None:
+            pass
+        elif isinstance(rotation, np.ndarray):
+            self._rotation = rotation
+            self._inv_rot = np.linalg.inv(self._rotation.T)
+        else:
+            raise TypeError('rot_mat must be ndarray or None')
+
+        if shift is None:
+            pass
+        elif isinstance(shift, (int, float)):
+            self._shift = np.ones(self.dim) * shift
+        elif isinstance(shift, np.ndarray):
+            self._shift = shift
+        else:
+            raise TypeError('shift must be one of int, float, ndarray, or None')
+
+    def transform_x(self, x):
+        return (x - self.shift) @ self.rotation.T
+
+    def inverse_transform_x(self, x):
+        return (x @ self._inv_rot) + self.shift
 
 
 class SingleTaskProblem(ABC):
@@ -110,10 +145,8 @@ class SingleTaskProblem(ABC):
         self._init_bounds(x_lb, x_ub)
         self._init_budget(fe_init, fe_max)
         self._solutions = Solution()
+        self._transformer = Transformer(self.dim)
         self.auto_update_solutions = False
-
-        self.rotate_mat: Optional[ndarray] = np.eye(self.dim)
-        self.shift_mat: Optional[ndarray] = np.zeros(self.dim)
 
     def set_x_global(self, x_global: Optional[ndarray]):
         """
@@ -130,7 +163,7 @@ class SingleTaskProblem(ABC):
     def x_global(self):
         if self._x_global is None:
             return None
-        return inverse_transform_x(self._x_global, self.rotate_mat, self.shift_mat)
+        return self.inverse_transform_x(self._x_global)
 
     @property
     def y_global(self):
@@ -229,7 +262,31 @@ class SingleTaskProblem(ABC):
         partition = np.array([lb, ub]) * (self.x_ub - self.x_lb) + self.x_lb
         self._partition = partition
 
-    def gen_plot_data(self, dims=(0, 1), n_points=100, fixed=None, normalize=False) -> tuple:
+    def gen_plot_data(
+            self,
+            dims=(0, 1),
+            n_points=100,
+            fixed=None,
+            scale_mode: Literal['xy', 'y']='y',
+        ) -> tuple:
+        """
+
+        Parameters
+        ----------
+        dims:
+            Selected dimensions to calculate y.
+        n_points:
+            Number of points in one dimension, total use n_points**2 points.
+        fixed:
+            Fixed value of no-selected dimensions
+        scale_mode:
+            if pass 'xy' Normalize both the decision space and objective space to (0, 1)
+            if pass 'y' Scale objective value to match the decision space, which will keep
+            the shift information
+        Returns
+        -------
+
+        """
         dim1, dim2 = sorted(dims)
         if not dim1 in range(self.dim) or not dim2 in range(self.dim):
             raise ValueError(f"The selected_dims's values should in [0, {self.dim - 1}].")
@@ -244,10 +301,17 @@ class SingleTaskProblem(ABC):
         points[:, :, dim2] = D2
         Z = np.apply_along_axis(self.evaluate, axis=-1, arr=points)
         Z = Z.squeeze()
-        if normalize:
+        if scale_mode == 'xy':
             dn = np.linspace(0, 1, n_points)
             D1, D2 = np.meshgrid(dn, dn)
             Z = (Z - np.min(Z)) / (np.max(Z) - np.min(Z))
+        elif scale_mode == 'y':
+            x_range = self.x_ub[0] - self.x_lb[0]
+            Z = x_range * (Z - np.min(Z)) / (np.max(Z) - np.min(Z))
+        else:
+            print(f"Unknown scale_mode '{scale_mode}', which should "
+                  f"be '{colored('xy', 'green')}' "
+                  f"or '{colored('y', 'green')}'")
         return D1, D2, Z
 
     def plot_2d(
@@ -319,15 +383,14 @@ class SingleTaskProblem(ABC):
     def plot_3d(
             self,
             filename: Optional[str] = None,
-            n_points: int = 100,
             dims: tuple[int, int]=(0, 1),
+            n_points: int = 100,
             figsize: tuple[float, float, float] = (5., 4., 1.),
             cmap: Union[str, Cmaps]=Cmaps.viridis,
             levels: int = 30,
             labels: tuple[Optional[str], Optional[str], Optional[str]]=(None, None, None),
             title: str=None,
             alpha=0.7,
-            interactive: bool=False,
             fixed=None,
     ):
         """
@@ -336,87 +399,132 @@ class SingleTaskProblem(ABC):
         Parameters
         ----------
         filename:
-            Filename, show image if pass None
+            Filename, show image if pass None.
         dims : list, tuple
             The selected dimensions indices to be drawn.
         n_points : int
-            Using total n_points**2 points to draw the contour
+            Using total n_points**2 points to draw the contour.
         figsize : tuple
-            figsize (width, height, scale)
+            figsize (width, height, scale).
         cmap : Union[str, Cmaps]
             The cmap of matplotlib.pyplot.contourf function, use Cmaps for easy selection.
         levels : int
-            The levels parameter of contourf function
+            The levels of the contourf.
         labels : tuple
             The figure x, y, z labels.
         title :
-            The figure title
+            The figure title.
         alpha : float
-            The alpha parameter of contourf function
+            The alpha parameter of contourf function.
         fixed : float, np.ndarray
-            Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,)
-        interactive :
-            Plotting in an interactive mode.
+            Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,).
         """
         if self.dim < 2:
             raise ValueError(f"Only supported for 'dim>1' problems, got dim={self.dim} instead.")
         w, h, s = figsize
         figsize = (w * s, h * s)
-        if interactive:
-            try:
-                import pyvista as pv
-            except ImportError:
-                print(f"Please install {colored('pyvista', 'red')} to use interactive plotting.")
-                return
-            D1, D2, Z = self.gen_plot_data(dims, n_points, fixed, normalize=True)
-            grid = pv.StructuredGrid(D1, D2, Z)
-            grid.plot_curvature()
-        else:
-            D1, D2, Z = self.gen_plot_data(dims, n_points, fixed)
-            fig = plt.figure(figsize=figsize)
-            ax = fig.add_subplot(111, projection='3d')
-            surf = ax.plot_surface(D1, D2, Z, cmap=str(cmap), edgecolor='none', alpha=alpha)
-            ax.contour(D1, D2, Z, zdir='z', offset=np.min(Z), cmap=str(cmap), levels=levels)
-            cbar = fig.colorbar(surf, ax=ax)
-            cbar.set_label('Function Value')
-            cbar.formatter = FuncFormatter(lambda x, pos: f'{x:.2e}' if abs(x) > 1e4 else f'{x:.2f}')
-            cbar.update_ticks()
+        D1, D2, Z = self.gen_plot_data(dims, n_points, fixed)
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(111, projection='3d')
+        surf = ax.plot_surface(D1, D2, Z, cmap=str(cmap), edgecolor='none', alpha=alpha)
+        ax.contour(D1, D2, Z, zdir='z', offset=np.min(Z), cmap=str(cmap), levels=levels)
+        cbar = fig.colorbar(surf, ax=ax)
+        cbar.set_label('Function Value')
+        cbar.formatter = FuncFormatter(lambda x, pos: f'{x:.2e}' if abs(x) > 1e4 else f'{x:.2f}')
+        cbar.update_ticks()
 
-            dim1, dim2 = sorted(dims)
-            xl, yl, zl = labels
-            xl = f'X{dim1}' if xl is None else xl
-            yl = f'X{dim2}' if yl is None else yl
-            zl = 'Y' if zl is None else zl
-            _title = f"T{self.id} {self.name}" if title is None else title
-            ax.view_init(elev=20, azim=-120)
-            ax.set_xlabel(xl)
-            ax.set_ylabel(yl)
-            ax.set_zlabel(zl)
-            ax.set_title(_title)
-            plt.tight_layout()
-            if filename is not None:
-                plt.savefig(filename)
-            else:
-                plt.show()
-            plt.close()
+        dim1, dim2 = sorted(dims)
+        xl, yl, zl = labels
+        xl = f'X{dim1}' if xl is None else xl
+        yl = f'X{dim2}' if yl is None else yl
+        zl = 'Y' if zl is None else zl
+        _title = f"T{self.id} {self.name}" if title is None else title
+        ax.view_init(elev=20, azim=-120)
+        ax.set_xlabel(xl)
+        ax.set_ylabel(yl)
+        ax.set_zlabel(zl)
+        ax.set_title(_title)
+        plt.tight_layout()
+        if filename is not None:
+            plt.savefig(filename)
+        else:
+            plt.show()
+        plt.close()
 
-    def set_transform(self, rot_mat: Optional[np.ndarray], shift_mat: Optional[np.ndarray]):
-        if rot_mat is None:
-            self.rotate_mat = np.eye(self.dim)
+    def plot_3d_interactive(
+            self,
+            dims: tuple[int, int] = (0, 1),
+            n_points: int = 100,
+            font_size: float = 10,
+            cmap: Union[str, Cmaps] = Cmaps.viridis,
+            color: Union[str, StrColors, list[float, float, float], tuple[float, float, float], None]=None,
+            show_grid: bool = True,
+            scale_mode: Literal['xy', 'y'] = 'y',
+            fixed=None,
+            plotter=None
+    ) -> None:
+        """
+        Plot the function's 3D surface in an interactive window.
+
+        Parameters
+        ----------
+        dims : list, tuple
+            The selected dimensions indices to be drawn.
+        n_points : int
+            Using total n_points**2 points to draw the contour
+        font_size:
+            Fontsize of subplots title.
+        cmap : Union[str, Cmaps]
+            The cmap of matplotlib.pyplot.contourf function, use Cmaps for easy selection.
+        color:
+            Use to make each mesh have a single solid color. ``cmap`` will be overridden
+            if color is specified. Either a string, RGB list, or hex color string. For
+            example: ``color='white'``, ``color=StrColors.white``, ``color='w'``,
+            ``color=[1.0,1.0,1.0]``, or ``color='#FFFFFF'``.
+        show_grid :
+            Show coordinate plane.
+        scale_mode:
+            if pass 'xy', normalize both the decision space and objective space to (0, 1).
+            if pass 'y', scale objective value to match the decision space, which will keep
+            the original decision space information.
+        fixed : float, np.ndarray
+            Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,)
+        plotter:
+            The pyvista.Plotter object. If the plotter is not None, plot on it and return, else plot
+            on a new created plotter and show.
+        """
+        show = plotter is None
+        try:
+            import pyvista as pv
+        except ImportError:
+            print(f"Please install {colored('pyvista', 'red')} to use interactive plotting.")
+            return
+        if plotter is None:
+            plotter = pv.Plotter(shape=(1, 1))
+            plotter.subplot(0, 0)
+        x, y, z = self.gen_plot_data(dims=dims, fixed=fixed, n_points=n_points, scale_mode=scale_mode)
+        grid = pv.StructuredGrid(x, y, z)
+        if color is None:
+            plotter.add_mesh(grid, scalars=grid.points[:, 2], cmap=str(cmap))
+            plotter.remove_scalar_bar()
         else:
-            if isinstance(rot_mat, np.ndarray):
-                self.rotate_mat = rot_mat
-            else:
-                raise TypeError('rot_mat must be ndarray or None')
-        if shift_mat is None:
-            self.shift_mat = np.ones(self.dim)
-        else:
-            if isinstance(shift_mat, (int, float)):
-                self.shift_mat = np.ones(self.dim) * shift_mat
-            elif isinstance(shift_mat, np.ndarray):
-                self.shift_mat = shift_mat
-            else:
-                raise TypeError('shift_mat must be one of int, float, ndarray or None')
+            _color = str(color) if isinstance(color, StrColors) else color
+            plotter.add_mesh(grid, color=_color)
+        plotter.add_title(f"T{self.id} {self.name}", font_size=font_size)
+        if show_grid:
+            plotter.show_grid(
+                xtitle=f'X{min(dims)}',
+                ytitle=f'X{max(dims)}',
+                ztitle='Y',
+                font_size=8,
+                location='outer'
+            )
+        plotter.add_axes()
+        if show:
+            plotter.show()
+
+    def set_transform(self, rotation: Optional[np.ndarray]=None, shift: Union[int, float, np.ndarray, None]=None):
+        self._transformer.set_transform(rotation, shift)
 
     def set_id(self, _id: int):
         self._id = _id
@@ -524,6 +632,12 @@ class SingleTaskProblem(ABC):
             points = np.clip(points, 0, 1)
         return points * (self.x_ub - self.x_lb) + self.x_lb
 
+    def transform_x(self, x):
+        return self._transformer.transform_x(x)
+
+    def inverse_transform_x(self, x):
+        return self._transformer.inverse_transform_x(x)
+
     def evaluate(self, x: np.ndarray):
         _x = self.before_eval(x)
         y = np.apply_along_axis(self._eval_single, 1, _x)
@@ -533,7 +647,7 @@ class SingleTaskProblem(ABC):
     def before_eval(self, x):
         _x = x.copy()
         _x = check_x(_x, self.dim)
-        _x = transform_x(_x, self.rotate_mat, self.shift_mat)
+        _x = self.transform_x(_x)
         _x = np.clip(_x, self.x_lb, self.x_ub)
         return _x.reshape(-1, self.dim)
 
@@ -693,64 +807,75 @@ class MultiTaskProblem(ABC):
     def _unset_seed(self):
         np.random.set_state(self._rdm_state)
 
-    def plot_interactive(
+    def plot_3d_interactive(
             self,
-            func_id: tuple[int]=(1, 2, 3, 4),
+            tasks_id: tuple[int]=(1, 2, 3, 4),
             shape: tuple[int, int]=(2, 2),
             dims=(0, 1),
+            font_size: int=10,
             cmap: Union[str, Cmaps]=Cmaps.viridis,
+            color: Union[str, StrColors, list[float, float, float], tuple[float, float, float], None]=None,
             n_points: int=100,
-            coordinates: bool=False,
+            scale_mode: Literal['xy', 'y']='y',
+            show_grid: bool=True,
     ):
         """
-        Plot multi functions in an interactive mode.
+        Plot tasks in an interactive mode.
 
         Parameters
         ----------
-        func_id:
-            The functions id to be plotting.
+        tasks_id:
+            The tasks id to be plotting.
         shape:
             The grid shape of multi-plots.
         cmap:
             Color map, use `pyfmto.utilities.Cmaps` to easily select alternative options.
+        color:
+            Use to make each mesh have a single solid color. ``cmap`` will be overridden
+            if color is specified. Either a string, RGB list, or hex color string. For
+            example: ``color='white'``, ``color=StrColors.white``, ``color='w'``,
+            ``color=[1.0,1.0,1.0]``, or ``color='#FFFFFF'``.
         dims:
             The selected dims to be plotting.
+        scale_mode:
+            if pass 'xy', normalize both the decision space and objective space to (0, 1).
+            if pass 'y', scale objective value to match the decision space, which will keep
+            the original decision space information.
         n_points:
             Number of points in one dimension, total n_points**2 points.
-        coordinates:
+        font_size:
+            Fontsize of subplots title.
+        show_grid:
             If show coordinates plane.
         """
-        if np.any(np.array(func_id) <= 0) or np.any(np.array(func_id) > self.task_num):
-            raise ValueError(f"func_id should in range [1, {self.task_num}]")
-        if len(func_id) > shape[0] * shape[1]:
-            raise ValueError(f"The number of clients {len(func_id)} is larger than the number of cells in shape {shape}")
+        if np.any(np.array(tasks_id) <= 0) or np.any(np.array(tasks_id) > self.task_num):
+            raise ValueError(f"tasks id should in range [1, {self.task_num}]")
+        if len(tasks_id) > shape[0] * shape[1]:
+            raise ValueError(f"The number of clients {len(tasks_id)} is larger than "
+                             f"the number of cells in grid {shape[0]}*{shape[1]}")
         try:
             import pyvista as pv
         except ImportError:
             print(f"Please install {colored('pyvista', 'red')} to use this function")
             return
         plotter = pv.Plotter(shape=shape)
-        for fid in func_id:
-            index = fid - 1
+        for index, fid in enumerate(tasks_id):
             row, col = index // shape[0], index % shape[0]
             plotter.subplot(row, col)
-            func = self._problem[index]
-            x, y, z = func.gen_plot_data(dims, n_points=n_points, normalize=True)
-            grid = pv.StructuredGrid(x, y, z)
-            plotter.add_mesh(grid, scalars=grid.points[:, 2], cmap=str(cmap))
-            plotter.add_title(f"T{func.id} {func.name}", font_size=10)
-            if coordinates:
-                plotter.show_grid(
-                    xtitle=f'X{min(dims)}',
-                    ytitle=f'X{max(dims)}',
-                    ztitle='Y',
-                    font_size=8,
-                    location='outer'
-                )
-            plotter.remove_scalar_bar()
+            func = self._problem[fid-1]
+            func.plot_3d_interactive(
+                dims=dims,
+                n_points=n_points,
+                scale_mode=scale_mode,
+                cmap=cmap,
+                color=color,
+                show_grid=show_grid,
+                font_size=font_size,
+                plotter=plotter,
+            )
         plotter.show()
 
-    def show_distribution(self, filename=None):
+    def plot_distribution(self, filename=None):
         init_x = {f"T{p.id}({p.name})": p.normalize_x(p.solutions.x) for p in self}
         np_per_dim = self[0].np_per_dim
         tick_interval = 1.0 / np_per_dim

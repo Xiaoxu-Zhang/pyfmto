@@ -64,7 +64,7 @@ prob = load_problem('arxiv2017', dim=2, init_fe=20, max_fe=50, np_per_dim=5)
 print(prob)
 
 # show distribution of init solutions in 2d space, if dim>2, only the first two dimensions will be shown
-prob.show_distribution(f'distribution plot.png')
+prob.plot_distribution(f'distribution plot.png')
 
 # visualize one of the tasks (require problem dim>=2)
 first_task = prob[0]

@@ -58,5 +58,5 @@ class Tevc2024(Mtp):
         rot_mats = loadmat(str(datasets))
         mats = [rot_mats[f"M{i + 1}"][0:dim, 0:dim] for i in range(10)]
         for f, mat in zip(funcs, mats):
-            f.set_transform(rot_mat=mat, shift_mat=None)
+            f.set_transform(rotation=mat, shift=None)
         return funcs

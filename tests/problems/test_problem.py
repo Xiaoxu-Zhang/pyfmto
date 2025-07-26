@@ -202,8 +202,8 @@ class TestMultiTaskProblem(unittest.TestCase):
         self.assertRaises(ValueError, RealworldMtp, random_ctrl='not_support')
         prob = SyntheticMtp()
         filename = self.tmp_dir / 'test_show.png'
-        prob.show_distribution(str(filename))
-        prob.show_distribution()
+        prob.plot_distribution(str(filename))
+        prob.plot_distribution()
         self.assertTrue(filename.exists())
 
     def test_attributes(self):

@@ -76,12 +76,12 @@ class Tetci2019(Mtp):
         # paper and also represents the global optimality of
         # f8, the global optimum will fall outside the search
         # space (-500, 500).
-        shift_mats = [0, 80, -80, -0.4, 0, 40, -0.4, 0, s9, s10]
+        shifts = [0, 80, -80, -0.4, 0, 40, -0.4, 0, s9, s10]
 
         if dim > 25:
             del functions[6], functions[3]
-            del shift_mats[6], shift_mats[3]
+            del shifts[6], shifts[3]
 
-        [func.set_transform(rot_mat=None, shift_mat=shift_mat) for func, shift_mat in zip(functions, shift_mats)]
+        [func.set_transform(shift=shift) for func, shift in zip(functions, shifts)]
 
         return functions
