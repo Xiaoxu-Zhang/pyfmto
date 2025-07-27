@@ -8,12 +8,16 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from numpy import ndarray
 from pyDOE import lhs
+from scipy.stats import kendalltau, spearmanr, pearsonr
+
 from pyfmto.utilities import StrColors, Cmaps, colored
 from tabulate import tabulate
 from typing import List, Union, Tuple, Optional, Literal
 from .solution import Solution
 
 __all__ = ['SingleTaskProblem', 'MultiTaskProblem']
+
+from ..utilities.stroptions import SeabornStyles
 
 T_Bound = Union[int, float, list, tuple, np.ndarray]
 
@@ -884,26 +888,70 @@ class MultiTaskProblem(ABC):
             )
         plotter.show()
 
-    def plot_distribution(self, filename=None):
-        init_x = {f"T{p.id}({p.name})": p.normalize_x(p.solutions.x) for p in self}
+    def plot_distribution(
+            self,
+            dims=(0, 1),
+            style: Union[str, SeabornStyles]=SeabornStyles.whitegrid,
+            figsize: tuple[float, float, float]=(11., 9., 1.),
+            filename=None
+    ):
+        """
+        Plot the distribution of initial solutions for each task in the multitask problem.
+
+        This function visualizes how the initial solutions are distributed across the
+        decision space for each task. It helps to understand the partitioning strategy
+        and the diversity of initial samples among different tasks.
+
+        Parameters
+        ----------
+        dims : tuple of int, default=(0, 1)
+            The two dimensions to plot. Only 2D visualization is supported.
+
+        style : str or SeabornStyles, default=SeabornStyles.whitegrid
+            The seaborn style to use for the plot. Can be any valid seaborn style
+            or a SeabornStyles enum value.
+
+        figsize : tuple of float, default=(11., 9., 1.)
+            Figure size specification as (width, height, scale_factor). The final
+            figure size will be (width*scale_factor, height*scale_factor).
+
+        filename : str, optional
+            Path to save the figure. If None, the figure will be displayed directly.
+
+        Notes
+        -----
+        - The function normalizes all solution points to [0, 1] space for consistent visualization.
+        - Grid lines are shown according to the 'np_per_dim' setting to visualize partitions.
+        - Each task is represented with a unique color and marker style.
+        - The plot includes a legend indicating which color/marker corresponds to which task.
+
+        Examples
+        --------
+        >>> problem.plot_distribution()
+        >>> problem.plot_distribution(dims=(1, 2), filename='distribution.png')
+        """
+        init_x = {f"T{p.id:02}({p.name})": p.normalize_x(p.solutions.x) for p in self}
         np_per_dim = self[0].np_per_dim
         tick_interval = 1.0 / np_per_dim
         ticks = np.arange(0, 1 + tick_interval, tick_interval)
+        dim1 = min(dims)
+        dim2 = max(dims)
         data = []
         for label, points in init_x.items():
             for point in points:
-                if point.shape[0] >= 2:
-                    data.append({
-                        'x': point[0],
-                        'y': point[1],
-                        'problem': label
-                    })
-        sns.set(style="whitegrid")
-        plt.figure(figsize=(11, 9))
+                data.append({
+                    'x': point[dim1],
+                    'y': point[dim2],
+                    'problem': label
+                })
+        w, h, s = figsize
+        _figsize = (w*s, h*s)
+        plt.figure(figsize=_figsize)
+        sns.set(style=str(style))
         sns.scatterplot(data=pd.DataFrame(data), x='x', y='y', hue='problem', style='problem', s=80)
         plt.title(f'Initial Solutions of Each Task (np_per_dim={np_per_dim})')
-        plt.xlabel('X0')
-        plt.ylabel('X1')
+        plt.xlabel(f'X{dim1}')
+        plt.ylabel(f'X{dim2}', rotation=0)
         plt.xticks(ticks)
         plt.yticks(ticks)
         plt.legend(title=f'Tasks', bbox_to_anchor=(1., 1), loc='upper left')
@@ -912,6 +960,136 @@ class MultiTaskProblem(ABC):
             plt.savefig(filename)
         else:
             plt.show()
+
+    def plot_heatmap(
+            self,
+            n_samples: int=1000,
+            method: Literal['kendalltau', 'spearmanr', 'pearsonr']='spearmanr',
+            p_ub: float=0.05,
+            figsize: tuple[float, float, float]=(9., 7., 1.),
+            cmap: Optional[Union[str, Cmaps]]=None,
+            masker: Optional[float]=np.nan,
+            font_size: int=10,
+            fmt: str= '.2f',
+            triu: Literal['full', 'lower', 'upper']='full',
+            vmax: Optional[float]=None,
+            vmin: Optional[float]=None,
+            linewidth: float=0.5,
+            filename=None,
+    ):
+        """
+        Plot a heatmap showing the correlation between tasks in the multitask problem.
+
+        This function computes correlation coefficients between all pairs of tasks
+        using sampled points in the decision space, and visualizes them as a heatmap.
+        Correlations that are not statistically significant (based on p-value) can
+        be masked out.
+
+        Parameters
+        ----------
+        n_samples : int, default=1000
+         Number of Latin Hypercube samples to use for evaluating the functions.
+
+        method : {'spearmanr', 'kendalltau', 'pearsonr'}, default='spearmanr'
+         Correlation method to use:
+         - 'spearmanr': Spearman rank correlation
+         - 'kendalltau': Kendall tau correlation
+         - 'pearsonr': Pearson correlation coefficient
+
+        p_ub : float, default=0.05
+         Upper bound for p-value. Correlations with p-values greater than this
+         value are considered not statistically significant and will be masked.
+
+        figsize : tuple[float, float, float], default=(9., 7., 1.)
+         Figure size as (width, height, scale).
+
+        cmap : str or Cmaps, optional
+         Colormap for the heatmap. If None, uses the default matplotlib colormap.
+
+        masker : float, optional
+         Value to use for masking non-significant correlations. Default is NaN.
+
+        font_size : int, default=10
+         Font size for annotation text in heatmap cells.
+
+        fmt : str, default='.2f'
+         Format string for annotating values in heatmap cells.
+
+        triu : {'full', 'lower', 'upper'}, default='full'
+         Which part of the matrix to display:
+         - 'full': Show full matrix
+         - 'lower': Show only lower triangular matrix
+         - 'upper': Show only upper triangular matrix
+
+        vmax : float, optional
+         Maximum value for colormap normalization.
+
+        vmin : float, optional
+         Minimum value for colormap normalization.
+
+        linewidth : float, default=0.5
+         Width of lines separating heatmap cells.
+
+        filename : str, optional
+         File path to save the plot. If None, displays the plot instead.
+
+        Notes
+        -----
+        The heatmap shows correlation coefficients between tasks. Non-significant
+        correlations (based on the p_ub threshold) are masked with the masker value.
+        The diagonal always shows 1.0 as each task is perfectly correlated with itself.
+        Task labels are formatted as 'T{ID:02}' where ID is the task identifier.
+
+        See Also
+        --------
+        See `scipy.stats.kendalltau`, `spearmanr`, or `pearsonr` documentation for more detail.
+        """
+        methods = {
+            'spearmanr': spearmanr,
+            'kendalltau': kendalltau,
+            'pearsonr': pearsonr,
+        }
+        if method in methods:
+            corr = methods[method]
+        else:
+            raise ValueError(f"Invalid method: {method}, support spearmanr, kendalltau, and pearsonr")
+        _cmap = None if cmap is None else str(cmap)
+        x = lhs(self[0].dim, samples=n_samples)
+        evals = [f.evaluate(f.denormalize_x(x)).squeeze() for f in self]
+        evals = np.array(evals)
+        significance = [[[*corr(evals[i], evals[j])] for j in range(self.task_num)] for i in range(self.task_num)]
+        significance = np.array(significance)
+        statis = significance[:, :, 0]
+        pvalue = significance[:, :, 1]
+        triu_mask = np.triu(np.ones_like(statis, dtype=bool), k=1)
+        statis[pvalue > p_ub] = masker if masker else np.nan
+        if triu == 'lower':
+            statis[~triu_mask] = np.nan
+        elif triu == 'upper':
+            statis[triu_mask] = np.nan
+        cols = [f"T{f.id:02}" for f in self]
+        w, h, s = figsize
+        _figsize = (w*s, h*s)
+        df = pd.DataFrame(statis[::-1], columns=cols, index=cols[::-1])
+        _, ax = plt.subplots(figsize=_figsize)
+        sns.heatmap(
+            data=df,
+            cmap=_cmap,
+            annot=True,
+            fmt=fmt,
+            linewidths=linewidth,
+            ax=ax,
+            annot_kws={"size": font_size},
+            vmax=vmax,
+            vmin=vmin,
+        )
+        ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
+        plt.tight_layout()
+        if filename:
+            plt.savefig(filename)
+        else:
+            plt.show()
+        plt.close()
 
     @property
     def name(self) -> str:

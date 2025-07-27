@@ -107,6 +107,36 @@ class SeabornPalettes(StrOptions):
     magma = "Magma sequential colormap"
 
 
+class SeabornStyles(StrOptions):
+    """
+    Seaborn style options.
+
+    This class provides a set of predefined style names with their
+    descriptions for use in seaborn plots.
+
+    Available styles
+    -----
+    - ``darkgrid`` : Dark background with grid lines (default seaborn style)
+    - ``whitegrid`` : White background with grid lines
+    - ``dark`` : Dark background with no grid lines
+    - ``white`` : White background with no grid lines
+    - ``ticks`` : White background with ticks on the axes
+
+    Examples
+    --------
+        >>> from pyfmto.utilities.stroptions import SeabornStyles
+        >>> print(SeabornStyles.whitegrid)
+        whitegrid
+        >>> sns.set_style(str(SeabornStyles.whitegrid))
+    """
+
+    darkgrid = "Dark background with grid lines (default seaborn style)"
+    whitegrid = "White background with grid lines"
+    dark = "Dark background with no grid lines"
+    white = "White background with no grid lines"
+    ticks = "White background with ticks on the axes"
+
+
 class StrColors(StrOptions):
     black = 'black'
     gray = 'gray'
