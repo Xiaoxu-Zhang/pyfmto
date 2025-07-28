@@ -11,7 +11,7 @@ from pyfmto.utilities import logger, save_msgpack, load_msgpack
 
 
 class LauncherConfig(BaseModel):
-    results: str = 'out/results'
+    results: Optional[str] = 'out/results'
     repeat: int = 1
     seed: int = 42
     backup: bool = True
@@ -37,7 +37,7 @@ class LauncherConfig(BaseModel):
 
 
 class ReporterConfig(BaseModel):
-    results: str = 'out/results'
+    results: Optional[str] = 'out/results'
     algorithms: list[list[str]]
     problems: list[str]
 
@@ -76,12 +76,12 @@ def kill_server():
 def gen_exp_combinations(launcher_conf: LauncherConfig, alg_conf: dict, prob_conf: dict):
     alg_items = [(name, alg_conf.get(name, {})) for name in launcher_conf.algorithms]
     prob_conf = {name: prob_conf.get(name, {}) for name in launcher_conf.problems}
-    prob_items = _combine_args(prob_conf)
+    prob_items = combine_args(prob_conf)
     combinations = [(*alg_item, *prob_item) for alg_item, prob_item in product(alg_items, prob_items)]
     return combinations
 
 
-def _combine_args(args: dict):
+def combine_args(args: dict):
     prob_items = []
     for prob_name, prob_args in args.items():
         list_args = {k: v for k, v in prob_args.items() if isinstance(v, list)}
@@ -104,7 +104,7 @@ def parse_reporter_config(config: dict, prob_conf: dict):
     algorithms = reporter.algorithms
     problems = reporter.problems
     prob_items = []
-    for name, args in _combine_args({name: prob_conf.get(name, {}) for name in problems}):
+    for name, args in combine_args({name: prob_conf.get(name, {}) for name in problems}):
         src_prob = args.get('src_problem')
         np_per_dim = args.get('np_per_dim', 1)
         if src_prob:
@@ -119,27 +119,6 @@ def parse_reporter_config(config: dict, prob_conf: dict):
         'initialize_comb': initialize_comb
     }
     return analyses
-
-
-def _is_2d_str_list(lst):
-    if not isinstance(lst, list):
-        return False
-    elif not all(isinstance(sub_lst, list) for sub_lst in lst):
-        return False
-    else:
-        for sub_lst in lst:
-            for item in sub_lst:
-                if not isinstance(item, str):
-                    return False
-    return True
-
-
-def _is_1d_str_list(lst):
-    return isinstance(lst, list) and all(isinstance(item, str) for item in lst)
-
-
-def _is_1d_int_list(lst):
-    return isinstance(lst, list) and all(isinstance(item, int) for item in lst)
 
 
 def gen_path(alg_name, prob_name, prob_args):

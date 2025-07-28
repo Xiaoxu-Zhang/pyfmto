@@ -3,17 +3,16 @@ import shutil
 import unittest
 import yaml
 from pathlib import Path
+from pydantic import ValidationError
 from unittest.mock import patch
 
-from pyfmto.experiments.utils import (
-    gen_path,
-    check_path,
-    load_results,
-    save_results,
-    clear_console,
-    RunSolutions
-)
+from pyfmto.experiments import Statistics
 from pyfmto.problems import Solution
+from pyfmto.experiments.utils import (
+    gen_path, check_path, load_results, save_results, clear_console,
+    kill_server, gen_exp_combinations, combine_args, parse_reporter_config,
+    RunSolutions, LauncherConfig, ReporterConfig
+)
 
 TMP_ALG = """
 class TmpClient:
@@ -157,6 +156,9 @@ class TestRunSolutions(unittest.TestCase):
         self.assertEqual(retrieved.obj, 1)
         self.assertEqual(retrieved.size, 5)
 
+        self.assertIsInstance(rs.solutions, list)
+        self.assertEqual(len(rs.solutions), 1)
+
     def test_get_multiple_solutions(self):
         rs = RunSolutions()
         solution = self._create_solution()
@@ -217,3 +219,225 @@ class TestRunSolutions(unittest.TestCase):
         rs.clear()
         self.assertEqual(rs.num_clients, 0)
         self.assertEqual(rs.sorted_ids, [])
+
+
+class TestLauncherConfig(unittest.TestCase):
+    def test_valid_config(self):
+        """Test creating a valid LauncherConfig instance."""
+        config = LauncherConfig(
+            results='out/results',
+            repeat=3,
+            seed=123,
+            backup=True,
+            save=True,
+            algorithms=['alg1', 'alg2'],
+            problems=['prob1', 'prob2']
+        )
+        self.assertEqual(config.results, 'out/results')
+        self.assertEqual(config.repeat, 3)
+        self.assertEqual(config.seed, 123)
+        self.assertTrue(config.backup)
+        self.assertTrue(config.save)
+        self.assertEqual(config.algorithms, ['alg1', 'alg2'])
+        self.assertEqual(config.problems, ['prob1', 'prob2'])
+
+    def test_defaults(self):
+        """Test LauncherConfig with default values."""
+        config = LauncherConfig(algorithms=['alg1'], problems=['prob1'])
+        self.assertEqual(config.results, 'out/results')
+        self.assertEqual(config.repeat, 1)
+        self.assertEqual(config.seed, 42)
+        self.assertTrue(config.backup)
+        self.assertTrue(config.save)
+
+    def test_results_none(self):
+        """Test LauncherConfig with results set to None."""
+        config = LauncherConfig(results=None, algorithms=['alg1'], problems=['prob1'])
+        self.assertEqual(config.results, 'out/results')
+
+    def test_invalid_config_repeat(self):
+        invalid_repeat = {'repeat': -1, 'algorithms': ['alg1'], 'problems': ['prob1']}
+        invalid_seed = {'seed': -1, 'algorithms': ['alg1'], 'problems': ['prob1']}
+        empty_algorithms = {'algorithms': [], 'problems': ['prob1']}
+        empty_problems = {'algorithms': ['alg1'], 'problems': []}
+        self.assertRaises(ValidationError, LauncherConfig, **invalid_repeat)
+        self.assertRaises(ValidationError, LauncherConfig, **invalid_seed)
+        self.assertRaises(ValidationError, LauncherConfig, **empty_algorithms)
+        self.assertRaises(ValidationError, LauncherConfig, **empty_problems)
+
+
+class TestReporterConfig(unittest.TestCase):
+    def test_valid_config(self):
+        """Test creating a valid ReporterConfig instance."""
+        config = ReporterConfig(
+            results='out/results',
+            algorithms=[['alg1', 'alg2'], ['alg3', 'alg4']],
+            problems=['prob1', 'prob2']
+        )
+        self.assertEqual(config.results, 'out/results')
+        self.assertEqual(config.algorithms, [['alg1', 'alg2'], ['alg3', 'alg4']])
+        self.assertEqual(config.problems, ['prob1', 'prob2'])
+
+    def test_defaults(self):
+        """Test ReporterConfig with minimal valid values."""
+        config = ReporterConfig(algorithms=[['alg1', 'alg2']], problems=['prob1'])
+        self.assertEqual(config.results, 'out/results')
+
+    def test_results_none(self):
+        """Test ReporterConfig with results set to None."""
+        config = ReporterConfig(results=None, algorithms=[['alg1', 'alg2']], problems=['prob1'])
+        self.assertEqual(config.results, 'out/results')
+
+    def test_invalid_config(self):
+        inner_too_short  = {'algorithms': [['alg1']], 'problems': ['prob1']}
+        empty_algorithms = {'algorithms': [], 'problems': ['prob1']}
+        empty_problems   = {'algorithms': [['alg1', 'alg2']], 'problems': []}
+        self.assertRaises(ValidationError, ReporterConfig, **inner_too_short)
+        self.assertRaises(ValidationError, ReporterConfig, **empty_algorithms)
+        self.assertRaises(ValidationError, ReporterConfig, **empty_problems)
+
+
+class TestStatistics(unittest.TestCase):
+
+    def test_init(self):
+        sta = Statistics(
+            mean_orig=np.array([1, 2]),
+            mean_log=np.array([3, 4]),
+            std_orig=np.array([5, 6]),
+            std_log=np.array([7, 8]),
+            se_orig=np.array([9, 10]),
+            se_log=np.array([11, 12]),
+            opt_orig=np.array([13, 14]),
+            opt_log=np.array([15, 16])
+        )
+        sta.fe_init = 10
+        sta.fe_max = 20
+        sta.x = np.array([17, 18])
+        sta.x_global = np.array([19, 20])
+        sta.y_global = np.array([21, 22])
+
+        self.assertTrue(np.all(sta.mean_orig==np.array([1, 2])))
+        self.assertTrue(np.all(sta.mean_log==np.array([3, 4])))
+        self.assertTrue(np.all(sta.std_orig==np.array([5, 6])))
+        self.assertTrue(np.all(sta.std_log==np.array([7, 8])))
+        self.assertTrue(np.all(sta.se_orig==np.array([9, 10])))
+        self.assertTrue(np.all(sta.se_log==np.array([11, 12])))
+        self.assertTrue(np.all(sta.opt_orig==np.array([13, 14])))
+        self.assertTrue(np.all(sta.opt_log==np.array([15, 16])))
+        self.assertTrue(np.all(sta.x==np.array([17, 18])))
+        self.assertTrue(np.all(sta.x_global==np.array([19, 20])))
+        self.assertTrue(np.all(sta.y_global==np.array([21, 22])))
+        self.assertEqual(sta.fe_init, 10)
+        self.assertEqual(sta.fe_max, 20)
+
+
+class TestKillServer(unittest.TestCase):
+
+    @patch('os.name', 'win32')
+    @patch('os.system')
+    def test_kill_server_windows(self, mock_system):
+        kill_server()
+        mock_system.assert_called_once_with("taskkill /f /im AlgServer.exe")
+
+    @patch('os.name', 'posix')
+    @patch('os.system')
+    def test_kill_server_posix(self, mock_system):
+        kill_server()
+        mock_system.assert_called_once_with("pkill -f AlgServer")
+
+
+class TestCombineArgs(unittest.TestCase):
+
+    def test_combine_args_no_list(self):
+        args = {
+            'problem1': {'param1': 'value1', 'param2': 'value2'}
+        }
+        result = combine_args(args)
+        expected = [('problem1', {'param1': 'value1', 'param2': 'value2'})]
+        self.assertEqual(result, expected)
+
+    def test_combine_args_with_list(self):
+        args = {
+            'problem1': {'param1': 'value1', 'param2': [1, 2]}
+        }
+        result = combine_args(args)
+        expected = [
+            ('problem1', {'param1': 'value1', 'param2': 1}),
+            ('problem1', {'param1': 'value1', 'param2': 2})
+        ]
+        self.assertEqual(result, expected)
+
+    def test_combine_args_multiple_lists(self):
+        args = {
+            'problem1': {'param1': [1, 2], 'param2': ['a', 'b']}
+        }
+        result = combine_args(args)
+        expected = [
+            ('problem1', {'param1': 1, 'param2': 'a'}),
+            ('problem1', {'param1': 1, 'param2': 'b'}),
+            ('problem1', {'param1': 2, 'param2': 'a'}),
+            ('problem1', {'param1': 2, 'param2': 'b'})
+        ]
+        self.assertEqual(result, expected)
+
+
+class TestGenExpCombinations(unittest.TestCase):
+
+    def test_gen_exp_combinations(self):
+        launcher_conf = LauncherConfig(
+            algorithms=['alg1', 'alg2'],
+            problems=['prob1', 'prob2']
+        )
+        alg_conf = {
+            'alg1': {'alg_param': 1},
+            'alg2': {'alg_param': 2}
+        }
+        prob_conf = {
+            'prob1': {'prob_param': 'a'},
+            'prob2': {'prob_param': 'b'}
+        }
+        result = gen_exp_combinations(launcher_conf, alg_conf, prob_conf)
+
+        expected = [
+            ('alg1', {'alg_param': 1}, 'prob1', {'prob_param': 'a'}),
+            ('alg1', {'alg_param': 1}, 'prob2', {'prob_param': 'b'}),
+            ('alg2', {'alg_param': 2}, 'prob1', {'prob_param': 'a'}),
+            ('alg2', {'alg_param': 2}, 'prob2', {'prob_param': 'b'})
+        ]
+        self.assertEqual(result, expected)
+
+
+class TestParseReporterConfig(unittest.TestCase):
+
+    def test_parse_reporter_config(self):
+        config = {
+            'algorithms': [['alg1', 'alg2'], ['alg3', 'alg4']],
+            'problems': ['prob1', 'prob2']
+        }
+        prob_conf = {
+            'prob1': {'src_problem': 'src1', 'np_per_dim': 2},
+            'prob2': {'np_per_dim': 3}
+        }
+        result = parse_reporter_config(config, prob_conf)
+
+        expected_analysis_comb = [
+            (['alg1', 'alg2'], 'PROB1-src1', 2),
+            (['alg1', 'alg2'], 'PROB2', 3),
+            (['alg3', 'alg4'], 'PROB1-src1', 2),
+            (['alg3', 'alg4'], 'PROB2', 3)
+        ]
+
+        expected_initialize_comb = [
+            ('alg1', 'PROB1-src1', 2),
+            ('alg1', 'PROB2', 3),
+            ('alg2', 'PROB1-src1', 2),
+            ('alg2', 'PROB2', 3),
+            ('alg3', 'PROB1-src1', 2),
+            ('alg3', 'PROB2', 3),
+            ('alg4', 'PROB1-src1', 2),
+            ('alg4', 'PROB2', 3)
+        ]
+
+        self.assertEqual(result['results'], 'out/results')
+        self.assertEqual(result['analysis_comb'], expected_analysis_comb)
+        self.assertEqual(result['initialize_comb'], expected_initialize_comb)
