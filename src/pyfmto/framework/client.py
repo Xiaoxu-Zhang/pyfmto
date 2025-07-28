@@ -13,14 +13,12 @@ from yaml import safe_load
 
 from .packages import ClientPackage, ServerPackage, Actions
 from pyfmto.problems import SingleTaskProblem
-from pyfmto.utilities import logger, titled_tabulate, tabulate_formats as tf
+from pyfmto.utilities import logger, update_kwargs, titled_tabulate, tabulate_formats as tf
 
 __all__ = [
     'Client',
     'record_runtime'
 ]
-
-from ..utilities.tools import update_kwargs
 
 
 def record_runtime(name=None):

@@ -4,54 +4,37 @@ import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from ruamel.yaml import YAML
 from setproctitle import setproctitle
-from subprocess import Popen
-from typing import Optional
-from yaml import safe_load
 
 from pyfmto.algorithms import load_algorithm, get_alg_kwargs
 from pyfmto.problems import load_problem
-from pyfmto.utilities import logger, reset_log, timer, show_in_table, backup_log_to
+from pyfmto.utilities import (
+    logger, reset_log, timer, show_in_table,
+    backup_log_to, load_yaml, save_yaml)
 from .utils import (
-    clear_console,
-    gen_path,
-    check_path,
-    kill_server,
-    save_results,
-    gen_exp_combinations,
-    load_launcher_settings)
+    clear_console, gen_path, check_path, kill_server,
+    save_results, gen_exp_combinations, LauncherConfig)
 
 __all__ = ['Launcher']
 
 
 class Launcher:
-    """
-    repeat: 3         # number of runs repeating
-    backup: True      # backup log file to results directory
-    dir: out/results  # dir of results
-    save: True        # save results
-    seed: 42          # random seed
-    """
-    def __init__(self):
+    def __init__(self, conf_file: str='config.yaml'):
         reset_log()
         clear_console()
         kill_server()
-        settings = load_launcher_settings()
-        self.combinations = gen_exp_combinations(settings)
-        self.serv_proc: Optional[Popen] = None
-
+        all_conf = load_yaml(conf_file)
+        launcher_conf = LauncherConfig(**all_conf.get('launcher'))
+        self.combinations = gen_exp_combinations(
+            launcher_conf=launcher_conf,
+            alg_conf=all_conf.get('algorithms', {}),
+            prob_conf=all_conf.get('problems', {}))
         # Launcher settings
-        default_settings = safe_load(self.__class__.__doc__)
-        for k in default_settings.keys():
-            v = settings.get(k)
-            if v is not None:
-                default_settings[k] = v
-        self.repeat = default_settings['repeat']
-        self.dir    = default_settings['dir']
-        self.save   = default_settings['save']
-        self.seed   = default_settings['seed']
-        self.backup = default_settings['backup']
+        self.repeat  = launcher_conf.repeat
+        self.results = launcher_conf.results
+        self.save    = launcher_conf.save
+        self.seed    = launcher_conf.seed
+        self.backup  = launcher_conf.backup
 
         # Runtime data
         self._iid_info = 0
@@ -107,14 +90,9 @@ class Launcher:
             kwargs.update(server=self._srv_kwargs)
         else:
             kwargs.update(server=default_kwargs.get('server', {}))
-
         fdir = self._res_dir.parents[1]
         fdir.mkdir(parents=True, exist_ok=True)
-        yaml = YAML()
-        filename = fdir / f"arguments.yaml"
-        if not filename.exists():
-            with open(filename, 'w') as f_bac:
-                yaml.dump(kwargs, f_bac)
+        save_yaml(kwargs, fdir / f"arguments.yaml")
 
     def _repeating(self):
         client_cls = load_algorithm(self._alg)['client']

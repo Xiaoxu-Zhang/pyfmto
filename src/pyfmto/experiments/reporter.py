@@ -9,51 +9,27 @@ import seaborn
 import shutil
 import time
 from collections import defaultdict
-
-from PIL import Image
 from numpy import ndarray
 from pathlib import Path
-from pyfmto.utilities import logger, reset_log, SeabornPalettes
+from pydantic import validate_call, Field
+from pyfmto.utilities import logger, reset_log, SeabornPalettes, load_yaml
+from PIL import Image
 from scipy import stats
 from tabulate import tabulate
 from tqdm import tqdm
-from typing import Union, Optional
+from typing import Union, Optional, Literal, Annotated
+from .utils import load_results, RunSolutions, Statistics, parse_reporter_config, clear_console
 
-from .utils import load_results, RunSolutions, Statistics, load_reporter_settings, clear_console
+T_Statistics = dict[str, dict[str, Statistics]]
+T_Suffix = Literal['.png', '.jpg', '.eps', '.svg', '.pdf']
+T_Fraction = Annotated[float, Field(ge=0., le=1.)]
+T_Levels10 = Annotated[int, Field(ge=1, le=10)]
 
-T_Sta = dict[str, dict[str, Statistics]]
 
 __all__ = ['Reports']
 
 
 class Reporter:
-    """
-    Note:
-        1. Please make sure your result organized in the following way
-        2. String with <...> format should be replace by corresponding information
-
-    >>> results/
-    ...    │
-    ...    ├── <Algor1>/
-    ...    │      │
-    ...    │      ├── <Prob1>/
-    ...    │      │      │
-    ...    │      │      ├── IID/
-    ...    │      │      │    ├── <Run1>.msgpack
-    ...    │      │      │    ├── <Run2>.msgpack
-    ...    │      │      │    └── ...
-    ...    │      │      ├── NIID2/
-    ...    │      │      ├── NIID4/
-    ...    │      │      └── NIID6/
-    ...    │      ├── <Prob2>/
-    ...    │      │      │
-    ...    │      │      ├── IID/
-    ...    │      │      ├── NIID2/
-    ...    │      │      └── .../
-    ...    │      └── <Prob...>/
-    ...    ├── <Algor2>/
-    ...    └── <Algor...>/
-    """
 
     def __init__(self, root: str):
         self._root = Path(root)
@@ -69,49 +45,17 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
-            figsize:tuple[float, float, float]=(3, 2.3, 1),
-            alpha: float=0.2,
-            palette: Union[str, SeabornPalettes]=SeabornPalettes.bright,
-            suffix: str='.png',
-            styles:Union[list[str], tuple[str]]=('science', 'ieee', 'no-latex'),
-            showing_size: int=None,
-            quality: Optional[int]=3,
-            merge: bool=True,
-            clear: bool=True,
-            on_log_scale: bool=False):
-        """
-        Generate and save plots of performance curves for specified algorithms and problem settings.
-
-        Parameters
-        ----------
-        algorithms : list[str]
-            List of algorithm names to be plotted.
-        problem : str
-            List of algorithm names, if len>1, squash clients data for each problem.
-        np_per_dim : int
-            Number of partitions per dimension.
-        figsize : tuple[float, float, float], optional
-            Controlling the width-to-height ratio and the scale of the ratio. The third value is the scaling factor.
-        alpha : float, optional
-            Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).
-        palette :
-            The palette argument in `seaborn.plotviolin`, the `pyfmto.utilities.SeabornPalette` class can help you try different options easier.
-        suffix : str, optional
-            File format suffix for the output image. Supported formats include 'png', 'jpg', 'eps', 'svg', 'pdf'.
-        styles : Union[list[str], tuple[str]], optional
-            SciencePlots style parameters. Refer to the SciencePlots documentation for available styles.
-        showing_size : int, optional
-            Number of data points to use for plotting, taken from the last `showing_size` iterations of the convergence sequence.
-            If None, use `6 * dim`.
-        quality : Optional[int], optional
-            Image quality parameter, affecting the quality of scalar images. Valid values are integers from 1 to 9.
-        merge : bool, optional
-            If True, all curves are plotted on a single figure. If False, each client's curves are plotted in separate figures.
-        clear: bool, optional
-            If True, clear plots output in one_by_one
-        on_log_scale : bool, optional
-            If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
-        """
+            figsize:tuple[float, float, float],
+            alpha: float,
+            palette: Union[str, SeabornPalettes],
+            suffix: str,
+            styles:Union[list[str], tuple[str]],
+            showing_size: int,
+            quality: int,
+            merge: bool,
+            clear: bool,
+            on_log_scale: bool
+    ):
         # Prepare the data
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
         algorithms = list(statistics.keys()) # Get the list of available algorithms
@@ -119,7 +63,7 @@ class Reporter:
         file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
         w, h, s = figsize
         _figsize = w * s, h * s
-        _quality = {'dpi': 100 * quality} if quality in range(10) else {}
+        _quality = {'dpi': 100 * quality}
         log_tag = ' log' if on_log_scale else ''
         # Plot the data
         colors = seaborn.color_palette(str(palette), len(algorithms) - 1).as_hex()
@@ -149,36 +93,9 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
-            threshold_p: float=0.05,
-            styles: Union[list[str], tuple[str]]=('color-bg-grey', 'style-font-bold', 'style-font-underline')):
-        """
-        Generate and save an Excel file containing performance statistics for specified algorithms and problem settings.
-
-        Parameters
-        ----------
-        algorithms : list[str]
-            List of algorithm names to be included in the analysis.
-        problem : str
-            Name of the problem being analyzed.
-        np_per_dim : int
-            Number of partitions per dimension.
-        threshold_p : float, optional
-            T-test threshold parameter to determine statistical significance. Default is 0.05.
-        styles : Union[list[str], tuple[str]], optional
-            List or tuple of style parameters to apply to the Excel cells.
-
-        Notes
-        -----
-            The following styles are supported for personalized excel style:
-             - ``color-bg-[red|grey|green|blue|yellow|purple|orange|pink]`` ---Background colors (only one can be applied, supported colors are in [])
-             - ``color-font-[red|green|blue|yellow|purple|orange|pink]`` ---Font colors (only one can be applied, supported colors are in [])
-             - ``type-font-[bold|italic|underline]`` ---Font types (multiple can be applied, supported types are in [])
-
-        Returns
-        -------
-        None
-            The function saves the generated Excel file to the specified file path without returning any value.
-        """
+            pvalue: float,
+            styles: Union[list[str], tuple[str]]
+    ):
         style_map = {
             "color-bg-red": "background-color: #ff0000",
             "color-bg-grey": "background-color: #c0c0c0",
@@ -199,7 +116,7 @@ class Reporter:
             "style-font-italic": "font-style: italic",
             "style-font-underline": "text-decoration: underline"
         }
-        df_data = self._get_table_df(algorithms, problem, np_per_dim, threshold_p)
+        df_data = self._get_table_df(algorithms, problem, np_per_dim, pvalue)
         global_df, solo_df, global_index_mat, solo_index_mat = df_data
         file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
         kwargs1 = {'opt_index_mat': global_index_mat, 'src_data': global_df}
@@ -224,10 +141,11 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
-            threshold_p: float):
+            pvalue: float
+    ):
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
         clients_name = list(list(statistics.values())[0].keys())
-        str_table, float_table = self._tabling(statistics, clients_name, threshold_p)
+        str_table, float_table = self._tabling(statistics, clients_name, pvalue)
         global_index_mat, solo_index_mat = self._get_optimality_index_mat(float_table)
 
         global_counter = np.sum(global_index_mat, axis=0).reshape(1, -1)
@@ -251,8 +169,9 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
-            threshold_p: float = 0.05):
-        tab_data = self._get_table_df(algorithms, problem, np_per_dim, threshold_p)
+            pvalue: float
+    ):
+        tab_data = self._get_table_df(algorithms, problem, np_per_dim, pvalue)
         data_df, _, hl_bool_mat, _ = tab_data
         file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
 
@@ -279,33 +198,11 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
-            suffix: str='.png',
-            figsize: tuple=(5, 3, 1),
-            merge: bool=True,
-            clear: bool=True
+            suffix: str,
+            figsize: tuple,
+            merge: bool,
+            clear: bool
     ):
-        """
-        Parameters
-        ----------
-        algorithms: list[str]
-            a list of algorithm names
-        problem: str
-            problem name
-        np_per_dim: int
-            number of partitions per dimension(not a control arg, but a information to match data)
-        suffix: str
-            image suffix, such as png, pdf, svg
-        figsize: tuple
-            Controlling the (width, height, scale). the figsize is calculated by (width*scale, height*scale)
-        merge: bool
-            if true, merge all separate images into a single image, and the suffix will be fixed to PNG
-        clear: bool
-            only takes effect when merge is true
-
-        Returns
-        -------
-            None
-        """
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
         _suffix = '.png' if merge else suffix
         file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
@@ -325,29 +222,11 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
-            threshold_p: float=0.05):
-        """
-        Print the performance statistics table of specified algorithms and problem settings to the console.
-
-        Parameters
-        ----------
-        algorithms : list[str]
-            List of algorithm names to be analyzed.
-        problem : str
-            Name of the problem being analyzed.
-        np_per_dim : int
-            Number of partitions per dimension (used as information to match data).
-        threshold_p : float, optional
-            T-test threshold for determining statistical significance. Default is 0.05.
-
-        Returns
-        -------
-        None
-            This method does not return any value; it only prints the results to the console.
-        """
+            pvalue: float
+    ):
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
         keys = list(list(statistics.values())[0].keys())
-        str_table, _ = self._tabling(statistics, keys, threshold_p)
+        str_table, _ = self._tabling(statistics, keys, pvalue)
 
         pd.set_option('display.colheader_justify', 'center')
         df = pd.DataFrame(str_table)
@@ -395,7 +274,7 @@ class Reporter:
             shutil.rmtree(file_dir)
 
     @staticmethod
-    def _plot_violin(statis: Statistics, figsize, filename: Path, title='Distribution of x Values Across Dimensions'):
+    def _plot_violin(statis: Statistics, figsize, filename: Path, title: str):
         samples = statis.x
         n_dims = samples.shape[1]
         df = pd.DataFrame(samples, columns=[f'x{i + 1}' for i in range(n_dims)])
@@ -451,7 +330,7 @@ class Reporter:
         global_index_mat = np.hstack((add_col, global_index_mat))
         return global_index_mat, solo_index_mat
 
-    def _tabling(self, statistics: T_Sta, keys: list[str], threshold_p: float=0.05):
+    def _tabling(self, statistics: T_Statistics, keys: list[str], pvalue: float):
         algorithms = list(statistics.keys())
         obj_alg = algorithms[-1]
         obj_alg_merged = statistics[obj_alg]
@@ -465,7 +344,7 @@ class Reporter:
                 opt_list2 = obj_alg_merged[key].opt_orig
                 mean1 = np.mean(opt_list1)
                 mean2 = np.mean(opt_list2)
-                suffix = self._get_t_test_suffix(opt_list1, opt_list2, mean1, mean2, threshold_p)
+                suffix = self._get_t_test_suffix(opt_list1, opt_list2, mean1, mean2, pvalue)
                 str_res.append(f"{mean1:.2e}{suffix}")
                 float_res.append(mean1)
             str_table.update({alg: str_res})
@@ -479,10 +358,10 @@ class Reporter:
         return str_table, float_table
 
     @staticmethod
-    def _get_t_test_suffix(opt_list1, opt_list2, mean1, mean2, threshold_p):
+    def _get_t_test_suffix(opt_list1, opt_list2, mean1, mean2, pvalue):
         diff = mean1 - mean2
         _, p = stats.ttest_ind(opt_list1, opt_list2)
-        if p > threshold_p:
+        if p > pvalue:
             suffix = "≈"
         elif diff > 0:
             suffix = "-"
@@ -534,8 +413,8 @@ class Reporter:
         file_name = filedir / f"{np_name}"
         return file_name
 
-    def _get_statistics(self, algorithms, problem, np_per_dim) -> T_Sta:
-        statistics: T_Sta = {}
+    def _get_statistics(self, algorithms, problem, np_per_dim) -> T_Statistics:
+        statistics: T_Statistics = {}
         for alg in algorithms:
             res = self._cache.get(f"{alg}_{problem}_{np_per_dim}")
             if not res:
@@ -754,9 +633,38 @@ class Reporter:
 
 
 class Reports:
+    """
+    Note:
+        1. Please make sure your result organized in the following way
+        2. String with <...> format should be replace by corresponding information
+
+    >>> results/
+    ...    │
+    ...    ├── <Algor1>/
+    ...    │      │
+    ...    │      ├── <Prob1>/
+    ...    │      │      │
+    ...    │      │      ├── IID/
+    ...    │      │      │    ├── <Run1>.msgpack
+    ...    │      │      │    ├── <Run2>.msgpack
+    ...    │      │      │    └── ...
+    ...    │      │      ├── NIID2/
+    ...    │      │      ├── NIID4/
+    ...    │      │      └── NIID6/
+    ...    │      ├── <Prob2>/
+    ...    │      │      │
+    ...    │      │      ├── IID/
+    ...    │      │      ├── NIID2/
+    ...    │      │      └── .../
+    ...    │      └── <Prob...>/
+    ...    ├── <Algor2>/
+    ...    └── <Algor...>/
+    """
+
     def __init__(self):
         try:
-            settings = load_reporter_settings()
+            all_conf = load_yaml('config.yaml')
+            settings = parse_reporter_config(all_conf.get('reporter'), all_conf.get('problems', {}))
             self.combinations = settings.get('analysis_comb')
             self.analyzer = Reporter(settings.get('results'))
             self.analyzer.init_data(settings.get('initialize_comb'))
@@ -764,13 +672,13 @@ class Reports:
         except FileNotFoundError:
             self.analyzer_available = False
 
-    def show_combinations(self):
+    def show_combinations(self) -> None:
         header = ['algorithms', 'problem', 'arguments']
         tab = tabulate(self.combinations, headers=header, tablefmt='rounded_grid')
         clear_console()
         print(tab)
 
-    def show_raw_results(self):
+    def show_raw_results(self) -> None:
         done = set()
         for comb in self.combinations:
             for alg in comb[0]:
@@ -780,32 +688,77 @@ class Reports:
                 else:
                     pass
 
-    def to_curve(self, **kwargs):
+    @validate_call
+    def to_curve(
+            self,
+            figsize: tuple[float, float, float] = (3, 2.3, 1),
+            alpha: T_Fraction = 0.2,
+            palette: Union[str, SeabornPalettes] = SeabornPalettes.bright,
+            suffix: T_Suffix = '.png',
+            styles: Union[list[str], tuple[str]] = ('science', 'ieee', 'no-latex'),
+            showing_size: Annotated[Optional[int], Field(ge=1)] = None,
+            quality: T_Levels10 = 3,
+            merge: bool = True,
+            clear: bool = True,
+            on_log_scale: bool = False
+    ) -> None:
         """
-        Supported kwargs(``name type default``)
+        Generate and save plots of performance curves for specified algorithms and problem settings.
 
-        - ``figsize tuple (3,2.3,1)`` -- Controlling the width-to-height ratio and scale of the ratio. The third value is the scaling factor.
-        - ``alpha float 0.2`` -- Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).
-        - ``suffix str 'png'`` -- File format suffix for the output image. Supported formats include 'png', 'jpg', 'eps', 'svg', 'pdf'.
-        - ``styles tuple ('science','ieee','no-latex')`` -- SciencePlots style parameters. Refer to the SciencePlots documentation for available styles.
-        - ``showing_size None|int None`` -- Number of data points to use for plotting, taken from the last `showing_size` iterations of the convergence sequence. Take all if None
-        - ``quality None|int 3`` -- Image quality parameter, affecting the quality of scalar images. Valid values are integers from 1 to 9.
-        - ``merge bool True`` -- If True, all curves are plotted on a single figure. If False, each client's curves are plotted in separate figures.
-        - ``clear bool True`` -- Clear separate images, and only takes effect when ``merge`` is true
-        - ``in_log_scale bool False`` -- If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
+        Parameters
+        ----------
+        figsize : tuple[float, float, float], optional
+            Controlling the width-to-height ratio and the scale of the ratio. The third value is the scaling factor.
+        alpha : float, optional
+            Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).
+        palette :
+            The palette argument in `seaborn.plotviolin`, the `pyfmto.utilities.SeabornPalette` class can help you try different options easier.
+        suffix : str, optional
+            File format suffix for the output image. Supported formats include 'png', 'jpg', 'eps', 'svg', 'pdf'.
+        styles : Union[list[str], tuple[str]], optional
+            SciencePlots style parameters. Refer to the SciencePlots documentation for available styles.
+        showing_size : int, optional
+            Number of data points to use for plotting, taken from the last `showing_size` iterations of the convergence sequence.
+            If None, use `6 * dim`.
+        quality : Optional[int], optional
+            Image quality parameter, affecting the quality of scalar images. Valid values are integers from 1 to 9.
+        merge : bool, optional
+            If True, all curves are plotted on a single figure. If False, each client's curves are plotted in separate figures.
+        clear: bool, optional
+            If True, clear plots output in one_by_one
+        on_log_scale : bool, optional
+            If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
         """
         for comb in tqdm(self.combinations, desc='Saving', unit='Img', ncols=100):
-            try:
-                self.analyzer.to_curve(*comb, **kwargs)
-            except Exception:
-                raise
+            self.analyzer.to_curve(
+                *comb,
+                figsize=figsize,
+                alpha=alpha,
+                palette=palette,
+                suffix=suffix,
+                styles=styles,
+                showing_size=showing_size,
+                quality=quality,
+                merge=merge,
+                clear=clear,
+                on_log_scale=on_log_scale,
+            )
 
-    def to_excel(self, **kwargs):
+    @validate_call
+    def to_excel(
+            self,
+            pvalue: T_Fraction=0.05,
+            styles: Union[list[str], tuple[str]] = ('color-bg-grey', 'style-font-bold', 'style-font-underline')
+    ) -> None:
         """
-        Supported kwargs(``name type default``)
+        Generate and save an Excel file containing performance statistics for specified algorithms and problem settings.
 
-        - ``threshold_p float 0.05``  -- t-test threshold for determining statistical significance.
-        - ``styles list[str]|tuple[str] ('color-bg-grey','style-font-bold','style-font-underline')``  -- list or tuple of style parameters to apply to the Excel cells.
+        Parameters
+        ----------
+        pvalue : float, optional
+            T-test threshold parameter to determine statistical significance. Default is 0.05.
+        styles : Union[list[str], tuple[str]], optional
+            List or tuple of style parameters to apply to the Excel cells.
 
         Notes
         -----
@@ -815,43 +768,79 @@ class Reports:
              - ``type-font-[bold|italic|underline]`` ---Font types (multiple can be applied, supported types are in [])
         """
         for comb in self.combinations:
-            try:
-                self.analyzer.to_excel(*comb, **kwargs)
-            except Exception:
-                pass
+            self.analyzer.to_excel(
+                *comb,
+                pvalue=pvalue,
+                styles=styles,
+            )
 
-    def to_latex(self, **kwargs):
+    @validate_call
+    def to_latex(
+            self,
+            pvalue: T_Fraction=0.05
+    ) -> None:
         """
-        Supported kwargs(``name type default``)
+        Generate and save an .tex file containing performance statistics for specified algorithms and problem settings.
 
-        - ``threshold_p float 0.05`` -- t-test threshold for determining statistical significance.
-        """
-        for comb in self.combinations:
-            try:
-                self.analyzer.to_latex(*comb, **kwargs)
-            except Exception:
-                pass
-
-    def to_console(self, **kwargs):
-        """
-        Supported kwargs(``name type default``)
-
-        - ``threshold_p float 0.05`` -- t-test threshold for determining statistical significance.
+        Parameters
+        ----------
+        pvalue : float, optional
+            T-test threshold parameter to determine statistical significance. Default is 0.05.
         """
         for comb in self.combinations:
             try:
-                self.analyzer.to_console(*comb, **kwargs)
+                self.analyzer.to_latex(*comb, pvalue=pvalue)
             except Exception:
                 pass
 
-    def to_violin(self, **kwargs):
+    @validate_call
+    def to_console(
+            self,
+            pvalue: float = 0.05,
+    ) -> None:
         """
-        Supported kwargs(``name type default``)
+        Print the performance statistics table of specified algorithms and problem settings to the console.
 
-        - ``suffix str 'png'`` -- image suffix, such as png, pdf, svg
-        - ``figsize tuple (5,3,1)`` -- controlling the (width, height, scale). the figsize is calculated by (width*scale, height*scale)
-        - ``merge bool True`` -- if true, merge all separate images into a single image, and the suffix will be fixed to png
-        - ``clear bool True`` -- clear separate images, and only takes effect when ``merge`` is true
+        Parameters
+        ----------
+        pvalue : float, optional
+            T-test threshold for determining statistical significance. Default is 0.05.
         """
         for comb in self.combinations:
-            self.analyzer.to_violin(*comb, **kwargs)
+            try:
+                self.analyzer.to_console(*comb, pvalue=pvalue)
+            except Exception:
+                pass
+
+    @validate_call
+    def to_violin(
+            self,
+            suffix: T_Suffix = '.png',
+            figsize: tuple[float, float, float] = (5., 3., 1.),
+            merge: bool = True,
+            clear: bool = True
+    ) -> None:
+        """
+        Parameters
+        ----------
+        suffix: str
+            image suffix, such as png, pdf, svg
+        figsize: tuple
+            Controlling the (width, height, scale). the figsize is calculated by (width*scale, height*scale)
+        merge: bool
+            if true, merge all separate images into a single image, and the suffix will be fixed to PNG
+        clear: bool
+            only takes effect when merge is true
+
+        Returns
+        -------
+            None
+        """
+        for comb in self.combinations:
+            self.analyzer.to_violin(
+                *comb,
+                suffix=suffix,
+                figsize=figsize,
+                merge=merge,
+                clear=clear,
+            )

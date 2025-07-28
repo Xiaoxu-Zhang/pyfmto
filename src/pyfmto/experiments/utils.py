@@ -1,14 +1,62 @@
 import copy
-import numpy as np
 import os
 from itertools import product
 from numpy import ndarray
 from pathlib import Path
-from pyfmto.problems import Solution
-from pyfmto.utilities import logger
+from pydantic import BaseModel, field_validator
 from typing import Optional, Union
 
-from ..utilities.io import load_yaml, save_msgpack, load_msgpack
+from pyfmto.problems import Solution
+from pyfmto.utilities import logger, save_msgpack, load_msgpack
+
+
+class LauncherConfig(BaseModel):
+    results: str = 'out/results'
+    repeat: int = 1
+    seed: int = 42
+    backup: bool = True
+    save: bool = True
+    algorithms: list[str]
+    problems: list[str]
+
+    @field_validator('results')
+    def results_must_be_not_none(cls, v):
+        return v if v is not None else 'out/results'
+
+    @field_validator('repeat', 'seed')
+    def integer_must_be_positive(cls, v):
+        if v < 1:
+            raise ValueError('repeat must be >= 1')
+        return v
+
+    @field_validator('algorithms', 'problems')
+    def lists_must_not_be_empty(cls, v):
+        if len(v) < 1:
+            raise ValueError('list must have at least 1 element')
+        return v
+
+
+class ReporterConfig(BaseModel):
+    results: str = 'out/results'
+    algorithms: list[list[str]]
+    problems: list[str]
+
+    @field_validator('results')
+    def results_must_be_not_none(cls, v):
+        return v if v is not None else 'out/results'
+
+    @field_validator('algorithms')
+    def inner_lists_must_have_min_length(cls, v):
+        for inner_list in v:
+            if len(inner_list) < 2:
+                raise ValueError('inner lists must have at least 2 elements')
+        return v
+
+    @field_validator('problems', 'algorithms')
+    def outer_list_must_not_be_empty(cls, v):
+        if len(v) < 1:
+            raise ValueError('problems list must have at least 1 element')
+        return v
 
 
 def clear_console():
@@ -25,11 +73,10 @@ def kill_server():
         os.system("pkill -f AlgServer")
 
 
-def gen_exp_combinations(settings: dict):
-    alg_settings = settings.get('algorithms', {})
-    prob_settings = settings.get('problems', {})
-    alg_items = list(alg_settings.items())
-    prob_items = _combine_args(prob_settings)
+def gen_exp_combinations(launcher_conf: LauncherConfig, alg_conf: dict, prob_conf: dict):
+    alg_items = [(name, alg_conf.get(name, {})) for name in launcher_conf.algorithms]
+    prob_conf = {name: prob_conf.get(name, {}) for name in launcher_conf.problems}
+    prob_items = _combine_args(prob_conf)
     combinations = [(*alg_item, *prob_item) for alg_item, prob_item in product(alg_items, prob_items)]
     return combinations
 
@@ -52,67 +99,25 @@ def _combine_args(args: dict):
     return prob_items
 
 
-def load_launcher_settings():
-    settings = load_yaml('settings.yaml')
-
-    runs = settings.get('launcher', {})
-    problems = runs.get('problems')
-    algorithms = runs.get('algorithms')
-
-    type_errors = []
-    if not _is_1d_str_list(algorithms):
-        type_errors.append(f"'algorithms' must be a list of strings, got {type(algorithms)} instead.")
-    if not _is_1d_str_list(problems):
-        type_errors.append(f"'problems' must be a list of strings, got {type(problems)} instead.")
-
-    if any(type_errors):
-        err_str = '\n'.join(type_errors)
-        raise TypeError(f"Invalid settings: \n{err_str}")
-    else:
-        res_dir = settings.get('results')
-        res_dir = 'out/results' if res_dir is None else res_dir
-        prob_args = settings.get('problems', {})
-        alg_args = settings.get('algorithms', {})
-        runs.update(problems={name: prob_args.get(name, {}) for name in problems})
-        runs.update(algorithms={name: alg_args.get(name, {}) for name in algorithms})
-        runs.update(results=res_dir)
-    return runs
-
-
-def load_reporter_settings():
-    settings = load_yaml('settings.yaml')
-    analyses = settings.get('reporter', {})
-    algorithms = analyses.get('algorithms')
-    problems = analyses.get('problems')
-
-    type_errors = []
-    if not _is_2d_str_list(algorithms):
-        type_errors.append("'algorithms' must be a 2D str list")
-    if not _is_1d_str_list(problems):
-        type_errors.append("'problems' must be a list of strings")
-
-    if any(type_errors):
-        err_str = '\n'.join(type_errors)
-        raise TypeError(f"Invalid settings: \n{err_str}")
-    else:
-        res_dir = settings.get('results')
-        res_dir = 'out/results' if res_dir is None else res_dir
-        prob_args = settings.get('problems', {})
-        prob_items = []
-        for name, args in _combine_args({name: prob_args.get(name, {}) for name in problems}):
-            src_prob = args.get('src_problem')
-            np_per_dim = args.get('np_per_dim', 1)
-            if src_prob:
-                prob_items.append((f"{name.upper()}-{src_prob}", np_per_dim))
-            else:
-                prob_items.append((name.upper(), np_per_dim))
-        analysis_comb = [(alg, *prob_item) for alg, prob_item in product(algorithms, prob_items)]
-        initialize_comb = [(alg, *prob_item) for alg, prob_item in product(sum(algorithms, []), prob_items)]
-        analyses = {
-            'results': res_dir,
-            'analysis_comb': analysis_comb,
-            'initialize_comb': initialize_comb
-        }
+def parse_reporter_config(config: dict, prob_conf: dict):
+    reporter = ReporterConfig(**config)
+    algorithms = reporter.algorithms
+    problems = reporter.problems
+    prob_items = []
+    for name, args in _combine_args({name: prob_conf.get(name, {}) for name in problems}):
+        src_prob = args.get('src_problem')
+        np_per_dim = args.get('np_per_dim', 1)
+        if src_prob:
+            prob_items.append((f"{name.upper()}-{src_prob}", np_per_dim))
+        else:
+            prob_items.append((name.upper(), np_per_dim))
+    analysis_comb = [(alg, *prob_item) for alg, prob_item in product(algorithms, prob_items)]
+    initialize_comb = [(alg, *prob_item) for alg, prob_item in product(sum(algorithms, []), prob_items)]
+    analyses = {
+        'results': reporter.results,
+        'analysis_comb': analysis_comb,
+        'initialize_comb': initialize_comb
+    }
     return analyses
 
 

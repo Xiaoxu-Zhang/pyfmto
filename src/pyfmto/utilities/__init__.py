@@ -10,6 +10,7 @@ from .tools import (
     show_in_table,
     titled_tabulate,
     tabulate_formats,
+    update_kwargs,
 )
 
 from .stroptions import (
