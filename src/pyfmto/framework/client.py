@@ -274,12 +274,12 @@ class Client(ABC):
         return self.solutions.y_min
 
     @property
-    def x_lb(self) -> ndarray:
-        return self.problem.x_lb
+    def lb(self) -> ndarray:
+        return self.problem.lb
 
     @property
-    def x_ub(self) -> ndarray:
-        return self.problem.x_ub
+    def ub(self) -> ndarray:
+        return self.problem.ub
 
     @property
     def solutions(self):

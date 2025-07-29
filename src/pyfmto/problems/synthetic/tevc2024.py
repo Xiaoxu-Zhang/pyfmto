@@ -48,8 +48,8 @@ class Tevc2024(Mtp):
         return {
             "TaskSrc": [task.name],
             "DecDim": [task.dim],
-            "Lower": [task.x_lb[0]],
-            "Upper": [task.x_ub[0]]
+            "Lower": [task.lb[0]],
+            "Upper": [task.ub[0]]
         }
 
     def _init_tasks(self, dim: int, src_prob_cls: Type[SingleTaskProblem], **kwargs):

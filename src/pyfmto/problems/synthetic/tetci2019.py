@@ -42,23 +42,23 @@ class Tetci2019(Mtp):
             "TaskID": [t.id for t in self._problem],
             "TaskName": [t.name for t in self._problem],
             "DecDim": [t.dim for t in self._problem],
-            "Lower": [t.x_lb[0] for t in self._problem],
-            "Upper": [t.x_ub[0] for t in self._problem],
+            "Lower": [t.lb[0] for t in self._problem],
+            "Upper": [t.ub[0] for t in self._problem],
             "Category": category,
             "Assisted By": assisted_task
         }
 
     def _init_tasks(self, dim, **kwargs):
-        f1 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)
-        f2 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)
-        f3 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)
-        f4 = Weierstrass(dim, x_lb=-0.5, x_ub=0.5, **kwargs)
-        f5 = Rosenbrock(dim, x_lb=-50, x_ub=50, **kwargs)    # Ideal Assisted Task f1
-        f6 = Ackley(dim, x_lb=-50, x_ub=50, **kwargs)        # Ideal Assisted Task f2
-        f7 = Weierstrass(dim, x_lb=-0.4, x_ub=0.4, **kwargs) # Ideal Assisted Task f3,f4
-        f8 = Schwefel(dim, x_lb=-500, x_ub=500, **kwargs)
-        f9 = Griewank(dim, x_lb=-100, x_ub=100, **kwargs)    # Ideal Assisted Task f4
-        f10 = Rastrigin(dim, x_lb=-50, x_ub=50, **kwargs)
+        f1 = Sphere(dim, lb=-100, ub=100, **kwargs)
+        f2 = Sphere(dim, lb=-100, ub=100, **kwargs)
+        f3 = Sphere(dim, lb=-100, ub=100, **kwargs)
+        f4 = Weierstrass(dim, lb=-0.5, ub=0.5, **kwargs)
+        f5 = Rosenbrock(dim, lb=-50, ub=50, **kwargs)    # Ideal Assisted Task f1
+        f6 = Ackley(dim, lb=-50, ub=50, **kwargs)        # Ideal Assisted Task f2
+        f7 = Weierstrass(dim, lb=-0.4, ub=0.4, **kwargs) # Ideal Assisted Task f3,f4
+        f8 = Schwefel(dim, lb=-500, ub=500, **kwargs)
+        f9 = Griewank(dim, lb=-100, ub=100, **kwargs)    # Ideal Assisted Task f4
+        f10 = Rastrigin(dim, lb=-50, ub=50, **kwargs)
 
         functions = [f1, f2, f3, f4, f5, f6, f7, f8, f9, f10]
         [functions[idx].set_id(idx+1) for idx in range(len(functions))]

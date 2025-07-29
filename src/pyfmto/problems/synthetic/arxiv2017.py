@@ -57,8 +57,8 @@ class Arxiv2017(Mtp):
             "TaskID": [t.id for t in self._problem],
             "TaskName": [t.name for t in self._problem],
             "DecDim": [t.dim for t in self._problem],
-            "Lower": [t.x_lb[0] for t in self._problem],
-            "Upper": [t.x_ub[0] for t in self._problem]
+            "Lower": [t.lb[0] for t in self._problem],
+            "Upper": [t.ub[0] for t in self._problem]
         }
 
 
@@ -94,24 +94,24 @@ class Arxiv2017(Mtp):
         shift15, shift16 = np.squeeze(nim['GO_Task1'])[0:dim], np.squeeze(nim['GO_Task2'])[0:dim]
         shift17, shift18 = np.squeeze(nim['GO_Task1'])[0:dim], None
 
-        func1 = Griewank(dim, x_lb=-100, x_ub=100, **kwargs)
-        func2 = Rastrigin(dim, x_lb=-50, x_ub=50, **kwargs)
-        func3 = Ackley(dim, x_lb=-50, x_ub=50, **kwargs)
-        func4 = Rastrigin(dim, x_lb=-50, x_ub=50, **kwargs)
-        func5 = Ackley(dim, x_lb=-50, x_ub=50, **kwargs)
-        func6 = Schwefel(dim, x_lb=-500, x_ub=500, **kwargs)
-        func7 = Rastrigin(dim, x_lb=-50, x_ub=50, **kwargs)
-        func8 = Sphere(dim, x_lb=-100, x_ub=100, **kwargs)
-        func9 = Ackley(dim, x_lb=-50, x_ub=50, **kwargs)
-        func10 = Rosenbrock(dim, x_lb=-50, x_ub=50, **kwargs)
-        func11 = Ackley(dim, x_lb=-50, x_ub=50, **kwargs)
-        func12 = Weierstrass(dim, x_lb=-0.5, x_ub=0.5, **kwargs)
-        func13 = Rosenbrock(dim, x_lb=-50, x_ub=50, **kwargs)
-        func14 = Rastrigin(dim, x_lb=-50, x_ub=50, **kwargs)
-        func15 = Griewank(dim, x_lb=-100, x_ub=100, **kwargs)
-        func16 = Weierstrass(dim, x_lb=-0.5, x_ub=0.5, **kwargs)
-        func17 = Rastrigin(dim, x_lb=-50, x_ub=50, **kwargs)
-        func18 = Schwefel(dim, x_lb=-500, x_ub=500, **kwargs)
+        func1 = Griewank(dim, lb=-100, ub=100, **kwargs)
+        func2 = Rastrigin(dim, lb=-50, ub=50, **kwargs)
+        func3 = Ackley(dim, lb=-50, ub=50, **kwargs)
+        func4 = Rastrigin(dim, lb=-50, ub=50, **kwargs)
+        func5 = Ackley(dim, lb=-50, ub=50, **kwargs)
+        func6 = Schwefel(dim, lb=-500, ub=500, **kwargs)
+        func7 = Rastrigin(dim, lb=-50, ub=50, **kwargs)
+        func8 = Sphere(dim, lb=-100, ub=100, **kwargs)
+        func9 = Ackley(dim, lb=-50, ub=50, **kwargs)
+        func10 = Rosenbrock(dim, lb=-50, ub=50, **kwargs)
+        func11 = Ackley(dim, lb=-50, ub=50, **kwargs)
+        func12 = Weierstrass(dim, lb=-0.5, ub=0.5, **kwargs)
+        func13 = Rosenbrock(dim, lb=-50, ub=50, **kwargs)
+        func14 = Rastrigin(dim, lb=-50, ub=50, **kwargs)
+        func15 = Griewank(dim, lb=-100, ub=100, **kwargs)
+        func16 = Weierstrass(dim, lb=-0.5, ub=0.5, **kwargs)
+        func17 = Rastrigin(dim, lb=-50, ub=50, **kwargs)
+        func18 = Schwefel(dim, lb=-500, ub=500, **kwargs)
 
         functions = [
             func1, func2, func3, func4, func5, func6, func7, func8, func9,

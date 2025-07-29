@@ -19,7 +19,7 @@ class BoClient(Client):
         self.num_seeds = kwargs['num_seeds']
         self.sync = kwargs['sync']
         self.gp = GPX(theta0=[1e-2], print_global=False)
-        self.ts = ThompsonSampling(self.x_lb, self.x_ub, self.dim, ts_trials=self.ts_trials, num_seeds=self.num_seeds)
+        self.ts = ThompsonSampling(self.lb, self.ub, self.dim, ts_trials=self.ts_trials, num_seeds=self.num_seeds)
         self.sync_ver = 1
 
     @property

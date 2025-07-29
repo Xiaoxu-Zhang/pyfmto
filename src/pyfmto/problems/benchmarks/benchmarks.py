@@ -40,8 +40,8 @@ __all__ = ["Griewank", "Rastrigin", "Ackley", "Schwefel", "Sphere", "Rosenbrock"
 
 class Griewank(Stp):
 
-    def __init__(self, dim=10, x_lb=-600, x_ub=600, **kwargs):
-        super().__init__(dim=dim, obj=1, x_lb=x_lb, x_ub=x_ub, **kwargs)
+    def __init__(self, dim=10, lb=-600, ub=600, **kwargs):
+        super().__init__(dim=dim, obj=1, lb=lb, ub=ub, **kwargs)
 
     def _eval_single(self, x):
         i = np.arange(self.dim) + 1
@@ -53,8 +53,8 @@ class Griewank(Stp):
 
 class Rastrigin(Stp):
 
-    def __init__(self, dim=10, x_lb=-5, x_ub=5, **kwargs):
-        super().__init__(dim=dim, obj=1, x_lb=x_lb, x_ub=x_ub, **kwargs)
+    def __init__(self, dim=10, lb=-5, ub=5, **kwargs):
+        super().__init__(dim=dim, obj=1, lb=lb, ub=ub, **kwargs)
 
     def _eval_single(self, x):
         square_term = x ** 2
@@ -65,8 +65,8 @@ class Rastrigin(Stp):
 
 class Ackley(Stp):
 
-    def __init__(self, dim=10, x_lb=-32.768, x_ub=32.768, **kwargs):
-        super().__init__(dim=dim, obj=1, x_lb=x_lb, x_ub=x_ub, **kwargs)
+    def __init__(self, dim=10, lb=-32.768, ub=32.768, **kwargs):
+        super().__init__(dim=dim, obj=1, lb=lb, ub=ub, **kwargs)
 
     def _eval_single(self, x):
         sum1 = np.sum(x ** 2)
@@ -77,8 +77,8 @@ class Ackley(Stp):
 
 class Schwefel(Stp):
 
-    def __init__(self, dim=10, x_lb=-500, x_ub=500, **kwargs):
-        super().__init__(dim=dim, obj=1, x_lb=x_lb, x_ub=x_ub, **kwargs)
+    def __init__(self, dim=10, lb=-500, ub=500, **kwargs):
+        super().__init__(dim=dim, obj=1, lb=lb, ub=ub, **kwargs)
         self.set_x_global(np.ones(self.dim) * 420.9687)
 
     def _eval_single(self, x):
@@ -89,16 +89,16 @@ class Schwefel(Stp):
 
 class Sphere(Stp):
 
-    def __init__(self, dim=10, x_lb=-100, x_ub=100, **kwargs):
-        super().__init__(dim=dim, obj=1, x_lb=x_lb, x_ub=x_ub, **kwargs)
+    def __init__(self, dim=10, lb=-100, ub=100, **kwargs):
+        super().__init__(dim=dim, obj=1, lb=lb, ub=ub, **kwargs)
 
     def _eval_single(self, x):
         return np.sum(x ** 2)
 
 
 class Rosenbrock(Stp):
-    def __init__(self, dim=10, x_lb=-2.048, x_ub=2.048, **kwargs):
-        super().__init__(dim=dim, obj=1, x_lb=x_lb, x_ub=x_ub, **kwargs)
+    def __init__(self, dim=10, lb=-2.048, ub=2.048, **kwargs):
+        super().__init__(dim=dim, obj=1, lb=lb, ub=ub, **kwargs)
         self.set_x_global(np.ones(self.dim))
 
     def _eval_single(self, x):
@@ -113,8 +113,8 @@ class Rosenbrock(Stp):
 
 class Weierstrass(Stp):
 
-    def __init__(self, dim=10, x_lb=-0.5, x_ub=0.5, **kwargs):
-        super().__init__(dim=dim, obj=1, x_lb=x_lb, x_ub=x_ub, **kwargs)
+    def __init__(self, dim=10, lb=-0.5, ub=0.5, **kwargs):
+        super().__init__(dim=dim, obj=1, lb=lb, ub=ub, **kwargs)
 
     def _eval_single(self, x):
         a = 0.5
@@ -135,8 +135,8 @@ class Weierstrass(Stp):
 
 class Ellipsoid(Stp):
 
-    def __init__(self, dim=10, x_lb=-5.12, x_ub=5.12, **kwargs):
-        super().__init__(dim=dim, obj=1, x_lb=x_lb, x_ub=x_ub, **kwargs)
+    def __init__(self, dim=10, lb=-5.12, ub=5.12, **kwargs):
+        super().__init__(dim=dim, obj=1, lb=lb, ub=ub, **kwargs)
 
     def _eval_single(self, x):
         d_l = np.arange(self.dim) + 1

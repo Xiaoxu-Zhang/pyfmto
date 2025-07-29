@@ -13,7 +13,7 @@ __all__ = ["SvmLandmine"]
 
 class _SingleSvmProblem(Stp):
     def __init__(self, dataset: tuple, **kwargs):
-        super().__init__(dim=2, obj=1, x_lb=np.array([1e-4, 1e-2]), x_ub=np.array([10.0, 10.0]), **kwargs)
+        super().__init__(dim=2, obj=1, lb=np.array([1e-4, 1e-2]), ub=np.array([10.0, 10.0]), **kwargs)
         self.x_train, self.x_test, self.y_train, self.y_test = dataset
         self.data_size = len(self.x_train)
         self.set_x_global(None)

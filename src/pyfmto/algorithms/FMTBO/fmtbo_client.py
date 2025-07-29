@@ -30,7 +30,7 @@ class FmtboClient(Client):
         self.global_gp_model = None
         self.local_gp_model = None
 
-        self._ga_operator = GeneticAlgorithm(x_lb=self.x_lb, x_ub=self.x_ub, dim=self.dim,
+        self._ga_operator = GeneticAlgorithm(x_lb=self.lb, x_ub=self.ub, dim=self.dim,
                                              pop_size=self.fe_init,
                                              max_gen=kwargs['max_gen'])
 
@@ -55,7 +55,7 @@ class FmtboClient(Client):
     def _initializing(self):
         pkg = ClientPackage(
             cid=self.id, action=Actions.PUSH_INIT,
-            data={'dim': self.dim, 'bound': (self.x_lb,self.x_ub)})
+            data={'dim': self.dim, 'bound': (self.lb, self.ub)})
         self.request_server(package=pkg)
         pkg = ClientPackage(cid=self.id, action=Actions.PULL_INIT, data=None)
         server_pkg: ServerPackage = self.request_server(package=pkg)

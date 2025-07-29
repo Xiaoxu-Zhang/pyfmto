@@ -1,1 +1,1 @@
-from .svm_landmine import *
+from .svm_landmine import SvmLandmine

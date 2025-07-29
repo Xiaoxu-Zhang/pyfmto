@@ -3,8 +3,8 @@ import pandas as pd
 from collections import defaultdict
 from tabulate import tabulate
 
-from .problem import *
-from .solution import *
+from .problem import SingleTaskProblem, MultiTaskProblem
+from .solution import Solution
 from .realworld import *
 from .synthetic import *
 
@@ -12,7 +12,8 @@ __omit__ = [
     'inspect',
     'pd',
     'defaultdict',
-    'tabulate'
+    'tabulate',
+    'STPConfig'
 ]
 
 __all__ = [
@@ -21,8 +22,7 @@ __all__ = [
     'list_problems',
     'MultiTaskProblem',
     'Solution',
-    'SingleTaskProblem',
-    'check_and_transform'
+    'SingleTaskProblem'
 ]
 
 PROBLEMS = {name: cls

@@ -15,8 +15,8 @@ from pyfmto.problems.benchmarks import (
 
 
 class BatchEval(SingleTaskProblem):
-    def __init__(self, dim, obj, x_lb, x_ub):
-        super().__init__(dim=dim, obj=obj, x_lb=x_lb, x_ub=x_ub)
+    def __init__(self, dim, obj, lb, ub):
+        super().__init__(dim=dim, obj=obj, lb=lb, ub=ub)
 
     def evaluate(self, x):
         res = []
@@ -33,8 +33,8 @@ class BatchEval(SingleTaskProblem):
 
 class OrigGriewank(BatchEval):
 
-    def __init__(self, x_lb=-600, x_ub=600, d=10):
-        super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
+    def __init__(self, lb=-600, ub=600, d=10):
+        super().__init__(dim=d, obj=1, lb=lb, ub=ub)
 
     def _eval_single(self, x):
         F1 = 0
@@ -50,8 +50,8 @@ class OrigGriewank(BatchEval):
 
 class OrigRastrigin(BatchEval):
 
-    def __init__(self, x_lb=-5, x_ub=5, d=10):
-        super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
+    def __init__(self, lb=-5, ub=5, d=10):
+        super().__init__(dim=d, obj=1, lb=lb, ub=ub)
 
     def _eval_single(self, x):
         F = 0
@@ -64,8 +64,8 @@ class OrigRastrigin(BatchEval):
 
 class OrigAckley(BatchEval):
 
-    def __init__(self, x_lb=-32.768, x_ub=32.768, d=10):
-        super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
+    def __init__(self, lb=-32.768, ub=32.768, d=10):
+        super().__init__(dim=d, obj=1, lb=lb, ub=ub)
 
     def _eval_single(self, x):
         sum1 = 0
@@ -81,8 +81,8 @@ class OrigAckley(BatchEval):
 
 class OrigSchwefel(BatchEval):
 
-    def __init__(self, x_lb=-500, x_ub=500, d=10):
-        super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
+    def __init__(self, lb=-500, ub=500, d=10):
+        super().__init__(dim=d, obj=1, lb=lb, ub=ub)
 
     def _eval_single(self, x):
         out = 0
@@ -94,16 +94,16 @@ class OrigSchwefel(BatchEval):
 
 class OrigSphere(BatchEval):
 
-    def __init__(self, x_lb=-100, x_ub=100, d=10):
-        super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
+    def __init__(self, lb=-100, ub=100, d=10):
+        super().__init__(dim=d, obj=1, lb=lb, ub=ub)
 
     def _eval_single(self, x):
         return x.dot(x)
 
 
 class OrigRosenbrock(BatchEval):
-    def __init__(self, x_lb=-2.048, x_ub=2.048, d=10):
-        super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
+    def __init__(self, lb=-2.048, ub=2.048, d=10):
+        super().__init__(dim=d, obj=1, lb=lb, ub=ub)
 
     def _eval_single(self, x):
         out = 0
@@ -116,8 +116,8 @@ class OrigRosenbrock(BatchEval):
 
 class OrigWeierstrass(BatchEval):
 
-    def __init__(self, x_lb=-0.5, x_ub=0.5, d=10):
-        super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
+    def __init__(self, lb=-0.5, ub=0.5, d=10):
+        super().__init__(dim=d, obj=1, lb=lb, ub=ub)
 
     def _eval_single(self, x):
         D = len(x)
@@ -135,8 +135,8 @@ class OrigWeierstrass(BatchEval):
 
 class OrigEllipsoid(BatchEval):
 
-    def __init__(self, x_lb=-5.12, x_ub=5.12, d=10):
-        super().__init__(dim=d, obj=1, x_lb=x_lb, x_ub=x_ub)
+    def __init__(self, lb=-5.12, ub=5.12, d=10):
+        super().__init__(dim=d, obj=1, lb=lb, ub=ub)
 
     def _eval_single(self, x):
         out = 0.0
@@ -159,8 +159,8 @@ class TestCorrectness(unittest.TestCase):
         for impl, orig in zip(curr_impl, orig_impl):
             self.assertEqual(impl.dim, orig.dim)
             self.assertEqual(impl.obj, orig.obj)
-            self.assertTrue(np.all(impl.x_lb == orig.x_lb))
-            self.assertTrue(np.all(impl.x_ub == orig.x_ub))
+            self.assertTrue(np.all(impl.lb == orig.lb))
+            self.assertTrue(np.all(impl.ub == orig.ub))
             x = impl.random_uniform_x(size=100)
             y_impl = impl.evaluate(x)
             y_orig = orig.evaluate(x)

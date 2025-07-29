@@ -70,8 +70,8 @@ class TestValidateFunctions(unittest.TestCase):
         'name': t.__class__.__name__,
         'x': np.array(res_x),
         'y': np.array(res_y),
-        'lb': t.x_lb(int),
-        'ub': t.x_ub(int),
+        'lb': t.lb(int),
+        'ub': t.ub(int),
         'trans':
             {'shift': ndarray|int, 'rot_mat': ndarray|int},
     }

@@ -47,7 +47,7 @@ class FdemdClient(Client):
     def push_init_data(self):
         init_data = {'init_size': self.solutions.fe_init,
                      'dim': self.dim, 'obj': self.obj,
-                     'lb': self.x_lb, 'ub': self.x_ub}
+                     'lb': self.lb, 'ub': self.ub}
         pkg = ClientPackage(cid=self.id, action=Actions.PUSH_INIT, data=init_data)
         self.request_server(pkg)
 
@@ -100,8 +100,8 @@ class FdemdClient(Client):
 
     @record_runtime('Find')
     def _find_next_x(self):
-        lb = self.x_lb if isinstance(self.x_lb, ndarray) else self.x_lb * np.ones(self.dim)
-        ub = self.x_ub if isinstance(self.x_ub, ndarray) else self.x_ub * np.ones(self.dim)
+        lb = self.lb if isinstance(self.lb, ndarray) else self.lb * np.ones(self.dim)
+        ub = self.ub if isinstance(self.ub, ndarray) else self.ub * np.ones(self.dim)
         _, chosen_pop, pop, pop_uncertainty = ga_op.RCGA(obj_func=self.lcb, lb=lb, ub=ub, max_iter=self.max_gen,
                                                          particle_output=True)
         return chosen_pop.flatten()
