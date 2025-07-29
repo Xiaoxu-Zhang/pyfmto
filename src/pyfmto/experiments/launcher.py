@@ -8,12 +8,13 @@ from setproctitle import setproctitle
 
 from pyfmto.algorithms import load_algorithm, get_alg_kwargs
 from pyfmto.problems import load_problem
+from pyfmto.utilities.schemas import LauncherConfig
 from pyfmto.utilities import (
     logger, reset_log, timer, show_in_table,
     backup_log_to, load_yaml, save_yaml)
 from .utils import (
-    clear_console, gen_path, check_path, kill_server,
-    save_results, gen_exp_combinations, LauncherConfig)
+    clear_console, gen_path, kill_server,
+    gen_exp_combinations, RunSolutions)
 
 __all__ = ['Launcher']
 
@@ -31,7 +32,6 @@ class Launcher:
             prob_conf=all_conf.get('problems', {}))
         # Launcher settings
         self.repeat  = launcher_conf.repeat
-        self.results = launcher_conf.results
         self.save    = launcher_conf.save
         self.seed    = launcher_conf.seed
         self.backup  = launcher_conf.backup
@@ -45,7 +45,7 @@ class Launcher:
         self._alg_alias = ''
         self._prob = ''
         self._results = []
-        self._res_dir = Path.cwd()
+        self._res_dir = Path(launcher_conf.results)
         self._alg_args = {}
         self._prob_args = {}
         self._clt_kwargs = {}
@@ -183,17 +183,24 @@ class Launcher:
 
     def _save_results(self):
         if self.save:
-            save_results(
-                self._results,
-                self._res_dir,
-                self._repeat_id
-            )
+            res_path = Path(self._res_dir)
+            file_name = res_path / f"Run {self._repeat_id}.msgpack"
+            run_solutions = RunSolutions()
+            for cid, solution in self._results:
+                run_solutions.update(cid, solution)
+            run_solutions.to_msgpack(file_name)
 
     def _update_repeat_id(self):
         if self.save:
-            self._repeat_id = check_path(self._res_dir) + 1
+            self._repeat_id = self._n_results + 1
         else:
             self._repeat_id += 1
+
+    @property
+    def _n_results(self) -> int:
+        res_root = Path(self._res_dir)
+        res_root.mkdir(parents=True, exist_ok=True)
+        return len(os.listdir(res_root))
 
     @property
     def _num_comb(self):
@@ -202,39 +209,3 @@ class Launcher:
     @property
     def _finished(self):
         return self._repeat_id > self.repeat
-
-
-SETTING_YML = """
-results: out/results
-
-runs:
-  num_runs: 3
-  save_res: True
-  clean_tmp: True
-  algorithms: [FDEMD, FMTBO]
-  problems: [tetci2019, tevc2024]
-
-analyses:
-  algorithms:
-    - [FMTBO, FDEMD, ADDFBO]
-  problems: [tetci2019, cec2022]
-
-algorithms:
-  FDEMD:
-    client:
-      max_gen: 20
-    server:
-      ensemble_size: 20
-
-problems:
-  tevc2024:
-    args:
-      src_problem: [Ackley, Ellipsoid]
-      np_per_dim: [1, 2, 4, 6]
-
-"""
-
-
-if not os.path.exists('settings.yaml'):
-    with open('settings.yaml', 'w') as f:
-        f.write(SETTING_YML)

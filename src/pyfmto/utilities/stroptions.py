@@ -1,6 +1,12 @@
 from enum import Enum
 
-__all__ = ['StrOptions', 'Cmaps', 'SeabornPalettes', 'StrColors']
+__all__ = [
+    'Cmaps',
+    'StrColors',
+    'StrOptions',
+    'SeabornStyles',
+    'SeabornPalettes',
+]
 
 class StrOptions(str, Enum):
     def __str__(self):

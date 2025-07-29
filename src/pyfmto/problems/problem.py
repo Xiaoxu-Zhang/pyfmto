@@ -8,151 +8,19 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from numpy import ndarray
 from pyDOE import lhs
-from pydantic import BaseModel, field_validator, model_validator
 from scipy.stats import kendalltau, spearmanr, pearsonr
-
-from pyfmto.utilities import StrColors, Cmaps, colored
 from tabulate import tabulate
-from typing import List, Union, Tuple, Optional, Literal
+from typing import Union, Optional, Literal
+
+from pyfmto.utilities import StrColors, Cmaps, colored, SeabornStyles
+from pyfmto.utilities.schemas import T_Bound, STPConfig, TransformerConfig, FunctionInputs
 from .solution import Solution
 
 __all__ = [
-    'SingleTaskProblem', 'MultiTaskProblem', 'Transformer',
-    'STPConfig', 'TransformerConfig']
-
-from ..utilities.stroptions import SeabornStyles
-
-T_Bound = Union[int, float, list, tuple, np.ndarray]
-
-
-class STPConfig(BaseModel):
-    """
-    Basically, this model makes the following validation and convertion:
-
-    - ``dim``: a positive integer
-    - ``obj``: a positive integer
-    - ``lb``: finally a ndarray with shape (dim,)
-    - ``ub``: finally a ndarray with shape (dim,)
-    - ``fe_init``: default to ``5*dim`` or a positive integer
-    - ``fe_max``: default to ``11*dim`` or a positive integer
-    - ``np_per_dim``: default to 1 or a positive integer
-
-    Notes
-    -----
-    Additionally, this model validate that:
-        1. bounds satisfied ``lb<ub`` on each dimension.
-        2. ``fe_init<=fe_max``
-    """
-    model_config = {"arbitrary_types_allowed": True, "extra": "forbid"}
-    dim: int
-    obj: int
-    lb: T_Bound
-    ub: T_Bound
-    fe_init: Optional[int] = None
-    fe_max: Optional[int] = None
-    np_per_dim: Optional[int] = None
-
-    @field_validator('dim', 'obj')
-    def validate_positive_integer(cls, v):
-        if v <= 0:
-            raise ValueError('dim and obj must be positive integers')
-        return v
-
-    @field_validator('fe_init', 'fe_max', 'np_per_dim')
-    def validate_positive_or_none(cls, v):
-        if v is not None and v < 1:
-            raise ValueError(f"Invalid value: {v} (fe_init, fe_max, and np_per_dim must be positive or None)")
-        return v
-
-    @model_validator(mode='after')
-    def validate_model(self):
-        # Convert lb and ub to dim-dimensional arrays if they are int or float
-        if isinstance(self.lb, (int, float)):
-            self.lb = np.ones(self.dim) * self.lb
-        else:
-            self.lb = np.asarray(self.lb)
-
-        if isinstance(self.ub, (int, float)):
-            self.ub = np.ones(self.dim) * self.ub
-        else:
-            self.ub = np.asarray(self.ub)
-
-        # Check dimensionality
-        if self.lb.shape != (self.dim,):
-            raise ValueError(f"lb must be a scalar or array of shape ({self.dim},)")
-        if self.ub.shape != (self.dim,):
-            raise ValueError(f"ub must be a scalar or array of shape ({self.dim},)")
-
-        # Check bounds
-        if not np.all(self.lb < self.ub):
-            raise ValueError("All elements of lb must be less than corresponding elements of ub")
-
-        # Set default values for fe_init and fe_max
-        if self.fe_init is None:
-            self.fe_init = 5 * self.dim
-        if self.fe_max is None:
-            self.fe_max = 11 * self.dim
-
-        if self.np_per_dim is None:
-            self.np_per_dim = 1
-
-        if self.fe_init > self.fe_max:
-            raise ValueError("fe_init must be less than or equal to fe_max")
-
-        return self
-
-
-class TransformerConfig(BaseModel):
-    """
-    Basically, this model makes the following validation and conversion:
-
-    - ``dim``: a positive integer (has been validated by STPConfig)
-    - ``shift``: finally a ndarray with shape (dim,)
-    - ``rotation``: finally a ndarray with shape (dim, dim)
-    - ``rotation_inv``: set to inverse of rotation matrix
-    """
-    model_config = {"arbitrary_types_allowed": True, "extra": "forbid"}
-    dim: int
-    shift: Optional[Union[int, float, np.ndarray]] = None
-    rotation: Optional[np.ndarray] = None
-    rotation_inv: Optional[np.ndarray] = None
-
-    @model_validator(mode='after')
-    def check_rotation_and_shift(self):
-        if self.rotation is None:
-            self.rotation = np.eye(self.dim)
-            self.rotation_inv = np.eye(self.dim)
-        if self.shift is None:
-            self.shift = np.zeros(self.dim)
-        elif isinstance(self.shift, (int, float)):
-            self.shift = np.ones(self.dim) * self.shift
-
-        if self.rotation.shape != (self.dim, self.dim):
-            raise ValueError(f"{self.dim} dimensional task's rotation shape must be ({self.dim}, {self.dim})")
-        if self.shift.shape != (self.dim,):
-            raise ValueError(f"{self.dim} dimensional task's shift shape must be ({self.dim},)")
-        self.rotation = self.rotation.T
-        self.rotation_inv = np.linalg.inv(self.rotation.T)
-
-        return self
-
-
-def check_x(x, dim):
-    if isinstance(x, (list, tuple)):
-        x = np.array(x)
-    if not isinstance(x, np.ndarray):
-        raise TypeError(f"Only support ndarray as input, got {type(x).__name__}={x} instead.")
-
-    if x.ndim == 1:
-        if x.shape[0] != dim:
-            raise ValueError(f"expect dim={dim}, got dim={x.shape[0]} instead")
-    elif x.ndim == 2:
-        if x.shape[1] != dim:
-            raise ValueError(f"expect dim={dim}, got dim={x.shape[1]} instead")
-    else:
-        raise ValueError(f"Expect 1<=datasets.ndim<=2, got ndim={x.ndim} instead")
-
-    return x
+    'Transformer',
+    'MultiTaskProblem',
+    'SingleTaskProblem',
+]
 
 
 class Transformer:
@@ -236,17 +104,6 @@ class SingleTaskProblem(ABC):
         self._solutions = Solution()
         self._transformer = Transformer(self.dim)
         self.auto_update_solutions = False
-
-    def set_x_global(self, x_global: Optional[ndarray]):
-        """
-        Setting the global optimum solution x.
-
-        Notes
-        -----
-        Default to zero vector if it doesn't set,
-        pass a None if it is unknown.
-        """
-        self._x_global = x_global
 
     def __str__(self):
         lb, ub = self.lb, self.ub
@@ -559,6 +416,17 @@ class SingleTaskProblem(ABC):
         if show:
             plotter.show()
 
+    def set_x_global(self, x_global: Optional[ndarray]):
+        """
+        Setting the global optimum solution x.
+
+        Notes
+        -----
+        Default to zero vector if it doesn't set,
+        pass a None if it is unknown.
+        """
+        self._x_global = x_global
+
     def set_transform(self, rotation: Optional[np.ndarray]=None, shift: Union[int, float, np.ndarray, None]=None):
         self._transformer.set_transform(rotation, shift)
 
@@ -643,7 +511,7 @@ class SingleTaskProblem(ABC):
         points : np.ndarray
             Normalized points
         """
-        self._check_inputs(points)
+        points = FunctionInputs(x=points, dim=self.dim).x
         if not np.all(self.lb <= points) or not np.all(points <= self.ub):
             points = np.clip(points, self.lb, self.ub)
         return (points - self.lb) / (self.ub - self.lb)
@@ -662,7 +530,7 @@ class SingleTaskProblem(ABC):
         points : np.ndarray
             Denormalized points
         """
-        points = self._check_inputs(points)
+        points = FunctionInputs(x=points, dim=self.dim).x
         if not np.all(0 <= points) or not np.all(points <= 1):
             points = np.clip(points, 0, 1)
         return points * (self.ub - self.lb) + self.lb
@@ -681,7 +549,7 @@ class SingleTaskProblem(ABC):
 
     def before_eval(self, x):
         _x = copy.deepcopy(x)
-        _x = check_x(_x, self.dim)
+        _x = FunctionInputs(x=_x, dim=self.dim).x
         _x = self.transform_x(_x)
         _x = np.clip(_x, self.lb, self.ub)
         return _x.reshape(-1, self.dim)
@@ -729,9 +597,6 @@ class SingleTaskProblem(ABC):
         -------
         np.ndarray or float
         """
-
-    def _check_inputs(self, points):
-        return check_x(points, self.dim)
 
     @property
     def no_partition(self):
@@ -782,9 +647,6 @@ class SingleTaskProblem(ABC):
         return self._solutions
 
 
-T_Tasks = Union[List[SingleTaskProblem], Tuple[SingleTaskProblem]]
-
-
 class MultiTaskProblem(ABC):
     is_realworld: bool
     intro = "Not set"
@@ -803,17 +665,17 @@ class MultiTaskProblem(ABC):
         problem = self._init_tasks(*args, **kwargs)
         if not isinstance(problem, (list, tuple)):
             raise TypeError(f"init_tasks() must return a list or tuple, got {type(problem)} instead.")
-        self._check_problem(problem)
+        self._check_problem(list(problem))
         return problem
 
     @staticmethod
-    def _check_problem(problem: T_Tasks):
+    def _check_problem(problem: list[SingleTaskProblem]):
         if problem[0].id == -1:
             for i in range(len(problem)):
                 problem[i].set_id(i + 1)
 
     @abstractmethod
-    def _init_tasks(self, *args, **kwargs) -> T_Tasks: ...
+    def _init_tasks(self, *args, **kwargs) -> Union[list[SingleTaskProblem], tuple[SingleTaskProblem]]: ...
 
     def __iter__(self):
         return iter(self._problem)

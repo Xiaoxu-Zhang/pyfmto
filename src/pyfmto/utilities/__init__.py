@@ -7,16 +7,17 @@ from .loggers import (
 from .tools import (
     timer,
     colored,
+    update_kwargs,
     show_in_table,
     titled_tabulate,
     tabulate_formats,
-    update_kwargs,
 )
 
 from .stroptions import (
     Cmaps,
-    SeabornPalettes,
     StrColors,
+    SeabornStyles,
+    SeabornPalettes,
 )
 
 from .io import (

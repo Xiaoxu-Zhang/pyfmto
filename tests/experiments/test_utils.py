@@ -3,16 +3,17 @@ import shutil
 import unittest
 import yaml
 from pathlib import Path
-from pydantic import ValidationError
 from unittest.mock import patch
 
 from pyfmto.experiments import Statistics
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import (
-    gen_path, check_path, load_results, save_results, clear_console,
+    gen_path, clear_console,
     kill_server, gen_exp_combinations, combine_args, parse_reporter_config,
-    RunSolutions, LauncherConfig, ReporterConfig
+    RunSolutions
 )
+from pyfmto.utilities.schemas import LauncherConfig
+from pyfmto.utilities import load_msgpack
 
 TMP_ALG = """
 class TmpClient:
@@ -95,14 +96,6 @@ class TestExperimentUtils(unittest.TestCase):
         self.assertEqual(res_root1, Path('out', 'results', alg, f"{prob}_2D", "IID"))
         self.assertEqual(res_root2, Path('out', 'results', alg, f"{prob}_2D", "NIID2"))
 
-    def test_check_path(self):
-        file_num = check_path(self.tmp_dir / 'test_path')
-        self.assertEqual(file_num, 0)
-        with open(self.tmp_dir / 'test_path' / 'test_file.txt', 'w') as f:
-            f.write('test content')
-        file_num = check_path(self.tmp_dir / 'test_path')
-        self.assertEqual(file_num, 1)
-
     def test_clear_console(self):
         with patch('os.system') as mock_system:
             with patch('os.name', 'posix'):
@@ -176,18 +169,9 @@ class TestRunSolutions(unittest.TestCase):
         with self.assertRaises(KeyError):
             rs.get_solutions(99)
 
-    def test_save_load_results(self):
-        data = [(i, self._create_solution()) for i in range(5)]
-        save_results(data, self.tmp, 1)
-        expect_file = self.tmp / 'Run 1.msgpack'
-        self.assertTrue(expect_file.exists())
-        load_data = load_results(expect_file)
-        self.assertIsInstance(load_data, RunSolutions)
-        self.assertEqual(load_data.num_clients, 5)
-        empty_data = []
-        save_results(empty_data, self.tmp, 2) # don't save empty data
-        expect_file = self.tmp / 'Run 2.msgpack'
-        self.assertEqual(False, expect_file.exists())
+    def test_save_empty(self):
+        rs = RunSolutions()
+        self.assertRaises(ValueError, rs.to_msgpack, self.tmp/'test.msgpack')
 
     def test_save_and_load(self):
         rs1 = RunSolutions()
@@ -196,7 +180,7 @@ class TestRunSolutions(unittest.TestCase):
         rs1.update(1, solution)
         rs1.update(2, solution)
         rs1.to_msgpack(self.tmp / 'test.msgpack')
-        rs2 = load_results(self.tmp / 'test.msgpack')
+        rs2 = RunSolutions(load_msgpack(self.tmp / 'test.msgpack'))
 
         self.assertEqual(rs2.num_clients, rs1.num_clients)
         self.assertEqual(rs2.sorted_ids, rs1.sorted_ids)
@@ -219,82 +203,6 @@ class TestRunSolutions(unittest.TestCase):
         rs.clear()
         self.assertEqual(rs.num_clients, 0)
         self.assertEqual(rs.sorted_ids, [])
-
-
-class TestLauncherConfig(unittest.TestCase):
-    def test_valid_config(self):
-        """Test creating a valid LauncherConfig instance."""
-        config = LauncherConfig(
-            results='out/results',
-            repeat=3,
-            seed=123,
-            backup=True,
-            save=True,
-            algorithms=['alg1', 'alg2'],
-            problems=['prob1', 'prob2']
-        )
-        self.assertEqual(config.results, 'out/results')
-        self.assertEqual(config.repeat, 3)
-        self.assertEqual(config.seed, 123)
-        self.assertTrue(config.backup)
-        self.assertTrue(config.save)
-        self.assertEqual(config.algorithms, ['alg1', 'alg2'])
-        self.assertEqual(config.problems, ['prob1', 'prob2'])
-
-    def test_defaults(self):
-        """Test LauncherConfig with default values."""
-        config = LauncherConfig(algorithms=['alg1'], problems=['prob1'])
-        self.assertEqual(config.results, 'out/results')
-        self.assertEqual(config.repeat, 1)
-        self.assertEqual(config.seed, 42)
-        self.assertTrue(config.backup)
-        self.assertTrue(config.save)
-
-    def test_results_none(self):
-        """Test LauncherConfig with results set to None."""
-        config = LauncherConfig(results=None, algorithms=['alg1'], problems=['prob1'])
-        self.assertEqual(config.results, 'out/results')
-
-    def test_invalid_config_repeat(self):
-        invalid_repeat = {'repeat': -1, 'algorithms': ['alg1'], 'problems': ['prob1']}
-        invalid_seed = {'seed': -1, 'algorithms': ['alg1'], 'problems': ['prob1']}
-        empty_algorithms = {'algorithms': [], 'problems': ['prob1']}
-        empty_problems = {'algorithms': ['alg1'], 'problems': []}
-        self.assertRaises(ValidationError, LauncherConfig, **invalid_repeat)
-        self.assertRaises(ValidationError, LauncherConfig, **invalid_seed)
-        self.assertRaises(ValidationError, LauncherConfig, **empty_algorithms)
-        self.assertRaises(ValidationError, LauncherConfig, **empty_problems)
-
-
-class TestReporterConfig(unittest.TestCase):
-    def test_valid_config(self):
-        """Test creating a valid ReporterConfig instance."""
-        config = ReporterConfig(
-            results='out/results',
-            algorithms=[['alg1', 'alg2'], ['alg3', 'alg4']],
-            problems=['prob1', 'prob2']
-        )
-        self.assertEqual(config.results, 'out/results')
-        self.assertEqual(config.algorithms, [['alg1', 'alg2'], ['alg3', 'alg4']])
-        self.assertEqual(config.problems, ['prob1', 'prob2'])
-
-    def test_defaults(self):
-        """Test ReporterConfig with minimal valid values."""
-        config = ReporterConfig(algorithms=[['alg1', 'alg2']], problems=['prob1'])
-        self.assertEqual(config.results, 'out/results')
-
-    def test_results_none(self):
-        """Test ReporterConfig with results set to None."""
-        config = ReporterConfig(results=None, algorithms=[['alg1', 'alg2']], problems=['prob1'])
-        self.assertEqual(config.results, 'out/results')
-
-    def test_invalid_config(self):
-        inner_too_short  = {'algorithms': [['alg1']], 'problems': ['prob1']}
-        empty_algorithms = {'algorithms': [], 'problems': ['prob1']}
-        empty_problems   = {'algorithms': [['alg1', 'alg2']], 'problems': []}
-        self.assertRaises(ValidationError, ReporterConfig, **inner_too_short)
-        self.assertRaises(ValidationError, ReporterConfig, **empty_algorithms)
-        self.assertRaises(ValidationError, ReporterConfig, **empty_problems)
 
 
 class TestStatistics(unittest.TestCase):

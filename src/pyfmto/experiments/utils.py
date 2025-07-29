@@ -3,60 +3,11 @@ import os
 from itertools import product
 from numpy import ndarray
 from pathlib import Path
-from pydantic import BaseModel, field_validator
 from typing import Optional, Union
 
 from pyfmto.problems import Solution
-from pyfmto.utilities import logger, save_msgpack, load_msgpack
-
-
-class LauncherConfig(BaseModel):
-    results: Optional[str] = 'out/results'
-    repeat: int = 1
-    seed: int = 42
-    backup: bool = True
-    save: bool = True
-    algorithms: list[str]
-    problems: list[str]
-
-    @field_validator('results')
-    def results_must_be_not_none(cls, v):
-        return v if v is not None else 'out/results'
-
-    @field_validator('repeat', 'seed')
-    def integer_must_be_positive(cls, v):
-        if v < 1:
-            raise ValueError('repeat must be >= 1')
-        return v
-
-    @field_validator('algorithms', 'problems')
-    def lists_must_not_be_empty(cls, v):
-        if len(v) < 1:
-            raise ValueError('list must have at least 1 element')
-        return v
-
-
-class ReporterConfig(BaseModel):
-    results: Optional[str] = 'out/results'
-    algorithms: list[list[str]]
-    problems: list[str]
-
-    @field_validator('results')
-    def results_must_be_not_none(cls, v):
-        return v if v is not None else 'out/results'
-
-    @field_validator('algorithms')
-    def inner_lists_must_have_min_length(cls, v):
-        for inner_list in v:
-            if len(inner_list) < 2:
-                raise ValueError('inner lists must have at least 2 elements')
-        return v
-
-    @field_validator('problems', 'algorithms')
-    def outer_list_must_not_be_empty(cls, v):
-        if len(v) < 1:
-            raise ValueError('problems list must have at least 1 element')
-        return v
+from pyfmto.utilities import logger, save_msgpack
+from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
 
 
 def clear_console():
@@ -132,29 +83,6 @@ def gen_path(alg_name, prob_name, prob_args):
     return res_root
 
 
-def check_path(res_root):
-    res_root = Path(res_root)
-    if not res_root.exists():
-        res_root.mkdir(parents=True)
-        return 0
-    else:
-        return len(os.listdir(res_root))
-
-
-def save_results(clients_res, res_path, curr_run):
-    res_path = Path(res_path)
-    file_name = res_path / f"Run {curr_run}.msgpack"
-    run_solutions = RunSolutions()
-    for cid, solution in clients_res:
-        run_solutions.update(cid, solution)
-    run_solutions.to_msgpack(file_name)
-
-
-def load_results(file_name):
-    data = load_msgpack(file_name)
-    return RunSolutions(data)
-
-
 class RunSolutions:
     def __init__(self, run_solutions: Optional[dict] = None):
         self._solutions: dict[int, dict] = {}
@@ -193,7 +121,7 @@ class RunSolutions:
 
     def to_msgpack(self, filename: Union[str, Path]='results.msgpack'):
         if self.num_clients == 0:
-            logger.info('Empty RunSolutions.')
+            raise ValueError('Empty RunSolutions')
         else:
             data = copy.deepcopy(self.__dict__)
             save_msgpack(data, filename)

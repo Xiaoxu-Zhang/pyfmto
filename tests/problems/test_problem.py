@@ -2,114 +2,17 @@ import matplotlib
 import numpy as np
 import shutil
 import unittest
-from itertools import product
 from pathlib import Path
+
+from pydantic import ValidationError
 
 from pyfmto.problems.problem import (
     SingleTaskProblem as _SingleTaskProblem,
-    MultiTaskProblem as _MultiTaskProblem,
-    STPConfig, TransformerConfig
+    MultiTaskProblem as _MultiTaskProblem
 )
 
 matplotlib.use('Agg')
 TASK_NUM = 4
-
-class TestSTPConfig(unittest.TestCase):
-
-    def test_default(self):
-        constants = {"obj": 1, "lb": -1, "ub": 1}
-        test_cases = [
-            ({"dim": d}, {'fe_init': 5*d, 'fe_max': 11*d})
-            for d in [1, 2, 3, 4, 5]
-        ]
-        for case, expected in test_cases:
-            stp_config = STPConfig(**case, **constants)
-            self.assertEqual(stp_config.fe_init, expected['fe_init'])
-            self.assertEqual(stp_config.fe_max, expected['fe_max'])
-            self.assertEqual(stp_config.np_per_dim, 1)
-
-    def test_valid_default(self):
-        fe_init = range(1, 10)
-        fe_max = [2*x for x in fe_init]
-        valid_np = range(1, 10)
-        test_cases = [
-                {'fe_init': a, 'fe_max': b, 'np_per_dim': c}
-                for a, b, c in zip(fe_init, fe_max, valid_np)
-        ]
-        for case in test_cases:
-            stp_config = STPConfig(**case, **{"dim": 2, "obj": 1, "lb": -1, "ub": 1})
-            self.assertEqual(stp_config.fe_init, case['fe_init'])
-            self.assertEqual(stp_config.fe_max, case['fe_max'])
-            self.assertEqual(stp_config.np_per_dim, case['np_per_dim'])
-
-    def test_valid_required_inputs(self):
-        valid_dims = range(1, 5)
-        valid_objs = range(1, 5)
-        valid_bounds = list(zip([-1, -2], [1, 2]))
-        for dim, obj, (lb, ub) in product(valid_dims, valid_objs, valid_bounds):
-            stp_config = STPConfig(dim=dim, obj=obj, lb=lb, ub=ub)
-            self.assertEqual(stp_config.dim, dim)
-            self.assertEqual(stp_config.obj, obj)
-            self.assertTrue(np.all(stp_config.lb==lb*np.ones(dim)))
-            self.assertTrue(np.all(stp_config.ub==ub*np.ones(dim)))
-
-    def test_invalid_required_inputs(self):
-        invalid_dims = [0.1, 1.1, -1, -2]
-        for dim in invalid_dims:
-            self.assertRaises(ValueError, STPConfig, **{'dim': dim, 'obj': 1, 'lb': -1, 'ub': 1})
-
-        invalid_objs = [0.1, 1.1, -1, -2]
-        for obj in invalid_objs:
-            self.assertRaises(ValueError, STPConfig, **{'dim': 1, 'obj': obj, 'lb': -1, 'ub': 1})
-
-        invalid_bounds = [
-            (1, 1), (2, -2), ([-2, 2], [2, -2]), # invalid value
-            ([1], [1]), ([-1], [1, 1]), ([-2, -2], [2]), ([-1, -1, -1], [1, 1, 1]) # invalid shape for dim=2
-        ]
-        for lb, ub in invalid_bounds:
-            self.assertRaises(ValueError, STPConfig, **{'dim': 2, 'obj': 1, 'lb': lb, 'ub': ub})
-
-    def test_init_invalid_optionals(self):
-        invalid_budgets = [
-            (0, 10), (10, 0), (-10, 10), (-20, -10), # fe_init or fe_max is non-positive
-            (10, 9) # fe_init > fe_max
-        ]
-        for fe_init, fe_max in invalid_budgets:
-            self.assertRaises(ValueError, STPConfig, **{'dim': 2, 'obj': 1, 'lb': 0, 'ub': 1, 'fe_init': fe_init, 'fe_max': fe_max})
-
-        invalid_np = [-1, 0]
-        for np_per_dim in invalid_np:
-            self.assertRaises(ValueError, STPConfig, **{'dim': 2, 'obj': 1, 'lb': 0, 'ub': 1, 'np_per_dim': np_per_dim})
-
-
-class TestTransformer(unittest.TestCase):
-
-    def test_default(self):
-        trans = TransformerConfig(dim=10)
-        self.assertEqual(trans.dim, 10)
-        self.assertTrue(np.all(trans.rotation == np.eye(10)))
-        self.assertTrue(np.all(trans.rotation_inv == np.eye(10)))
-        self.assertTrue(np.all(trans.shift == np.zeros(10)))
-
-    def test_valid(self):
-        dims = [2,3,4,5]
-        scales = [0.5, 1.0, 2.0, 5.0]
-        test_cases = [
-            ({'dim': dim, 'rotation': np.eye(dim)*scale, 'shift': np.ones(dim)*scale}) for dim, scale in zip(dims, scales)
-        ]
-        for case, dim, scale in zip(test_cases, dims, scales):
-            trans = TransformerConfig(**case)
-            self.assertTrue(np.all(trans.rotation == np.eye(dim)*scale))
-            self.assertTrue(np.all(trans.shift == np.ones(dim)*scale))
-            self.assertTrue(np.all(trans.rotation_inv @ trans.rotation == np.eye(dim)))
-
-    def test_invalid(self):
-        rot_dim_mismatch = {'dim': 2, 'rotation': np.eye(3)}
-        shift_dim_mismatch = {'dim': 2, 'shift': np.ones(3)}
-
-        self.assertRaises(ValueError, TransformerConfig, **rot_dim_mismatch)
-        self.assertRaises(ValueError, TransformerConfig, **shift_dim_mismatch)
-
 
 
 class STP(_SingleTaskProblem):
@@ -202,14 +105,6 @@ class TestSingleTaskProblem(unittest.TestCase):
             stp_pb.init_solutions()
             self.assertTrue(np.all(stp_pb.solutions.x >= stp_pb._partition[0]))
             self.assertTrue(np.all(stp_pb.solutions.x <= stp_pb._partition[1]))
-
-    def test_evaluation(self):
-        stp = STP(dim=1, obj=1, lb=-1, ub=1)
-        stp.evaluate(np.array([1]))
-        self.assertRaises(TypeError, stp.evaluate, '1')
-        self.assertRaises(ValueError, stp.evaluate, np.array([[[1]]]))
-        self.assertRaises(ValueError, stp.evaluate, np.array([[1, 2], [3, 4]]))
-        self.assertRaises(ValueError, stp.evaluate, np.array([1,2]))
 
     def test_visualize(self):
         stp1 = STP(dim=1, obj=1, lb=-1, ub=1)

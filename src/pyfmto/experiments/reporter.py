@@ -12,13 +12,13 @@ from collections import defaultdict
 from numpy import ndarray
 from pathlib import Path
 from pydantic import validate_call, Field
-from pyfmto.utilities import logger, reset_log, SeabornPalettes, load_yaml
+from pyfmto.utilities import logger, reset_log, SeabornPalettes, load_yaml, load_msgpack
 from PIL import Image
 from scipy import stats
 from tabulate import tabulate
 from tqdm import tqdm
 from typing import Union, Optional, Literal, Annotated
-from .utils import load_results, RunSolutions, Statistics, parse_reporter_config, clear_console
+from .utils import RunSolutions, Statistics, parse_reporter_config, clear_console
 
 T_Statistics = dict[str, dict[str, Statistics]]
 T_Suffix = Literal['.png', '.jpg', '.eps', '.svg', '.pdf']
@@ -455,7 +455,7 @@ class Reporter:
 
     @staticmethod
     def _load_runs_data(path_list: Union[list[Path], list[str]]) -> list[RunSolutions]:
-        return [load_results(p) for p in path_list]
+        return [RunSolutions(load_msgpack(p)) for p in path_list]
 
     def _check_attributes(self, path_list: list[Path], runs_list: list[RunSolutions]):
         ext_msg = "Data check failed, see out/logs/others.log for details"
