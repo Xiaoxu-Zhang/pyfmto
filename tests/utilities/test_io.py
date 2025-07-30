@@ -48,6 +48,11 @@ class TestYaml(unittest.TestCase):
         save_yaml({'name': 'save_yaml'}, self.tmp_dir / 'save_yaml.yaml')
         self.assertTrue((self.tmp_dir / 'save_yaml.yaml').exists())
 
+    def test_parse_yaml(self):
+        self.assertEqual(parse_yaml(None), {})
+        self.assertEqual(parse_yaml(''), {})
+        self.assertTrue('key1' in parse_yaml(YAML_OK))
+
     def test_dumps_yaml(self):
         res = dumps_yaml(parse_yaml(YAML_OK))
         self.assertEqual(len(res.splitlines()), 7, f"res is {res}")

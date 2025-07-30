@@ -131,7 +131,7 @@ class Client(ABC):
                 traceback.print_exc()
                 logger.error(traceback.format_exc())
             logger.info(f"{self.name} exit with available FE = {self.problem.fe_available}")
-            exit(-1)
+            raise
         return self.id, self.solutions
 
     @abstractmethod

@@ -869,7 +869,7 @@ class MultiTaskProblem(ABC):
             self,
             n_samples: int=1000,
             method: Literal['kendalltau', 'spearmanr', 'pearsonr']='spearmanr',
-            p_ub: float=0.05,
+            p_value: float=1.,
             figsize: tuple[float, float, float]=(9., 7., 1.),
             cmap: Optional[Union[str, Cmaps]]=None,
             masker: Optional[float]=np.nan,
@@ -900,7 +900,7 @@ class MultiTaskProblem(ABC):
          - 'kendalltau': Kendall tau correlation
          - 'pearsonr': Pearson correlation coefficient
 
-        p_ub : float, default=0.05
+        p_value : float, default=0.05
          Upper bound for p-value. Correlations with p-values greater than this
          value are considered not statistically significant and will be masked.
 
@@ -966,7 +966,7 @@ class MultiTaskProblem(ABC):
         statis = significance[:, :, 0]
         pvalue = significance[:, :, 1]
         triu_mask = np.triu(np.ones_like(statis, dtype=bool), k=1)
-        statis[pvalue > p_ub] = masker if masker else np.nan
+        statis[pvalue > p_value] = masker if masker else np.nan
         if triu == 'lower':
             statis[~triu_mask] = np.nan
         elif triu == 'upper':

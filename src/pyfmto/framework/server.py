@@ -11,10 +11,9 @@ from fastapi import FastAPI, Response, Depends, Request
 from setproctitle import setproctitle
 from tabulate import tabulate
 from typing import final, Optional
-from yaml import safe_load
 
 from .packages import ServerPackage, ClientPackage, Actions
-from pyfmto.utilities import logger
+from pyfmto.utilities import logger, parse_yaml
 from ..utilities.tools import update_kwargs
 
 app = FastAPI()
@@ -107,13 +106,19 @@ class Server(ABC):
             peers_id = self.sorted_ids
             logger.debug(f"Server aggregating {self.num_clients} clients data")
             for cid in peers_id:
-                self.aggregate(cid)
+                try:
+                    self.aggregate(cid)
+                except Exception:
+                    print(traceback.format_exc())
+                    self.shutdown('aggregate error')
 
     def _register_routes(self):
         @app.post("/alg-comm")
         async def alg_comm(client_pkg: ClientPackage = Depends(load_body)):
             self._last_request_time = time.time()
             server_pkg = self._handle_request(client_pkg)
+            if server_pkg is None:
+                logger.warning(f"The server package to Client {client_pkg.cid} is None")
             return Response(content=pickle.dumps(server_pkg), media_type="application/x-pickle")
 
     async def _monitor(self):
@@ -131,7 +136,7 @@ class Server(ABC):
 
     @final
     @catch_exception()
-    def _handle_request(self, data: ClientPackage) -> ServerPackage:
+    def _handle_request(self, data: ClientPackage) -> Optional[ServerPackage]:
         if not data:
             return ServerPackage(desc='error', data='request without data')
         elif data.action == Actions.REGISTER:
@@ -141,14 +146,10 @@ class Server(ABC):
             self._del_client(data.cid)
             return ServerPackage(desc='quit', data='quit success')
         else:
-            res = self.handle_request(data)
-            if res is None:
-                raise RuntimeError(f"Got (None) result when handle action: {data.action.name}")
-            else:
-                return res
+            return self.handle_request(data)
 
     @abstractmethod
-    def handle_request(self, client_data: ClientPackage) -> ServerPackage: ...
+    def handle_request(self, client_data: ClientPackage) -> Optional[ServerPackage]: ...
 
     @abstractmethod
     def aggregate(self, client_id): ...
@@ -174,8 +175,7 @@ class Server(ABC):
             self._server.should_exit = True
 
     def update_kwargs(self, kwargs: dict):
-        docstr = self.__class__.__doc__
-        docstr = {} if not docstr else safe_load(docstr)
+        docstr = parse_yaml(self.__class__.__doc__)
         return update_kwargs(self.__class__.__name__, docstr, kwargs)
 
     @property
@@ -185,7 +185,3 @@ class Server(ABC):
     @property
     def num_clients(self):
         return len(self._active_clients)
-
-    @property
-    def started(self):
-        return self._server.started

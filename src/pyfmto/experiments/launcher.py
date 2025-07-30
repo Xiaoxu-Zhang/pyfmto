@@ -1,20 +1,18 @@
 import atexit
 import os
-import subprocess
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from setproctitle import setproctitle
 
 from pyfmto.algorithms import load_algorithm, get_alg_kwargs
-from pyfmto.problems import load_problem
+from pyfmto.problems import load_problem, Solution
 from pyfmto.utilities.schemas import LauncherConfig
 from pyfmto.utilities import (
-    logger, reset_log, timer, show_in_table,
+    logger, reset_log, show_in_table,
     backup_log_to, load_yaml, save_yaml)
 from .utils import (
     clear_console, gen_path, kill_server,
-    gen_exp_combinations, RunSolutions)
+    gen_exp_combinations, RunSolutions, start_server, start_clients)
 
 __all__ = ['Launcher']
 
@@ -95,10 +93,11 @@ class Launcher:
         save_yaml(kwargs, fdir / f"arguments.yaml")
 
     def _repeating(self):
-        client_cls = load_algorithm(self._alg)['client']
+        alg_modules = load_algorithm(self._alg)
+        client_cls = alg_modules['client']
+        server_cls = alg_modules['server']
         self._update_repeat_id()
         while not self._finished:
-
             # Init clients
             problem = load_problem(self._prob, **self._prob_args)
             clients = [client_cls(p, **self._clt_kwargs) for p in problem]
@@ -107,9 +106,9 @@ class Launcher:
             self._show_settings()
 
             # Launch algorithm
-            self._start_server()
-            self._start_clients(clients)
-            self._save_results()
+            start_server(server_cls, **self._srv_kwargs)
+            results = start_clients(clients)
+            self._save_results(results)
             self._update_repeat_id()
             reset_log()
             self._backup_log()
@@ -146,47 +145,12 @@ class Launcher:
         print(colored_tab)
         logger.info(f"\n{original_tab}")
 
-    def _start_server(self):
-        """
-        Start the server process.
-        """
-        srv_cls = load_algorithm(self._alg)['server']
-        module_name = srv_cls.__module__
-        class_name = srv_cls.__name__
-
-        cmd = [
-            "python", "-c",
-            f"from {module_name} import {class_name}; "
-            f"srv = {class_name}(**{repr(self._srv_kwargs)}); "
-            f"srv.start()"
-        ]
-
-        if os.name == 'posix':
-            subprocess.Popen(cmd,
-                             start_new_session=True,
-                             stdin=subprocess.DEVNULL)
-        elif os.name == 'nt':
-            subprocess.Popen(cmd,
-                             creationflags=subprocess.CREATE_NEW_CONSOLE,
-                             stdin=subprocess.DEVNULL)
-        else:
-            raise OSError(f"Unsupported operating system: {os.name}")
-        logger.info("Server started.")
-        time.sleep(2)
-
-    @timer("Whole run")
-    def _start_clients(self, clients):
-        thread_pool = ThreadPoolExecutor(max_workers=len(clients))
-        client_futures = [thread_pool.submit(c.start) for c in clients]
-        thread_pool.shutdown(wait=True)
-        self._results = (c.result() for c in client_futures)
-
-    def _save_results(self):
+    def _save_results(self, results: list[tuple[int, Solution]]):
         if self.save:
             res_path = Path(self._res_dir)
             file_name = res_path / f"Run {self._repeat_id}.msgpack"
             run_solutions = RunSolutions()
-            for cid, solution in self._results:
+            for cid, solution in results:
                 run_solutions.update(cid, solution)
             run_solutions.to_msgpack(file_name)
 

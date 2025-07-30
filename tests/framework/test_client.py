@@ -1,0 +1,41 @@
+import numpy as np
+import unittest
+from itertools import product
+
+from pyfmto.problems import load_problem
+from pyfmto.utilities import parse_yaml
+from tests.framework import EmptyClient, ConfigurableClient
+
+
+class TestClient(unittest.TestCase):
+    def setUp(self):
+        self.problems = load_problem('tetci2019')
+
+    def test_empty_client_attributes(self):
+        task = self.problems[0]
+        client = EmptyClient(task)
+        self.assertEqual(client.name, f"Client {task.id: <2d}")
+        self.assertEqual(client.id, task.id)
+        self.assertEqual(client.dim, task.dim)
+        self.assertEqual(client.obj, task.obj)
+        self.assertEqual(client.fe_init, task.fe_init)
+        self.assertEqual(client.fe_max, task.fe_max)
+        self.assertEqual(client.y_min, task.solutions.y_min)
+        self.assertEqual(client.y_max, task.solutions.y_max)
+        self.assertTrue(np.all(client.lb==task.lb))
+        self.assertTrue(np.all(client.ub==task.ub))
+
+    def test_configurable_client(self):
+        prob = self.problems[0]
+        defaults = parse_yaml(ConfigurableClient.__doc__)
+        default_config = ConfigurableClient(prob)
+        for k, v in defaults.items():
+            self.assertEqual(getattr(default_config, k), v, f'Client parameter {k} is not equal to {v}')
+        test_values = product([0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9])
+        for alpha, beta, gamma in test_values:
+            client = ConfigurableClient(prob, alpha=alpha, beta=beta, gamma=gamma)
+            self.assertEqual(client.alpha, alpha, f'Client parameter alpha is not equal to {alpha}')
+            self.assertEqual(client.beta, beta, f'Client parameter beta is not equal to {beta}')
+            self.assertEqual(client.gamma, gamma, f'Client parameter gamma is not equal to {gamma}')
+            self.assertEqual(client.phi, defaults['phi'], f'Client parameter phi is not equal to default value {defaults["phi"]}')
+            self.assertEqual(client.theta, defaults['theta'], f'Client parameter theta is not equal to default value {defaults["theta"]}')

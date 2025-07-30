@@ -1,10 +1,14 @@
 import copy
 import os
+import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from numpy import ndarray
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Type
 
+from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
 from pyfmto.utilities import logger, save_msgpack
 from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
@@ -15,6 +19,60 @@ def clear_console():
         os.system('cls')
     else:
         os.system('clear')
+
+
+def start_server(server: Type[Server], **kwargs):
+    """
+    Start the server in a subprocess
+
+    Parameters
+    ----------
+    server:
+        The server class itself, not an instance of server.
+    kwargs:
+        The kwargs of the server.
+    """
+    module_name = server.__module__
+    class_name = server.__name__
+
+    cmd = [
+        "python", "-c",
+        f"from {module_name} import {class_name}; "
+        f"srv = {class_name}(**{repr(kwargs)}); "
+        f"srv.start()"
+    ]
+
+    if os.name == 'posix':
+        subprocess.Popen(cmd,
+                         start_new_session=True,
+                         stdin=subprocess.DEVNULL)
+    elif os.name == 'nt':
+        subprocess.Popen(cmd,
+                         creationflags=subprocess.CREATE_NEW_CONSOLE,
+                         stdin=subprocess.DEVNULL)
+    else:
+        raise OSError(f"Unsupported operating system: {os.name}")
+    logger.info("Server started.")
+    time.sleep(2)
+
+
+def start_clients(clients: list[Client]) -> list[tuple[int, Solution]]:
+    """
+    Start the client and submit to the threadpool.
+
+    Parameters
+    ----------
+    clients:
+        List of Client instances.
+
+    Returns
+    -------
+        List of clients results
+    """
+    thread_pool = ThreadPoolExecutor(max_workers=len(clients))
+    client_futures = [thread_pool.submit(c.start) for c in clients]
+    thread_pool.shutdown(wait=True)
+    return [c.result() for c in client_futures]
 
 
 def kill_server():
