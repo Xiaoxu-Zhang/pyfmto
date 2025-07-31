@@ -45,6 +45,15 @@ reporter:
 
 """
 
+def create_solution():
+    solution = Solution()
+    dim, obj = 2, 1
+
+    x = np.random.random((5, dim))
+    y = np.random.random((5, obj))
+    solution.append(x, y)
+    return solution
+
 
 class TestExperimentUtils(unittest.TestCase):
 
@@ -96,16 +105,112 @@ class TestExperimentUtils(unittest.TestCase):
         self.assertEqual(res_root1, Path('out', 'results', alg, f"{prob}_2D", "IID"))
         self.assertEqual(res_root2, Path('out', 'results', alg, f"{prob}_2D", "NIID2"))
 
-    def test_clear_console(self):
+    def test_cross_platform_tools(self):
         with patch('os.system') as mock_system:
-            with patch('os.name', 'posix'):
+
+            with patch('platform.system', return_value="Windows"):
+                clear_console()
+                mock_system.assert_called_once_with('cls')
+                mock_system.reset_mock()
+                kill_server()
+                mock_system.assert_called_once_with("taskkill /f /im AlgServer.exe")
+                mock_system.reset_mock()
+
+            with patch('platform.system', return_value="Linux"):
                 clear_console()
                 mock_system.assert_called_once_with('clear')
                 mock_system.reset_mock()
+                kill_server()
+                mock_system.assert_called_once_with("pkill -f AlgServer")
+                mock_system.reset_mock()
 
-            with patch('os.name', 'nt'):
-                clear_console()
-                mock_system.assert_called_once_with('cls')
+    def test_combine_args_no_list(self):
+        args = {
+            'problem1': {'param1': 'value1', 'param2': 'value2'}
+        }
+        result = combine_args(args)
+        expected = [('problem1', {'param1': 'value1', 'param2': 'value2'})]
+        self.assertEqual(result, expected)
+
+    def test_combine_args_with_list(self):
+        args = {
+            'problem1': {'param1': 'value1', 'param2': [1, 2]}
+        }
+        result = combine_args(args)
+        expected = [
+            ('problem1', {'param1': 'value1', 'param2': 1}),
+            ('problem1', {'param1': 'value1', 'param2': 2})
+        ]
+        self.assertEqual(result, expected)
+
+    def test_combine_args_multiple_lists(self):
+        args = {
+            'problem1': {'param1': [1, 2], 'param2': ['a', 'b']}
+        }
+        result = combine_args(args)
+        expected = [
+            ('problem1', {'param1': 1, 'param2': 'a'}),
+            ('problem1', {'param1': 1, 'param2': 'b'}),
+            ('problem1', {'param1': 2, 'param2': 'a'}),
+            ('problem1', {'param1': 2, 'param2': 'b'})
+        ]
+        self.assertEqual(result, expected)
+
+    def test_gen_exp_combinations(self):
+        launcher_conf = LauncherConfig(
+            algorithms=['alg1', 'alg2'],
+            problems=['prob1', 'prob2']
+        )
+        alg_conf = {
+            'alg1': {'alg_param': 1},
+            'alg2': {'alg_param': 2}
+        }
+        prob_conf = {
+            'prob1': {'prob_param': 'a'},
+            'prob2': {'prob_param': 'b'}
+        }
+        result = gen_exp_combinations(launcher_conf, alg_conf, prob_conf)
+
+        expected = [
+            ('alg1', {'alg_param': 1}, 'prob1', {'prob_param': 'a'}),
+            ('alg1', {'alg_param': 1}, 'prob2', {'prob_param': 'b'}),
+            ('alg2', {'alg_param': 2}, 'prob1', {'prob_param': 'a'}),
+            ('alg2', {'alg_param': 2}, 'prob2', {'prob_param': 'b'})
+        ]
+        self.assertEqual(result, expected)
+
+    def test_parse_reporter_config(self):
+        config = {
+            'algorithms': [['alg1', 'alg2'], ['alg3', 'alg4']],
+            'problems': ['prob1', 'prob2']
+        }
+        prob_conf = {
+            'prob1': {'src_problem': 'src1', 'np_per_dim': 2},
+            'prob2': {'np_per_dim': 3}
+        }
+        result = parse_reporter_config(config, prob_conf)
+
+        expected_analysis_comb = [
+            (['alg1', 'alg2'], 'PROB1-src1', 2),
+            (['alg1', 'alg2'], 'PROB2', 3),
+            (['alg3', 'alg4'], 'PROB1-src1', 2),
+            (['alg3', 'alg4'], 'PROB2', 3)
+        ]
+
+        expected_initialize_comb = [
+            ('alg1', 'PROB1-src1', 2),
+            ('alg1', 'PROB2', 3),
+            ('alg2', 'PROB1-src1', 2),
+            ('alg2', 'PROB2', 3),
+            ('alg3', 'PROB1-src1', 2),
+            ('alg3', 'PROB2', 3),
+            ('alg4', 'PROB1-src1', 2),
+            ('alg4', 'PROB2', 3)
+        ]
+
+        self.assertEqual(result['results'], 'out/results')
+        self.assertEqual(result['analysis_comb'], expected_analysis_comb)
+        self.assertEqual(result['initialize_comb'], expected_initialize_comb)
 
 
 class TestRunSolutions(unittest.TestCase):
@@ -119,16 +224,6 @@ class TestRunSolutions(unittest.TestCase):
         if self.tmp.exists():
             shutil.rmtree(self.tmp)
 
-    @staticmethod
-    def _create_solution():
-        solution = Solution()
-        dim, obj = 2, 1
-
-        x = np.random.random((5, dim))
-        y = np.random.random((5, obj))
-        solution.append(x, y)
-        return solution
-
     def test_initialization(self):
         rs = RunSolutions()
         self.assertEqual(rs.num_clients, 0)
@@ -136,7 +231,7 @@ class TestRunSolutions(unittest.TestCase):
 
     def test_update_and_get_solution(self):
         rs = RunSolutions()
-        solution = self._create_solution()
+        solution = create_solution()
 
         rs.update(1, solution)
 
@@ -154,7 +249,7 @@ class TestRunSolutions(unittest.TestCase):
 
     def test_get_multiple_solutions(self):
         rs = RunSolutions()
-        solution = self._create_solution()
+        solution = create_solution()
 
         rs.update(1, solution)
         rs.update(2, solution)
@@ -175,7 +270,7 @@ class TestRunSolutions(unittest.TestCase):
 
     def test_save_and_load(self):
         rs1 = RunSolutions()
-        solution = self._create_solution()
+        solution = create_solution()
 
         rs1.update(1, solution)
         rs1.update(2, solution)
@@ -197,7 +292,7 @@ class TestRunSolutions(unittest.TestCase):
 
     def test_clear_resets_state(self):
         rs = RunSolutions()
-        solution = self._create_solution()
+        solution = create_solution()
         rs.update(1, solution)
 
         rs.clear()
@@ -237,115 +332,3 @@ class TestStatistics(unittest.TestCase):
         self.assertTrue(np.all(sta.y_global==np.array([21, 22])))
         self.assertEqual(sta.fe_init, 10)
         self.assertEqual(sta.fe_max, 20)
-
-
-class TestKillServer(unittest.TestCase):
-
-    @patch('os.name', 'win32')
-    @patch('os.system')
-    def test_kill_server_windows(self, mock_system):
-        kill_server()
-        mock_system.assert_called_once_with("taskkill /f /im AlgServer.exe")
-
-    @patch('os.name', 'posix')
-    @patch('os.system')
-    def test_kill_server_posix(self, mock_system):
-        kill_server()
-        mock_system.assert_called_once_with("pkill -f AlgServer")
-
-
-class TestCombineArgs(unittest.TestCase):
-
-    def test_combine_args_no_list(self):
-        args = {
-            'problem1': {'param1': 'value1', 'param2': 'value2'}
-        }
-        result = combine_args(args)
-        expected = [('problem1', {'param1': 'value1', 'param2': 'value2'})]
-        self.assertEqual(result, expected)
-
-    def test_combine_args_with_list(self):
-        args = {
-            'problem1': {'param1': 'value1', 'param2': [1, 2]}
-        }
-        result = combine_args(args)
-        expected = [
-            ('problem1', {'param1': 'value1', 'param2': 1}),
-            ('problem1', {'param1': 'value1', 'param2': 2})
-        ]
-        self.assertEqual(result, expected)
-
-    def test_combine_args_multiple_lists(self):
-        args = {
-            'problem1': {'param1': [1, 2], 'param2': ['a', 'b']}
-        }
-        result = combine_args(args)
-        expected = [
-            ('problem1', {'param1': 1, 'param2': 'a'}),
-            ('problem1', {'param1': 1, 'param2': 'b'}),
-            ('problem1', {'param1': 2, 'param2': 'a'}),
-            ('problem1', {'param1': 2, 'param2': 'b'})
-        ]
-        self.assertEqual(result, expected)
-
-
-class TestGenExpCombinations(unittest.TestCase):
-
-    def test_gen_exp_combinations(self):
-        launcher_conf = LauncherConfig(
-            algorithms=['alg1', 'alg2'],
-            problems=['prob1', 'prob2']
-        )
-        alg_conf = {
-            'alg1': {'alg_param': 1},
-            'alg2': {'alg_param': 2}
-        }
-        prob_conf = {
-            'prob1': {'prob_param': 'a'},
-            'prob2': {'prob_param': 'b'}
-        }
-        result = gen_exp_combinations(launcher_conf, alg_conf, prob_conf)
-
-        expected = [
-            ('alg1', {'alg_param': 1}, 'prob1', {'prob_param': 'a'}),
-            ('alg1', {'alg_param': 1}, 'prob2', {'prob_param': 'b'}),
-            ('alg2', {'alg_param': 2}, 'prob1', {'prob_param': 'a'}),
-            ('alg2', {'alg_param': 2}, 'prob2', {'prob_param': 'b'})
-        ]
-        self.assertEqual(result, expected)
-
-
-class TestParseReporterConfig(unittest.TestCase):
-
-    def test_parse_reporter_config(self):
-        config = {
-            'algorithms': [['alg1', 'alg2'], ['alg3', 'alg4']],
-            'problems': ['prob1', 'prob2']
-        }
-        prob_conf = {
-            'prob1': {'src_problem': 'src1', 'np_per_dim': 2},
-            'prob2': {'np_per_dim': 3}
-        }
-        result = parse_reporter_config(config, prob_conf)
-
-        expected_analysis_comb = [
-            (['alg1', 'alg2'], 'PROB1-src1', 2),
-            (['alg1', 'alg2'], 'PROB2', 3),
-            (['alg3', 'alg4'], 'PROB1-src1', 2),
-            (['alg3', 'alg4'], 'PROB2', 3)
-        ]
-
-        expected_initialize_comb = [
-            ('alg1', 'PROB1-src1', 2),
-            ('alg1', 'PROB2', 3),
-            ('alg2', 'PROB1-src1', 2),
-            ('alg2', 'PROB2', 3),
-            ('alg3', 'PROB1-src1', 2),
-            ('alg3', 'PROB2', 3),
-            ('alg4', 'PROB1-src1', 2),
-            ('alg4', 'PROB2', 3)
-        ]
-
-        self.assertEqual(result['results'], 'out/results')
-        self.assertEqual(result['analysis_comb'], expected_analysis_comb)
-        self.assertEqual(result['initialize_comb'], expected_initialize_comb)

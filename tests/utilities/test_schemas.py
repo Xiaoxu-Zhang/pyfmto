@@ -3,7 +3,14 @@ import numpy as np
 from itertools import product
 from pydantic import ValidationError
 
-from pyfmto.utilities.schemas import STPConfig, TransformerConfig, FunctionInputs, LauncherConfig, ReporterConfig
+from pyfmto.utilities.schemas import (
+    STPConfig,
+    PlottingArgs,
+    FunctionInputs,
+    LauncherConfig,
+    ReporterConfig,
+    TransformerConfig,
+)
 
 
 class TestSTPConfig(unittest.TestCase):
@@ -83,10 +90,18 @@ class TestTransformerConfig(unittest.TestCase):
             ({'dim': dim, 'rotation': np.eye(dim)*scale, 'shift': np.ones(dim)*scale}) for dim, scale in zip(dims, scales)
         ]
         for case, dim, scale in zip(test_cases, dims, scales):
-            trans = TransformerConfig(**case)
+            trans = TransformerConfig(
+                dim=dim,
+                rotation=np.eye(dim)*scale,
+                shift=np.ones(dim)*scale
+            )
             self.assertTrue(np.all(trans.rotation == np.eye(dim)*scale))
             self.assertTrue(np.all(trans.shift == np.ones(dim)*scale))
             self.assertTrue(np.all(trans.rotation_inv @ trans.rotation == np.eye(dim)))
+
+        for dim, shift in zip(dims, scales):
+            trans = TransformerConfig(dim=dim, shift=shift)
+            self.assertTrue(np.all(trans.shift == shift))
 
     def test_invalid(self):
         rot_dim_mismatch = {'dim': 2, 'rotation': np.eye(3)}
@@ -190,3 +205,117 @@ class TestReporterConfig(unittest.TestCase):
         self.assertRaises(ValidationError, ReporterConfig, **inner_too_short)
         self.assertRaises(ValidationError, ReporterConfig, **empty_algorithms)
         self.assertRaises(ValidationError, ReporterConfig, **empty_problems)
+
+
+class TestPlottingArgs(unittest.TestCase):
+
+    def test_valid_defaults(self):
+        """Test PlottingArgs with valid default configurations."""
+        dim = 3
+        lb = -1 * np.ones(dim)
+        ub = np.ones(dim)
+        plotting_args = PlottingArgs(
+            dim=dim,
+            dims=(0, 1),
+            n_points=50,
+            lb=lb,
+            ub=ub,
+            fixed=None,
+        )
+        self.assertEqual(plotting_args.dim, dim)
+        self.assertEqual(plotting_args.dims, (0, 1))
+        self.assertEqual(plotting_args.n_points, 50)
+        np.testing.assert_array_equal(plotting_args.lb, lb)
+        np.testing.assert_array_equal(plotting_args.ub, ub)
+        np.testing.assert_array_equal(plotting_args.fixed, (lb + ub) / 2)
+
+    def test_scalar_fixed_value(self):
+        for fixed in [0.1, 0.2, 0.3, 0.4, 0.5]:
+            plotting_args = PlottingArgs(
+                dim=3,
+                dims=(0, 1),
+                n_points=50,
+                lb=np.zeros(3),
+                ub=np.ones(3),
+                fixed=fixed,
+            )
+            self.assertTrue(np.all(plotting_args.fixed == fixed))
+
+    def test_valid_selected_dims(self):
+        """Test PlottingArgs with various valid inputs."""
+        valid_selected_dims = product([0, 1, 2, 3], [0, 1, 2, 3])
+        for d1, d2 in valid_selected_dims:
+            if d1 == d2:
+                continue
+            args = PlottingArgs(
+                dim=4,
+                dims=(d1, d2),
+                fixed=None,
+                lb=np.zeros(4),
+                ub=np.ones(4),
+                n_points=100,
+            )
+            self.assertEqual(args.dims[0], min(d1, d2), f"while dims={(d1, d2)}, args.dims=({args.dims})")
+            self.assertEqual(args.dims[1], max(d1, d2), f"while dims={(d1, d2)}, args.dims=({args.dims})")
+
+    def test_invalid_func_dim(self):
+        """Test invalid values for dim."""
+        invalid_func_dims = [1, -1, 0]
+        for dim in invalid_func_dims:
+            with self.assertRaises(ValueError, msg=f"while dim={dim}"):
+                PlottingArgs(
+                    dim=dim,
+                    dims=(0, 1),
+                    n_points=50,
+                    lb=np.array([-1, -1]),
+                    ub=np.array([1, 1]),
+                    fixed=None,
+                )
+
+    def test_invalid_selected_dims(self):
+        """Test invalid values for dims."""
+        invalid_selected_dims = [
+            (-1, 1), (2, 2), (1, 3), # Out of range or not distinct
+            (0, 1, 2) # Too many selected dimensions
+        ]
+        for dims in invalid_selected_dims:
+            with self.assertRaises(ValueError, msg=f"while dims={dims}"):
+                PlottingArgs(
+                    dim=3,
+                    dims=dims,
+                    n_points=50,
+                    lb=np.array([-1, -1, -1]),
+                    ub=np.array([1, 1, 1]),
+                    fixed=None,
+                )
+
+    def test_invalid_n_points(self):
+        """Test invalid values for n_points."""
+        for n_points in [5, 1500]:
+            with self.assertWarns(UserWarning, msg=f"while n_points={n_points}"):
+                PlottingArgs(
+                    n_points=n_points,
+                    dim=3,
+                    dims=(0, 1),
+                    lb=np.array([-1, -1, -1]),
+                    ub=np.array([1, 1, 1]),
+                    fixed=None,
+                )
+
+    def test_invalid_fixed(self):
+        """Test invalid values for fixed."""
+        invalid_fixed = [
+            np.array([2, 2, 2]), # Out of bounds
+            np.array([-2, -2, -2]), # Out of bounds
+            np.array([0, 0]) # Shape mismatch
+        ]
+        for fixed in invalid_fixed:
+            with self.assertRaises(ValueError, msg=f"while fixed={fixed}"):
+                PlottingArgs(
+                    fixed=fixed,
+                    dim=3,
+                    dims=(0, 1),
+                    n_points=50,
+                    lb=np.array([-1, -1, -1]),
+                    ub=np.array([1, 1, 1]),
+                )

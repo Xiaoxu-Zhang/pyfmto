@@ -13,7 +13,7 @@ from tabulate import tabulate
 from typing import Union, Optional, Literal
 
 from pyfmto.utilities import StrColors, Cmaps, colored, SeabornStyles
-from pyfmto.utilities.schemas import T_Bound, STPConfig, TransformerConfig, FunctionInputs
+from pyfmto.utilities.schemas import T_Bound, STPConfig, TransformerConfig, FunctionInputs, PlottingArgs
 from .solution import Solution
 
 __all__ = [
@@ -160,8 +160,8 @@ class SingleTaskProblem(ABC):
             dims=(0, 1),
             n_points=100,
             fixed=None,
-            scale_mode: Literal['xy', 'y']='y',
-        ) -> tuple:
+            scale_mode: Optional[str]=None,
+        ) -> tuple[ndarray, ndarray, ndarray, PlottingArgs]:
         """
 
         Parameters
@@ -173,23 +173,30 @@ class SingleTaskProblem(ABC):
         fixed:
             Fixed value of no-selected dimensions
         scale_mode:
-            if pass 'xy' Normalize both the decision space and objective space to (0, 1)
-            if pass 'y' Scale objective value to match the decision space, which will keep
-            the shift information
+            If pass 'xy', normalize both the decision space and objective space to (0, 1).
+            If pass 'y', scale objective value to match the decision space, which will keep
+            the shift information.
+            Any other value will be ignored.
         Returns
         -------
-
+        Tuple:
+            The grid data and validated args ``(D1,D2,Z,args)``.
         """
-        dim1, dim2 = sorted(dims)
-        if not dim1 in range(self.dim) or not dim2 in range(self.dim):
-            raise ValueError(f"The selected_dims's values should in [0, {self.dim - 1}].")
+        args = PlottingArgs(
+            dim=self.dim,
+            ub=self.ub,
+            lb=self.lb,
+            dims=dims,
+            n_points=n_points,
+            fixed=fixed,
+        )
+        dim1, dim2 = args.dims
         lb1, ub1 = self.lb[dim1], self.ub[dim1]
         lb2, ub2 = self.lb[dim2], self.ub[dim2]
         d1 = np.linspace(lb1, ub1, n_points)
         d2 = np.linspace(lb2, ub2, n_points)
         D1, D2 = np.meshgrid(d1, d2)
-        _fixed = (self.lb + self.ub) / 2 if fixed is None else fixed
-        points = np.ones(shape=(n_points, n_points, self.dim)) * _fixed
+        points = np.ones(shape=(n_points, n_points, self.dim)) * args.fixed
         points[:, :, dim1] = D1
         points[:, :, dim2] = D2
         Z = np.apply_along_axis(self.evaluate, axis=-1, arr=points)
@@ -202,10 +209,8 @@ class SingleTaskProblem(ABC):
             x_range = self.ub[0] - self.lb[0]
             Z = x_range * (Z - np.min(Z)) / (np.max(Z) - np.min(Z))
         else:
-            print(f"Unknown scale_mode '{scale_mode}', which should "
-                  f"be '{colored('xy', 'green')}' "
-                  f"or '{colored('y', 'green')}'")
-        return D1, D2, Z
+            pass # do nothing
+        return D1, D2, Z, args
 
     def plot_2d(
             self,
@@ -246,22 +251,18 @@ class SingleTaskProblem(ABC):
         fixed : float, np.ndarray
             Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,)
         """
-        if self.dim < 2:
-            raise ValueError(f"Only supported for 'dim>1' problems, got dim={self.dim} instead.")
-        if not isinstance(dims, (list, tuple)):
-            raise ValueError('dims should be [int, int] or (int, int)')
         w, h, s = figsize
         figsize = (w * s, h * s)
         plt.figure(figsize=figsize)
-        D1, D2, Z = self.gen_plot_data(dims, n_points, fixed)
+        D1, D2, Z, args = self.gen_plot_data(dims=dims, n_points=n_points, fixed=fixed)
         cont = plt.contourf(D1, D2, Z, levels=levels, cmap=str(cmap), alpha=alpha)
         cbar = plt.colorbar(cont)
         cbar.set_label('Function Value')
         cbar.formatter = FuncFormatter(lambda x, pos: f'{x:.2e}' if abs(x) > 1e4 else f'{x:.2f}')
         cbar.update_ticks()
         xl, yl = labels
-        xl = f'X{min(dims)}' if xl is None else xl
-        yl = f'X{max(dims)}' if yl is None else yl
+        xl = f'X{args.dims[0]}' if xl is None else xl
+        yl = f'X{args.dims[1]}' if yl is None else yl
         _title = f'T{self.id} {self.name}' if title is None else title
         plt.xlabel(xl)
         plt.ylabel(yl, rotation=0)
@@ -312,11 +313,9 @@ class SingleTaskProblem(ABC):
         fixed : float, np.ndarray
             Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,).
         """
-        if self.dim < 2:
-            raise ValueError(f"Only supported for 'dim>1' problems, got dim={self.dim} instead.")
         w, h, s = figsize
         figsize = (w * s, h * s)
-        D1, D2, Z = self.gen_plot_data(dims, n_points, fixed)
+        D1, D2, Z, args = self.gen_plot_data(dims=dims, n_points=n_points, fixed=fixed)
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111, projection='3d')
         surf = ax.plot_surface(D1, D2, Z, cmap=str(cmap), edgecolor='none', alpha=alpha)
@@ -326,10 +325,9 @@ class SingleTaskProblem(ABC):
         cbar.formatter = FuncFormatter(lambda x, pos: f'{x:.2e}' if abs(x) > 1e4 else f'{x:.2f}')
         cbar.update_ticks()
 
-        dim1, dim2 = sorted(dims)
         xl, yl, zl = labels
-        xl = f'X{dim1}' if xl is None else xl
-        yl = f'X{dim2}' if yl is None else yl
+        xl = f'X{args.dims[0]}' if xl is None else xl
+        yl = f'X{args.dims[1]}' if yl is None else yl
         zl = 'Y' if zl is None else zl
         _title = f"T{self.id} {self.name}" if title is None else title
         ax.view_init(elev=20, azim=-120)
@@ -344,7 +342,7 @@ class SingleTaskProblem(ABC):
             plt.show()
         plt.close()
 
-    def plot_3d_interactive(
+    def iplot_3d(
             self,
             dims: tuple[int, int] = (0, 1),
             n_points: int = 100,
@@ -395,8 +393,8 @@ class SingleTaskProblem(ABC):
         if plotter is None:
             plotter = pv.Plotter(shape=(1, 1))
             plotter.subplot(0, 0)
-        x, y, z = self.gen_plot_data(dims=dims, fixed=fixed, n_points=n_points, scale_mode=scale_mode)
-        grid = pv.StructuredGrid(x, y, z)
+        D1, D2, Z, args = self.gen_plot_data(dims=dims, fixed=fixed, n_points=n_points, scale_mode=scale_mode)
+        grid = pv.StructuredGrid(D1, D2, Z)
         if color is None:
             plotter.add_mesh(grid, scalars=grid.points[:, 2], cmap=str(cmap))
             plotter.remove_scalar_bar()
@@ -406,8 +404,8 @@ class SingleTaskProblem(ABC):
         plotter.add_title(f"T{self.id} {self.name}", font_size=font_size)
         if show_grid:
             plotter.show_grid(
-                xtitle=f'X{min(dims)}',
-                ytitle=f'X{max(dims)}',
+                xtitle=f'X{args.dims[0]}',
+                ytitle=f'X{args.dims[1]}',
                 ztitle='Y',
                 font_size=8,
                 location='outer'
@@ -724,7 +722,7 @@ class MultiTaskProblem(ABC):
     def _unset_seed(self):
         np.random.set_state(self._rdm_state)
 
-    def plot_3d_interactive(
+    def iplot_tasks_3d(
             self,
             tasks_id: Union[list, tuple, range]=(1, 2, 3, 4),
             shape: tuple[int, int]=(2, 2),
@@ -737,7 +735,7 @@ class MultiTaskProblem(ABC):
             show_grid: bool=True,
     ):
         """
-        Plot tasks in an interactive mode.
+        Plot a set of tasks' 3d landscape in an interactive window.
 
         Parameters
         ----------
@@ -780,7 +778,7 @@ class MultiTaskProblem(ABC):
             row, col = index // shape[1], index % shape[1]
             plotter.subplot(row, col)
             task = self._problem[tid-1]
-            task.plot_3d_interactive(
+            task.iplot_3d(
                 dims=dims,
                 n_points=n_points,
                 scale_mode=scale_mode,
@@ -865,7 +863,7 @@ class MultiTaskProblem(ABC):
         else:
             plt.show()
 
-    def plot_heatmap(
+    def plot_similarity_heatmap(
             self,
             n_samples: int=1000,
             method: Literal['kendalltau', 'spearmanr', 'pearsonr']='spearmanr',
@@ -882,7 +880,7 @@ class MultiTaskProblem(ABC):
             filename=None,
     ):
         """
-        Plot a heatmap showing the correlation between tasks in the multitask problem.
+        Plot a heatmap showing the similarity between tasks.
 
         This function computes correlation coefficients between all pairs of tasks
         using sampled points in the decision space, and visualizes them as a heatmap.

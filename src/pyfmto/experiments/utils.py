@@ -1,6 +1,8 @@
 import copy
 import os
+import platform
 import subprocess
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
@@ -15,7 +17,7 @@ from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
 
 
 def clear_console():
-    if os.name == 'nt':
+    if platform.system() == 'Windows':
         os.system('cls')
     else:
         os.system('clear')
@@ -23,12 +25,12 @@ def clear_console():
 
 def start_server(server: Type[Server], **kwargs):
     """
-    Start the server in a subprocess
+    Start the server in a subprocess with a unified approach.
 
     Parameters
     ----------
     server:
-        The server class itself, not an instance of server.
+        The server class itself, not an instance.
     kwargs:
         The kwargs of the server.
     """
@@ -36,23 +38,19 @@ def start_server(server: Type[Server], **kwargs):
     class_name = server.__name__
 
     cmd = [
-        "python", "-c",
+        sys.executable, "-c",
         f"from {module_name} import {class_name}; "
         f"srv = {class_name}(**{repr(kwargs)}); "
         f"srv.start()"
     ]
 
-    if os.name == 'posix':
-        subprocess.Popen(cmd,
-                         start_new_session=True,
-                         stdin=subprocess.DEVNULL)
-    elif os.name == 'nt':
-        subprocess.Popen(cmd,
-                         creationflags=subprocess.CREATE_NEW_CONSOLE,
-                         stdin=subprocess.DEVNULL)
-    else:
-        raise OSError(f"Unsupported operating system: {os.name}")
-    logger.info("Server started.")
+    subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    logger.debug("Server started.")
     time.sleep(2)
 
 
@@ -76,7 +74,7 @@ def start_clients(clients: list[Client]) -> list[tuple[int, Solution]]:
 
 
 def kill_server():
-    if os.name == 'win32':
+    if platform.system() == 'Windows':
         os.system("taskkill /f /im AlgServer.exe")
     else:
         os.system("pkill -f AlgServer")

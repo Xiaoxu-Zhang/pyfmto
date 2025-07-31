@@ -1,5 +1,7 @@
+import warnings
+
 import numpy as np
-from typing import Union, Optional
+from typing import Union, Optional, Literal
 from pydantic import BaseModel, field_validator, model_validator, ConfigDict, StrictInt, StrictFloat
 
 T_Bound = Union[int, float, list, tuple, np.ndarray]
@@ -188,3 +190,62 @@ class ReporterConfig(BaseModel):
         if len(v) < 1:
             raise ValueError('problems list must have at least 1 element')
         return v
+
+
+class PlottingArgs(BaseModel):
+    """
+    This model will make sure:
+
+    - ``dim:int>=2``
+    - ``0<=dims[0]<dims[1]<dim``
+    - ``10<=n_points:int<=1000``
+    - ``lb<=fixed:ndarray<=ub``, ``fixed.shape=(dim,)``
+    """
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    dim: int
+    dims: tuple
+    n_points: int
+    lb: np.ndarray
+    ub: np.ndarray
+    fixed: Union[int, float, np.ndarray, None]
+
+    @field_validator('dim')
+    def dim_must_be_ge_2(cls, v):
+        if v < 2:
+            raise ValueError(f"only support dim>=2 functions, got dim={v}")
+        return v
+
+    @field_validator('dims')
+    def dims_must_ordered_and_different(cls, v):
+        if len(v) != 2:
+            raise ValueError(f"dims must be a tuple of two >=0 integers, got {v}")
+        if min(v) < 0:
+            raise ValueError(f"dims must be integers and >= 0")
+        if v[0] == v[1]:
+            raise ValueError(f"dims should be two different integers, got dims={v}")
+        return min(v), max(v)
+
+    @field_validator('n_points')
+    def warning_if_too_large(cls, v):
+        if v > 1000:
+            warnings.warn(f"A large n_points may cause slow plotting. Using 1000 instead.")
+            return 1000
+        if v < 10:
+            warnings.warn(f"A small n_points may cause detail loss in plotting. Using 10 instead.")
+            return 10
+        return v
+
+    @model_validator(mode='after')
+    def check_and_set_defaults(self):
+        if self.dims[1] >= self.dim:
+            raise ValueError(f"selected dim must be in [0, {self.dim-1}], got dims={self.dims}")
+        if self.fixed is None:
+            self.fixed = (self.lb + self.ub) / 2
+        elif isinstance(self.fixed, (int, float)):
+            self.fixed = np.ones(self.dim) * self.fixed
+        if self.fixed.shape != (self.dim,):
+            raise ValueError(f"fixed shape, if a ndarray, must be ({self.dim},), got fixed shape={self.fixed.shape}")
+        if np.any(self.fixed < self.lb) or np.any(self.fixed > self.ub):
+            raise ValueError(f"fixed point must be within [lb, ub], got \n"
+                             f"fixed={self.fixed}\nlb={self.lb}\nub={self.ub}")
+        return self
