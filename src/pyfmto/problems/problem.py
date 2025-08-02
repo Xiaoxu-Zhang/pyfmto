@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from numpy import ndarray
+from pathlib import Path
 from pyDOE import lhs
 from scipy.stats import kendalltau, spearmanr, pearsonr
 from tabulate import tabulate
@@ -204,17 +205,17 @@ class SingleTaskProblem(ABC):
         if scale_mode == 'xy':
             dn = np.linspace(0, 1, n_points)
             D1, D2 = np.meshgrid(dn, dn)
-            Z = (Z - np.min(Z)) / (np.max(Z) - np.min(Z))
+            Z = (Z - np.min(Z)) / (np.max(Z) - np.min(Z) + 1e-8)
         elif scale_mode == 'y':
             x_range = self.ub[0] - self.lb[0]
-            Z = x_range * (Z - np.min(Z)) / (np.max(Z) - np.min(Z))
+            Z = x_range * (Z - np.min(Z)) / (np.max(Z) - np.min(Z) + 1e-8)
         else:
             pass # do nothing
         return D1, D2, Z, args
 
     def plot_2d(
             self,
-            filename: Optional[str]=None,
+            filename: Optional[Union[str, Path]]=None,
             dims: Union[list[int, int], tuple[int, int]]=(0, 1),
             n_points: int=100,
             figsize: tuple[float, float, float]=(5., 4., 1.),
@@ -276,7 +277,7 @@ class SingleTaskProblem(ABC):
 
     def plot_3d(
             self,
-            filename: Optional[str] = None,
+            filename: Optional[Union[str, Path]] = None,
             dims: tuple[int, int]=(0, 1),
             n_points: int = 100,
             figsize: tuple[float, float, float] = (5., 4., 1.),
@@ -460,18 +461,19 @@ class SingleTaskProblem(ABC):
 
         y_init = np.array(self.evaluate(x_init))
         self.solutions.clear()  # Do not remove this line
+        self.solutions.append(x_init, y_init)
 
         self.solutions._x_global = self.x_global
-        if not self.auto_update_solutions:
-            self.solutions.append(x_init, y_init)
-            self.solutions._y_global = self.y_global
-        else:
-            # because the y_global is getting by self.evaluate(), so
-            # we need disable auto_update_solutions temporarily if
-            # it is True
+        if self.auto_update_solutions:
+            # because the y_global is getting by self.evaluate(),
+            # and the auto solution update also in self.evaluate(),
+            # so we need disable auto_update_solutions temporarily
+            # to set the y_global
             self.auto_update_solutions = False
             self.solutions._y_global = self.y_global
             self.auto_update_solutions = True
+        else:
+            self.solutions._y_global = self.y_global
 
     def random_uniform_x(self, size, within_partition=True):
         """
@@ -561,15 +563,11 @@ class SingleTaskProblem(ABC):
 
     @property
     def x_global(self):
-        if self._x_global is None:
-            return None
-        return self.inverse_transform_x(self._x_global)
+        return None if self._x_global is None else self.inverse_transform_x(self._x_global)
 
     @property
     def y_global(self):
-        if self.x_global is None:
-            return None
-        return self.evaluate(self.x_global).squeeze()
+        return None if self._x_global is None else self.evaluate(self.x_global).squeeze()
 
     @property
     def shift(self):
@@ -877,7 +875,7 @@ class MultiTaskProblem(ABC):
             vmax: Optional[float]=None,
             vmin: Optional[float]=None,
             linewidth: float=0.5,
-            filename=None,
+            filename: Optional[Union[str, Path]]=None,
     ):
         """
         Plot a heatmap showing the similarity between tasks.
@@ -892,47 +890,47 @@ class MultiTaskProblem(ABC):
         n_samples : int, default=1000
          Number of Latin Hypercube samples to use for evaluating the functions.
 
-        method : {'spearmanr', 'kendalltau', 'pearsonr'}, default='spearmanr'
+        method :
          Correlation method to use:
-         - 'spearmanr': Spearman rank correlation
-         - 'kendalltau': Kendall tau correlation
-         - 'pearsonr': Pearson correlation coefficient
+         'spearmanr': Spearman rank correlation;
+         'kendalltau': Kendall tau correlation;
+         'pearsonr': Pearson correlation coefficient
 
-        p_value : float, default=0.05
+        p_value :
          Upper bound for p-value. Correlations with p-values greater than this
          value are considered not statistically significant and will be masked.
 
-        figsize : tuple[float, float, float], default=(9., 7., 1.)
+        figsize :
          Figure size as (width, height, scale).
 
-        cmap : str or Cmaps, optional
+        cmap :
          Colormap for the heatmap. If None, uses the default matplotlib colormap.
 
-        masker : float, optional
+        masker :
          Value to use for masking non-significant correlations. Default is NaN.
 
-        font_size : int, default=10
+        font_size :
          Font size for annotation text in heatmap cells.
 
-        fmt : str, default='.2f'
+        fmt :
          Format string for annotating values in heatmap cells.
 
-        triu : {'full', 'lower', 'upper'}, default='full'
+        triu :
          Which part of the matrix to display:
          - 'full': Show full matrix
          - 'lower': Show only lower triangular matrix
          - 'upper': Show only upper triangular matrix
 
-        vmax : float, optional
+        vmax :
          Maximum value for colormap normalization.
 
-        vmin : float, optional
+        vmin :
          Minimum value for colormap normalization.
 
-        linewidth : float, default=0.5
+        linewidth :
          Width of lines separating heatmap cells.
 
-        filename : str, optional
+        filename :
          File path to save the plot. If None, displays the plot instead.
 
         Notes

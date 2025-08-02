@@ -2,31 +2,21 @@ import matplotlib
 import numpy as np
 import shutil
 import unittest
+import pyvista
+from itertools import product
+from unittest.mock import patch
 from pathlib import Path
 
-from pydantic import ValidationError
-
-from pyfmto.problems.problem import (
-    SingleTaskProblem as _SingleTaskProblem,
-    MultiTaskProblem as _MultiTaskProblem
-)
+from tests.problems import ConstantProblem, SimpleProblem, MtpSynthetic, MtpRealworld, MtpNonIterableReturn
 
 matplotlib.use('Agg')
-TASK_NUM = 4
+pyvista.OFF_SCREEN = True
 
 
-class STP(_SingleTaskProblem):
-
-    def __init__(self, dim: int, obj: int, lb, ub, **kwargs):
-        super().__init__(dim, obj, lb, ub, **kwargs)
-
-    def _eval_single(self, x):
-        return np.sin(np.sum(x ** 2))
-
-
-class TestSingleTaskProblem(unittest.TestCase):
+class TestProblemBase(unittest.TestCase):
 
     def setUp(self):
+        self.dims = [2, 5, 10]
         self.tmp_dir = Path('tmp')
         if not self.tmp_dir.exists():
             self.tmp_dir.mkdir(parents=True)
@@ -35,131 +25,173 @@ class TestSingleTaskProblem(unittest.TestCase):
         shutil.rmtree(self.tmp_dir)
 
     def test_attributes(self):
-        stp = STP(dim=2, obj=1, lb=-1, ub=1)
-        self.assertTrue(stp.name in stp.__repr__())
-        self.assertTrue(stp.name in stp.__str__())
+        for dim, obj in product(self.dims, range(2, 5)):
+            prob = ConstantProblem(dim=dim, obj=obj, lb=-5, ub=5)
+            self.assertTrue(prob.no_partition)
+            self.assertEqual(prob.id, -1)
+            self.assertFalse(prob.auto_update_solutions)
+            prob.set_id(1)
+            self.assertEqual(prob.id, 1)
+
+    def test_properties(self):
+        for dim, obj in product(self.dims, range(2, 5)):
+            prob = ConstantProblem(dim=dim, obj=obj, lb=-5, ub=5)
+            self.assertEqual(prob.dim, dim)
+            self.assertEqual(prob.obj, obj)
+            self.assertEqual(prob.name, "ConstantProblem")
+            self.assertEqual(prob.fe_init, 5*dim)
+            self.assertEqual(prob.fe_max, 11*dim)
+            self.assertEqual(prob.solutions.size, 0)
+            self.assertEqual(prob.fe_available, 11*dim, f"fe_init={prob.fe_init}, size={prob.solutions.size}, fe_max={prob.fe_max}")
+            self.assertEqual(prob.np_per_dim, 1)
+            self.assertTrue(np.all(prob.lb == -5))
+            self.assertTrue(np.all(prob.ub == 5))
+            self.assertTrue(np.all(prob.shift == 0))
+            self.assertTrue(np.all(prob.rotation == np.eye(dim)))
+
+            _ = repr(prob)
+            _ = str(prob)
+
+    def test_init_partition(self):
+        for dim, np_value in product(self.dims, [1, 2, 4, 6]):
+            prob = ConstantProblem(dim=dim, obj=1, lb=-5, ub=5, **{'np_per_dim': np_value})
+            self.assertTrue(prob.no_partition)
+            prob.init_partition()
+            self.assertFalse(prob.no_partition)
+            self.assertEqual(prob._partition.shape, (2, dim))
+            self.assertTrue(np.all(prob._partition[0] >= prob.lb))
+            self.assertTrue(np.all(prob._partition[1] <= prob.ub))
+
+    def test_gen_plotting_data(self):
+        prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1)
+        D1, D2, Z, _ = prob.gen_plot_data()
+        self.assertEqual(D1.ndim, 2)
+        self.assertEqual(D2.ndim, 2)
+        self.assertEqual(Z.ndim, 2)
+        for dim, n_points in product(self.dims, [20, 50]):
+            prob = ConstantProblem(dim=dim, obj=1, lb=-5, ub=5)
+            D1, D2, Z, _ = prob.gen_plot_data(n_points=n_points)
+            self.assertEqual(D1.shape, (n_points, n_points))
+            self.assertEqual(D2.shape, (n_points, n_points))
+            self.assertEqual(Z.shape, (n_points, n_points))
+            D1, D2, Z, _ = prob.gen_plot_data(scale_mode='xy')
+            self.assertTrue(np.all(D1 >= 0))
+            self.assertTrue(np.all(D1 <= 1))
+            self.assertTrue(np.all(D2 >= 0))
+            self.assertTrue(np.all(D2 <= 1))
+            _ = prob.gen_plot_data(scale_mode='y')
+
+    def test_init_solutions(self):
+        for np_value in [1, 2, 4, 6]:
+            prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1, **{'np_per_dim': np_value})
+            self.assertTrue(prob.no_partition)
+            prob.init_solutions()
+            prob.init_partition()
+            prob.init_solutions()  # reinitialize solutions
+            self.assertEqual(prob.fe_available, prob.fe_max - prob.fe_init)
+            fe_init = prob.solutions.fe_init
+            init_size = prob.solutions.size
+            self.assertEqual(fe_init, init_size,
+                             msg=f"fe_init is {fe_init}, init_size is {init_size}")
+            x = prob.solutions.x
+            self.assertTrue(np.all(x >= prob.lb))
+            self.assertTrue(np.all(x <= prob.ub))
+            self.assertTrue(np.all(x >= prob._partition[0]), msg=f"x=\n{x}, partition=\n{prob._partition}")
+            self.assertTrue(np.all(x <= prob._partition[1]))
+
+    def test_set_x_global(self):
+        prob = SimpleProblem(dim=5, obj=1, lb=-1, ub=1)
+        self.assertTrue(np.all(prob.x_global == 0))
+        self.assertTrue(np.all(prob.y_global == 0))
+        prob.set_x_global(np.arange(5))
+        self.assertTrue(np.all(prob.x_global == np.arange(5)))
+        self.assertTrue(np.any(prob.y_global != 0))
+        prob.set_transform(rotation=3*np.eye(5), shift=1)
+        self.assertTrue(np.all(prob.x_global == prob.inverse_transform_x(np.arange(5))))
+
+    def test_plots(self):
+        prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1)
+        prob.plot_2d(n_points=10)
+        prob.plot_3d(n_points=10)
+        prob.plot_2d(n_points=10, filename=self.tmp_dir / 'tmp2d.png')
+        prob.plot_3d(n_points=10, filename=self.tmp_dir / 'tmp3d.png')
+        self.assertTrue((self.tmp_dir / 'tmp2d.png').exists())
+        self.assertTrue((self.tmp_dir / 'tmp3d.png').exists())
+        prob.iplot_3d(n_points=10)
+        plotter = pyvista.Plotter()
+        prob.iplot_3d(n_points=10, plotter=plotter, color='red')
+
+        with patch.dict('sys.modules', {'pyvista': None}):
+            prob.iplot_3d(n_points=10)
 
     def test_norm_denorm_methods(self):
-        stp = STP(dim=2, obj=1, lb=-1, ub=1)
-        x_in_src_bound = stp.random_uniform_x(size=50)
+        prob = ConstantProblem(dim=2, obj=1, lb=-1, ub=1)
+        x_in_src_bound = prob.random_uniform_x(size=50)
         x_out_src_bound = x_in_src_bound - 2
         x_out_normal_bound = x_in_src_bound
 
-        x_in_src_bound_normalized = stp.normalize_x(x_in_src_bound)
-        x_in_src_bound_denormalized = stp.denormalize_x(x_in_src_bound_normalized)
-        x_out_src_bound_normalized = stp.normalize_x(x_out_src_bound)
-        x_out_normal_bound_denormalized = stp.denormalize_x(x_out_normal_bound)
+        x_in_src_bound_normalized = prob.normalize_x(x_in_src_bound)
+        x_in_src_bound_denormalized = prob.denormalize_x(x_in_src_bound_normalized)
+        x_out_src_bound_normalized = prob.normalize_x(x_out_src_bound)
+        x_out_normal_bound_denormalized = prob.denormalize_x(x_out_normal_bound)
 
         self.assertTrue(np.all(x_in_src_bound_normalized >= 0))
         self.assertTrue(np.all(x_in_src_bound_normalized <= 1))
         self.assertTrue(np.all(x_out_src_bound_normalized >= 0))
         self.assertTrue(np.all(x_out_src_bound_normalized <= 1))
 
-        self.assertTrue(np.all(x_in_src_bound_denormalized >= stp.lb))
-        self.assertTrue(np.all(x_in_src_bound_denormalized <= stp.ub))
-        self.assertTrue(np.all(x_out_normal_bound_denormalized >= stp.lb))
-        self.assertTrue(np.all(x_out_normal_bound_denormalized <= stp.ub))
+        self.assertTrue(np.all(x_in_src_bound_denormalized >= prob.lb))
+        self.assertTrue(np.all(x_in_src_bound_denormalized <= prob.ub))
+        self.assertTrue(np.all(x_out_normal_bound_denormalized >= prob.lb))
+        self.assertTrue(np.all(x_out_normal_bound_denormalized <= prob.ub))
         err = x_in_src_bound - x_in_src_bound_denormalized
         self.assertTrue(np.all(err < 1e-10), msg=f"{err < 1e-10}")
 
     def test_uniform_solution(self):
-        stp_np1 = STP(dim=5, obj=1, lb=-1, ub=1, **{'np_per_dim': 1})
-        stp_np2 = STP(dim=5, obj=1, lb=-1, ub=1, **{'np_per_dim': 2})
-        stp_np1.init_partition()
-        stp_np2.init_partition()
-        x1 = stp_np1.random_uniform_x(size=100)
-        x2 = stp_np2.random_uniform_x(size=100)
-        self.assertEqual(x1.shape[0], 100)
-        self.assertEqual(x2.shape[0], 100)
+        n_points = 50
+        # We don't test np_value=1 which is equal to no partition,
+        # it will cause failure when we test np.any(x < partition[0]).
+        for np_value in [2, 3, 4, 5]:
+            prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1, **{'np_per_dim': np_value})
+            prob.init_partition()
+            x = prob.random_uniform_x(size=n_points)
+            self.assertEqual(x.shape[0], n_points)
+            self.assertTrue(np.all(x >= prob._partition[0]))
+            self.assertTrue(np.all(x <= prob._partition[1]))
+            x = prob.random_uniform_x(size=n_points, within_partition=False)
+            self.assertTrue(np.any(x < prob._partition[0]))
+            self.assertTrue(np.any(x > prob._partition[1]))
 
-    def test_init_solutions(self):
-        stp = STP(dim=5, obj=1, lb=-1, ub=1)
-        stp.init_solutions()
-        self.assertEqual(stp.fe_available, stp.fe_max - stp.fe_init)
-        self.assertTrue(stp.no_partition)
+    def test_auto_update_solutions(self):
+        dim = 5
+        prob = ConstantProblem(dim=dim, obj=1, lb=-5, ub=5)
 
-        stp.init_solutions()  # reinitialize solutions
-        init_fe = stp.solutions.fe_init
-        init_size = stp.solutions.size
-        self.assertEqual(stp.solutions.fe_init, stp.solutions.size,
-                         msg=f"init_fe is {init_fe}, init_size is {init_size}")
-        self.assertTrue(np.all(stp.solutions.x >= stp.lb))
-        self.assertTrue(np.all(stp.solutions.x <= stp.ub))
+        prob.init_solutions()
+        self.assertEqual(prob.solutions.size, prob.fe_init)
+        x = prob.random_uniform_x(1)
+        y = prob.evaluate(x)
+        self.assertEqual(prob.solutions.size, prob.fe_init)
+        prob.solutions.append(x, y)
+        self.assertEqual(prob.solutions.size, prob.fe_init + 1)
 
-        for np_per_dim in range(2, 10):
-            stp_pb = STP(dim=5, obj=1, lb=[-1, -2, -3, -4, -5], ub=[6, 7, 8, 9, 10], **{'np_per_dim': np_per_dim})
-            stp_pb.init_partition()
-            self.assertEqual(stp_pb.np_per_dim, np_per_dim)
-            band_partition = stp_pb._partition[1] - stp_pb._partition[0]
-            band_bounds = stp_pb.ub - stp_pb.lb
-            band_expected = band_bounds / np_per_dim
-            band_diff = np.abs(band_partition - band_expected)
-            msg = (f"partition lb: {stp_pb._partition[0]}\n"
-                   f"partition ub: {stp_pb._partition[1]}\n"
-                   f"band partition: {band_partition}\n"
-                   f"band bounds: {band_bounds}\n"
-                   f"band expected: {band_expected}\n"
-                   f"band diff: {band_diff}")
-            self.assertTrue(np.all(band_diff < 1e-10), msg)
+        prob.init_solutions()
+        x = prob.random_uniform_x(10)
+        y = prob.evaluate(x)
+        prob.solutions.append(x, y)
+        self.assertEqual(prob.solutions.size, prob.fe_init + 10)
 
-            stp_pb.init_solutions()
-            self.assertTrue(np.all(stp_pb.solutions.x >= stp_pb._partition[0]))
-            self.assertTrue(np.all(stp_pb.solutions.x <= stp_pb._partition[1]))
+        prob.auto_update_solutions = True
 
-    def test_visualize(self):
-        stp1 = STP(dim=1, obj=1, lb=-1, ub=1)
-        stp2 = STP(dim=2, obj=1, lb=-1, ub=1)
-        vis_2d = self.tmp_dir / 'test_vis_2d'
-        vis_3d = self.tmp_dir / 'test_vis_3d'
-        stp2.plot_2d(n_points=10)
-        stp2.plot_3d(n_points=10)
-        stp2.plot_2d(filename=str(vis_2d), n_points=10)
-        stp2.plot_3d(filename=str(vis_3d), n_points=10)
-        self.assertTrue(vis_2d.with_suffix('.png').exists(), msg="Visualization 2d failed")
-        self.assertTrue(vis_3d.with_suffix('.png').exists(), msg="Visualization 3d failed")
-        self.assertRaises(ValueError, stp1.plot_2d)
+        prob.init_solutions()
+        self.assertEqual(prob.solutions.size, prob.fe_init)
+        x = prob.random_uniform_x(1)
+        prob.evaluate(x)
+        self.assertEqual(prob.solutions.size, prob.fe_init + 1)
 
-
-class InitAttrAfterSuper(_MultiTaskProblem):
-    is_realworld = False
-
-    def __init__(self, dim: int = 2, *args, **kwargs):
-        super().__init__(dim, *args, **kwargs)
-        self.test_attr = 'test_attr'
-
-    def _init_tasks(self, dim, *args, **kwargs):
-        self.test_attr = self.test_attr + 'new_value'
-        return [STP(dim, 1, 0, 1, **kwargs) for _ in range(TASK_NUM)]
-
-
-class InitWithInvalidReturn(_MultiTaskProblem):
-    is_realworld = False
-
-    def __init__(self):
-        super().__init__()
-
-    def _init_tasks(self, *args, **kwargs):
-        return None
-
-
-class SyntheticMtp(_MultiTaskProblem):
-    is_realworld = False
-
-    def __init__(self, dim: int = 2, **kwargs):
-        super().__init__(dim, **kwargs)
-
-    def _init_tasks(self, dim, **kwargs):
-        return [STP(dim, 1, 0, 1, **kwargs) for _ in range(TASK_NUM)]
-
-
-class RealworldMtp(_MultiTaskProblem):
-    is_realworld = True
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def _init_tasks(self, **kwargs):
-        return [STP(2, 1, 0, 1, **kwargs) for _ in range(TASK_NUM)]
+        prob.init_solutions()
+        x = prob.random_uniform_x(10)
+        prob.evaluate(x)
+        self.assertEqual(prob.solutions.size, prob.fe_init+10)
 
 
 class TestMultiTaskProblem(unittest.TestCase):
@@ -172,20 +204,37 @@ class TestMultiTaskProblem(unittest.TestCase):
         shutil.rmtree(self.tmp_dir)
 
     def test_init(self):
-        self.assertRaises(AttributeError, InitAttrAfterSuper)
-        self.assertRaises(TypeError, InitWithInvalidReturn)
-        _ = SyntheticMtp(random_ctrl='no')
-        _ = RealworldMtp(random_ctrl='strong')
-        self.assertRaises(ValueError, RealworldMtp, random_ctrl='not_support')
-        prob = SyntheticMtp()
+        self.assertRaises(TypeError, MtpNonIterableReturn)
+        _ = MtpSynthetic(random_ctrl='no')
+        _ = MtpRealworld(random_ctrl='strong')
+        self.assertRaises(ValueError, MtpRealworld, random_ctrl='not_support')
+        prob = MtpSynthetic()
         filename = self.tmp_dir / 'test_show.png'
         prob.plot_distribution(filename=str(filename))
         prob.plot_distribution()
         self.assertTrue(filename.exists())
 
+    def test_plots(self):
+        mtp = MtpSynthetic()
+        mtp.plot_distribution()
+        mtp.plot_similarity_heatmap()
+        mtp.plot_similarity_heatmap(triu='lower')
+        mtp.plot_similarity_heatmap(triu='upper')
+        mtp.plot_similarity_heatmap(filename=self.tmp_dir / 'test_show.png')
+        self.assertTrue((self.tmp_dir / 'test_show.png').exists())
+        mtp.iplot_tasks_3d(tasks_id=(1, 2), shape=(1, 2))
+        with self.assertRaises(ValueError):
+            mtp.plot_similarity_heatmap(method='not_support')
+        with self.assertRaises(ValueError):
+            mtp.iplot_tasks_3d(tasks_id=(5, 6), shape=(1, 2))
+        with self.assertRaises(ValueError):
+            mtp.iplot_tasks_3d(tasks_id=(1, 2), shape=(1, 1))
+        with patch.dict('sys.modules', {'pyvista': None}):
+            mtp.iplot_tasks_3d(tasks_id=(1, 2), shape=(1, 2))
+
     def test_attributes(self):
-        realworld = RealworldMtp()
-        synthetic = SyntheticMtp()
+        realworld = MtpRealworld()
+        synthetic = MtpSynthetic()
         self.assertEqual(realworld.task_num, synthetic.task_num)
         realworld.__iter__()
         synthetic.__iter__()
