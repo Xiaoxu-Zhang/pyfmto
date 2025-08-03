@@ -71,18 +71,19 @@ class FmtboServer(Server):
         lts_upd: AggData = self.clients_data[client_data.cid].get_latest_res()
         return ServerPackage('LatestUpdate', data=lts_upd)
 
-    def aggregate(self, client_id):
-        src_num = np.sum(self.agg_src_versions > self.latest_res_version(client_id))
-        if src_num == self.num_clients:
-            index = self.clients_data[client_id].num_res
-            ls_mat = self._cal_ls_mat_by_rank(index)
-            for cid, ls_array in enumerate(ls_mat):
-                selected_updates = self._select_updates_for_merge(ls_array)
-                src_num = len(selected_updates)
-                res = self._fedavg(selected_updates, index)
-                ver = self.clients_data[cid+1].num_res + 1
-                self.clients_data[cid+1].add_res(AggData(ver, src_num, res))
-                logger.debug(f"Aggregated client {cid} ver {ver} result, shape={res.shape}")
+    def aggregate(self):
+        for client_id in self.sorted_ids:
+            src_num = np.sum(self.agg_src_versions > self.latest_res_version(client_id))
+            if src_num == self.num_clients:
+                index = self.clients_data[client_id].num_res
+                ls_mat = self._cal_ls_mat_by_rank(index)
+                for cid, ls_array in enumerate(ls_mat):
+                    selected_updates = self._select_updates_for_merge(ls_array)
+                    src_num = len(selected_updates)
+                    res = self._fedavg(selected_updates, index)
+                    ver = self.clients_data[cid+1].num_res + 1
+                    self.clients_data[cid+1].add_res(AggData(ver, src_num, res))
+                    logger.debug(f"Aggregated client {cid} ver {ver} result, shape={res.shape}")
 
     def _cal_ls_mat_by_rank(self, index):
         ls_mat = np.zeros((self.num_clients, self.num_clients))

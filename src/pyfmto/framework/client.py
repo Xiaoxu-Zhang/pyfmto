@@ -149,7 +149,7 @@ class Client(ABC):
     def deserialize_pickle(package: Any):
         return pickle.loads(package) if package is not None else None
 
-    def request_server(self, package: Any,
+    def request_server(self, package: ClientPackage,
                        repeat: int=10, interval: float=1.,
                        msg=None) -> Optional[ServerPackage]:
         """
@@ -184,6 +184,8 @@ class Client(ABC):
         determines whether the received response is valid based on personalized criteria.
         If the response does not meet these criteria, the method will perform the next repeat.
         """
+        if not isinstance(package, ClientPackage):
+            raise ValueError("package should be ClientPackage")
         repeat_max = max(1, repeat)
         curr_repeat = 1
         conn_retry = 0

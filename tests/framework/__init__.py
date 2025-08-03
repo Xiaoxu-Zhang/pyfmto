@@ -1,18 +1,49 @@
+import subprocess
+import sys
 import time
+from typing import Type, Optional
+
+import numpy as np
 
 from pyfmto.framework import Server, ClientPackage, ServerPackage, Client, record_runtime
 from pyfmto.problems import SingleTaskProblem
 
+def start_subprocess_clients(client: Type[Client]):
+    module_name = client.__module__
+    class_name = client.__name__
+    cmd = [
+        sys.executable, "-c",
+        f"from {module_name} import {class_name}; "
+        f"from pyfmto.problems import load_problem; "
+        f"from pyfmto.experiments.utils import start_clients; "
+        f"prob = load_problem('tetci2019', fe_init=20, fe_max=25); "
+        f"clients = [{class_name}(p) for p in prob[:3]]; "
+        f"start_clients(clients)"
+    ]
+    print('\n'.join(cmd[2].split('; ')))
+    subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
 
 class OfflineServer(Server):
-    def __init__(self):
+    """
+    alpha: 0.1
+    beta: 0.2
+    """
+    def __init__(self, **kwargs):
         """An offline server doesn't response any additional request"""
         super().__init__()
+        kwargs = self.update_kwargs(kwargs)
+        self.alpha = kwargs['alpha']
+        self.beta = kwargs['beta']
 
     def handle_request(self, client_data: ClientPackage) -> ServerPackage:
         pass
 
-    def aggregate(self, client_id):
+    def aggregate(self):
         pass
 
 
@@ -23,17 +54,34 @@ class OnlineServer(Server):
     def handle_request(self, client_data: ClientPackage) -> ServerPackage:
         return ServerPackage('response', 'server data')
 
-    def aggregate(self, client_id):
-        pass
+    def aggregate(self):
+        rand = np.random.random()
+        time.sleep(rand)
+        self.update_server_info('round sleep', f"sleep {rand} s")
 
 
-class InvalidServer(Server):
+class InvalidServerAgg(Server):
     def handle_request(self, client_data: ClientPackage) -> ServerPackage:
         pass
 
-    def aggregate(self, client_id):
+    def aggregate(self):
         raise RuntimeError("Test raise error")
 
+
+class InvalidServerHandlerErr(Server):
+    def handle_request(self, client_data: ClientPackage) -> Optional[ServerPackage]:
+        raise RuntimeError("Test raise error")
+
+    def aggregate(self):
+        pass
+
+
+class InvalidServerHandlerReturnNone(Server):
+    def handle_request(self, client_data: ClientPackage) -> Optional[ServerPackage]:
+        return None
+
+    def aggregate(self):
+        pass
 
 class EmptyClient(Client):
     def __init__(self, problem: SingleTaskProblem):
@@ -102,11 +150,3 @@ class OnlineClient(Client):
         x = self.problem.random_uniform_x(1)
         y = self.problem.evaluate(x)
         self.solutions.append(x, y)
-
-
-class InvalidClient(Client):
-    def __init__(self, problem: SingleTaskProblem):
-        super().__init__(problem)
-
-    def optimize(self):
-        raise RuntimeError("Test raise error")

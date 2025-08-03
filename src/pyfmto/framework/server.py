@@ -4,7 +4,6 @@ import pickle
 import time
 import traceback
 import uvicorn
-import wrapt
 from abc import abstractmethod, ABC
 from collections import defaultdict
 from fastapi import FastAPI, Response, Depends, Request
@@ -24,20 +23,6 @@ async def load_body(request: Request):
     if not raw_data:
         return None
     return pickle.loads(raw_data)
-
-
-def catch_exception():
-    @wrapt.decorator
-    def wrapper(wrapped, instance, args, kwargs):
-        try:
-            return wrapped(*args, **kwargs)
-        except OSError as e:
-            logger.error(f"{e}")
-            instance.shutdown('OSError occurred')
-        except Exception:
-            traceback.print_exc()
-            instance.shutdown('Exception occurred')
-    return wrapper
 
 
 class Server(ABC):
@@ -99,35 +84,28 @@ class Server(ABC):
             self._aggregator()
         )
 
-    @catch_exception()
     async def _aggregator(self):
         while not self._quit:
             await asyncio.sleep(self._agg_interval)
-            peers_id = self.sorted_ids
-            logger.debug(f"Server aggregating {self.num_clients} clients data")
-            for cid in peers_id:
-                try:
-                    self.aggregate(cid)
-                except Exception:
-                    print(traceback.format_exc())
-                    self.shutdown('aggregate error')
+            try:
+                self.aggregate()
+            except Exception:
+                logger.error(f"Server error: {traceback.format_exc()}")
+                self.shutdown('aggregate error')
+
+    async def _monitor(self):
+        await asyncio.sleep(1)
+        while not self._quit:
+            self._log_server_info()
+            await asyncio.sleep(.5)
 
     def _register_routes(self):
         @app.post("/alg-comm")
         async def alg_comm(client_pkg: ClientPackage = Depends(load_body)):
             self._last_request_time = time.time()
             server_pkg = self._handle_request(client_pkg)
-            if server_pkg is None:
-                logger.warning(f"The server package to Client {client_pkg.cid} is None")
             return Response(content=pickle.dumps(server_pkg), media_type="application/x-pickle")
 
-    async def _monitor(self):
-        await asyncio.sleep(10)
-        while not self._quit:
-            self._log_server_info()
-            await asyncio.sleep(3)
-
-    @catch_exception()
     def _log_server_info(self):
         if self._updated_server_info and self._server_info is not None:
             tab = tabulate(self._server_info, headers="keys", tablefmt="psql")
@@ -135,28 +113,28 @@ class Server(ABC):
             self._updated_server_info = False
 
     @final
-    @catch_exception()
     def _handle_request(self, data: ClientPackage) -> Optional[ServerPackage]:
-        if not data:
-            return ServerPackage(desc='error', data='request without data')
-        elif data.action == Actions.REGISTER:
+        if data.action == Actions.REGISTER:
             self._add_client(data.cid)
             return ServerPackage(desc='register', data='join success')
         elif data.action == Actions.QUIT:
             self._del_client(data.cid)
             return ServerPackage(desc='quit', data='quit success')
         else:
-            return self.handle_request(data)
+            try:
+                resp = self.handle_request(data)
+                if not isinstance(resp, ServerPackage):
+                    raise TypeError(f"handle_request return unexpected type {type(resp)}")
+                return resp
+            except Exception:
+                print(traceback.format_exc())
+                self.shutdown('handle_request error')
 
     @abstractmethod
     def handle_request(self, client_data: ClientPackage) -> Optional[ServerPackage]: ...
 
     @abstractmethod
-    def aggregate(self, client_id): ...
-
-    @staticmethod
-    def named_client(cid):
-        return f"Client {cid:<2}"
+    def aggregate(self): ...
 
     def _add_client(self, client_id):
         self._active_clients.add(client_id)

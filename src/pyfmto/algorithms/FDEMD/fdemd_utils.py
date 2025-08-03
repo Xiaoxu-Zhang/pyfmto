@@ -17,6 +17,9 @@ def power(mat1, mat2):
     # allow fractional powers of negative numbers
     return np.sign(mat1) * np.power(np.abs(mat1), mat2)
 
+def init_samples(dim, lb, ub, samples):
+    return lhs(dim, samples=samples) * (ub - lb) + lb
+
 
 def mini_batches(input_x, input_y, distance, batch_size=64, seed=0):
     """

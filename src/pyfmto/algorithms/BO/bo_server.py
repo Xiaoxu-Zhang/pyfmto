@@ -27,7 +27,7 @@ class BoServer(Server):
         pkg = ServerPackage('response', self.ver_ok)
         return pkg
 
-    def aggregate(self, client_id):
+    def aggregate(self):
         vers = list(self.versions.values())
         if len(vers) == self.num_clients:
             self.ver_ok = min(vers)

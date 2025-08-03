@@ -7,7 +7,7 @@ from typing import Callable
 from pyfmto.framework import Server, ClientPackage, ServerPackage
 from pyfmto.utilities import logger
 
-from .fdemd_utils import RadialBasisFunctionNetwork as RBFNetwork, AggData, Actions
+from .fdemd_utils import RadialBasisFunctionNetwork as RBFNetwork, AggData, Actions, init_samples
 
 
 class FdemdServer(Server):
@@ -70,6 +70,7 @@ class FdemdServer(Server):
             self.model = RBFNetwork(dim=self.dim, obj=self.obj, kernel_size=kernel_size, **self.model_args)
             self.model.sync_manuel(weight=weight, bias=bias)
             self.d_aux_size = client_data.data['init_size']
+            logger.info(f"D aux size is {self.d_aux_size}")
             self.kernel_size = kernel_size
             self.x_lb = client_data.data['lb']
             self.x_ub = client_data.data['ub']
@@ -91,11 +92,12 @@ class FdemdServer(Server):
             return ServerPackage('update', self.agg_res[-1])
         return ServerPackage('update', None)
 
-    def aggregate(self, client_id):
+    def aggregate(self):
         curr_ver = len(self.agg_res)
         ids = self.sorted_ids
         vers = np.asarray([len(self.clients_data[cid]) for cid in ids])
-        if np.all(vers > curr_ver):
+        if np.all(vers > curr_ver) and self.d_aux_size is not None:
+            self.d_aux = init_samples(self.dim, self.x_lb, self.x_ub, self.d_aux_size)
             self._distill(ids, curr_ver)
             self.agg_res.append(AggData(version=curr_ver+1, src_num=len(ids), agg_res=self.model.params))
 
@@ -131,7 +133,6 @@ class FdemdServer(Server):
         variance_biases = sum_squared_diff_biases / num_clients
         variance_std = sum_squared_diff_std / num_clients
 
-        self._init_samples()
         f_sudo = self._ensemble_predict(variance_centers, variance_std, variance_weights, variance_biases,
                                         mean_centers, mean_weights, mean_biases, mean_std)
         self.model.train(self.d_aux, f_sudo)
@@ -143,6 +144,7 @@ class FdemdServer(Server):
         dim = self.d_aux.shape[1]
 
         for _ in range(self.ensemble_size):
+            mean_centers = np.array([mean_centers]) if not isinstance(mean_centers, np.ndarray) else mean_centers
             sampled_centers = [
                 np.random.multivariate_normal(mean_centers[j], np.diag(variance_centers[j]), 1 ) for j in range(self.kernel_size)
             ]
@@ -178,6 +180,3 @@ class FdemdServer(Server):
         """
         mat2 = mat2.T
         return cdist(mat1, mat2)
-
-    def _init_samples(self):
-        self.d_aux = lhs(self.dim, samples=self.d_aux_size) * (self.x_ub - self.x_lb) + self.x_lb
