@@ -14,7 +14,19 @@ class TestEmptyServer(unittest.TestCase):
         self.assertTrue(list(server.sorted_ids) == [])
         self.assertEqual(server.alpha, 0.1)
         self.assertEqual(server.beta, 0.2)
-        server = OfflineServer(alpha=0.3, beta=0.4)
+
+    def test_configurable_server(self):
+        class ConfigurableServer(OfflineServer):
+            """
+            alpha: 0.1
+            beta: 0.2
+            """
+            def __init__(self, **kwargs):
+                super().__init__()
+                kwargs = self.update_kwargs(kwargs)
+                self.alpha = kwargs['alpha']
+                self.beta = kwargs['beta']
+        server = ConfigurableServer(alpha=0.3, beta=0.4)
         self.assertEqual(server.alpha, 0.3)
         self.assertEqual(server.beta, 0.4)
 

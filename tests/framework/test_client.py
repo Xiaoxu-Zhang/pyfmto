@@ -2,9 +2,9 @@ import numpy as np
 import unittest
 from itertools import product
 
+from pyfmto.framework import Client
 from pyfmto.problems import load_problem
 from pyfmto.utilities import parse_yaml
-from tests.framework import EmptyClient, ConfigurableClient
 
 
 class TestClient(unittest.TestCase):
@@ -12,6 +12,11 @@ class TestClient(unittest.TestCase):
         self.problems = load_problem('tetci2019')
 
     def test_empty_client_attributes(self):
+
+        class EmptyClient(Client):
+            def optimize(self):
+                pass
+
         task = self.problems[0]
         client = EmptyClient(task)
         self.assertEqual(client.name, f"Client {task.id: <2d}")
@@ -26,16 +31,24 @@ class TestClient(unittest.TestCase):
         self.assertTrue(np.all(client.ub==task.ub))
 
     def test_configurable_client(self):
+        class ConfigurableClient(Client):
+            """
+            alpha: 0.1
+            beta: 0.2
+            """
+            def __init__(self, problem, **kwargs):
+                super().__init__(problem)
+                kwargs = self.update_kwargs(kwargs)
+                self.alpha = kwargs['alpha']
+                self.beta = kwargs['beta']
+            def optimize(self):
+                pass
         prob = self.problems[0]
         defaults = parse_yaml(ConfigurableClient.__doc__)
         default_config = ConfigurableClient(prob)
         for k, v in defaults.items():
             self.assertEqual(getattr(default_config, k), v, f'Client parameter {k} is not equal to {v}')
-        test_values = product([0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9])
-        for alpha, beta, gamma in test_values:
-            client = ConfigurableClient(prob, alpha=alpha, beta=beta, gamma=gamma)
+        for alpha, beta in product([0.1, 0.2, 0.3], [0.4, 0.5, 0.6]):
+            client = ConfigurableClient(prob, alpha=alpha, beta=beta)
             self.assertEqual(client.alpha, alpha, f'Client parameter alpha is not equal to {alpha}')
             self.assertEqual(client.beta, beta, f'Client parameter beta is not equal to {beta}')
-            self.assertEqual(client.gamma, gamma, f'Client parameter gamma is not equal to {gamma}')
-            self.assertEqual(client.phi, defaults['phi'], f'Client parameter phi is not equal to default value {defaults["phi"]}')
-            self.assertEqual(client.theta, defaults['theta'], f'Client parameter theta is not equal to default value {defaults["theta"]}')

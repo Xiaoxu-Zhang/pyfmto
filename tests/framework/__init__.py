@@ -1,12 +1,13 @@
 import subprocess
 import sys
 import time
-from typing import Type, Optional
+from typing import Type
 
 import numpy as np
 
 from pyfmto.framework import Server, ClientPackage, ServerPackage, Client, record_runtime
 from pyfmto.problems import SingleTaskProblem
+
 
 def start_subprocess_clients(client: Type[Client]):
     module_name = client.__module__
@@ -28,21 +29,15 @@ def start_subprocess_clients(client: Type[Client]):
         stderr=subprocess.PIPE
     )
 
+
 class OfflineServer(Server):
-    """
-    alpha: 0.1
-    beta: 0.2
-    """
-    def __init__(self, **kwargs):
+    def __init__(self):
         """An offline server doesn't response any additional request"""
         super().__init__()
-        kwargs = self.update_kwargs(kwargs)
-        self.alpha = kwargs['alpha']
-        self.beta = kwargs['beta']
-
+        self.alpha = 0.1
+        self.beta = 0.2
     def handle_request(self, client_data: ClientPackage) -> ServerPackage:
         pass
-
     def aggregate(self):
         pass
 
@@ -58,70 +53,6 @@ class OnlineServer(Server):
         rand = np.random.random()
         time.sleep(rand)
         self.update_server_info('round sleep', f"sleep {rand} s")
-
-
-class InvalidServerAgg(Server):
-    def handle_request(self, client_data: ClientPackage) -> ServerPackage:
-        pass
-
-    def aggregate(self):
-        raise RuntimeError("Test raise error")
-
-
-class InvalidServerHandlerErr(Server):
-    def handle_request(self, client_data: ClientPackage) -> Optional[ServerPackage]:
-        raise RuntimeError("Test raise error")
-
-    def aggregate(self):
-        pass
-
-
-class InvalidServerHandlerReturnNone(Server):
-    def handle_request(self, client_data: ClientPackage) -> Optional[ServerPackage]:
-        return None
-
-    def aggregate(self):
-        pass
-
-class EmptyClient(Client):
-    def __init__(self, problem: SingleTaskProblem):
-        super().__init__(problem)
-
-    def optimize(self):
-        pass
-
-
-class ConfigurableClient(Client):
-    """
-    alpha: 0.1
-    beta: 0.8
-    gamma: 0.5
-    phi: 0.1
-    theta: 0.0
-    """
-    def __init__(self, problem: SingleTaskProblem, **kwargs):
-        super().__init__(problem)
-        kwargs = self.update_kwargs(kwargs)
-        self.alpha = kwargs['alpha']
-        self.beta = kwargs['beta']
-        self.gamma = kwargs['gamma']
-        self.phi = kwargs['phi']
-        self.theta = kwargs['theta']
-
-    def optimize(self):
-        pass
-
-
-class OfflineClient(Client):
-    def __init__(self, problem: SingleTaskProblem):
-        """An offline client doesn't communicate with the server"""
-        super().__init__(problem)
-
-    def optimize(self):
-        time.sleep(0.1)
-        x = self.problem.random_uniform_x(1)
-        y = self.problem.evaluate(x)
-        self.problem.solutions.append(x, y)
 
 
 class OnlineClient(Client):

@@ -1,13 +1,13 @@
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 
 from pyfmto.experiments import kill_server
 from pyfmto.experiments.utils import start_server, start_clients
-from pyfmto.framework import Client
+from pyfmto.framework import Client, Server, ClientPackage, ServerPackage
 from pyfmto.problems import load_problem
 from tests.framework import (
-    start_subprocess_clients, OfflineClient, OfflineServer, OnlineClient, OnlineServer,
-    InvalidServerAgg
+    start_subprocess_clients, OfflineServer, OnlineClient, OnlineServer
 )
 from requests.exceptions import ConnectionError
 
@@ -20,6 +20,13 @@ class TestClientSide(unittest.TestCase):
         self.problems = load_problem('tetci2019', dim=5, fe_init=20, fe_max=25)
 
     def test_valid_offline_client(self):
+        """An offline client doesn't communicate with the server"""
+        class OfflineClient(Client):
+            def optimize(self):
+                time.sleep(0.01)
+                x = self.problem.random_uniform_x(1)
+                y = self.problem.evaluate(x)
+                self.problem.solutions.append(x, y)
         clients = [OfflineClient(prob) for prob in self.problems[:N_CLIENTS]]
         kill_server()
         start_server(OfflineServer)
@@ -76,6 +83,11 @@ class TestServerSide(unittest.TestCase):
 
 class TestInvalidServerAgg(unittest.TestCase):
     def test_invalid_server_agg(self):
+        class InvalidServerAgg(Server):
+            def handle_request(self, client_data: ClientPackage) -> ServerPackage:
+                pass
+            def aggregate(self):
+                raise RuntimeError("Test raise error")
         server = InvalidServerAgg()
         thread_pool = ThreadPoolExecutor(max_workers=1)
         thread_pool.submit(server.start)
