@@ -8,6 +8,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 yaml.indent(mapping=2, sequence=4, offset=2)
+yaml.default_flow_style = None
 
 T_Path = Union[str, Path]
 

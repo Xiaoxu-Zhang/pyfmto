@@ -4,9 +4,9 @@ import importlib
 import inspect
 from pathlib import Path
 from typing import Any
-from pyfmto.utilities import colored, save_yaml, parse_yaml
+from pyfmto.utilities import parse_yaml, colored
 
-__all__ = ['list_algorithms', 'load_algorithm', 'export_kwargs', 'get_alg_kwargs']
+__all__ = ['list_algorithms', 'load_algorithm', 'get_alg_kwargs']
 
 
 def load_algorithm(name: str):
@@ -53,12 +53,6 @@ def list_algorithms(print_it=False):
         print(colored('Builtins:', 'blue'))
         print(textwrap.indent(alg_str, ' ' * 2))
     return res
-
-
-def export_kwargs(algorithms: list[str], directory: str=None):
-    data = {name: get_alg_kwargs(name) for name in algorithms}
-    fdir = Path(directory) if directory is not None else Path.cwd()
-    save_yaml({'algorithms': data}, fdir / f"default_kwargs.yaml")
 
 
 def get_alg_kwargs(name: str):

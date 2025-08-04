@@ -8,14 +8,6 @@ from .solution import Solution
 from .realworld import *
 from .synthetic import *
 
-__omit__ = [
-    'inspect',
-    'pd',
-    'defaultdict',
-    'tabulate',
-    'STPConfig'
-]
-
 __all__ = [
     'PROBLEMS',
     'load_problem',
@@ -27,7 +19,7 @@ __all__ = [
 
 PROBLEMS = {name: cls
     for name, cls in globals().items()
-    if inspect.isclass(cls) and name not in __omit__ + __all__
+    if inspect.isclass(cls) and issubclass(cls, MultiTaskProblem) and cls != MultiTaskProblem
 }
 
 _lowercase_map = {name.lower(): name for name in PROBLEMS}
@@ -46,13 +38,14 @@ def load_problem(name, **kwargs) -> MultiTaskProblem:
 def list_problems(print_it=False):
     data = defaultdict(list)
     for name, cls in PROBLEMS.items():
-        instance: MultiTaskProblem = cls(_init_solutions=False)
-        data['name'].append(name)
-        data['total'].append(instance.task_num)
-        prob_type = "Realworld" if instance.is_realworld else "Synthetic"
-        data['type'].append(prob_type)
-        data['dim'].append(instance[0].dim)
-        data['obj'].append(instance[0].obj)
+        if issubclass(cls, MultiTaskProblem):
+            instance = cls(_init_solutions=False)
+            prob_type = "Realworld" if instance.is_realworld else "Synthetic"
+            data['name'].append(name)
+            data['total'].append(instance.task_num)
+            data['type'].append(prob_type)
+            data['dim'].append(instance[0].dim)
+            data['obj'].append(instance[0].obj)
     df = pd.DataFrame(data)
     if print_it:
         print(tabulate(df, headers='keys', tablefmt='rounded_grid', showindex=False))
