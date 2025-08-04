@@ -5,6 +5,9 @@ import yaml
 from pathlib import Path
 from unittest.mock import patch
 
+from pyfmto.framework import (
+    export_alg_template, export_launch_module, export_default_config, export_launcher_config, \
+    export_reporter_config, export_algorithm_config, export_problem_config)
 from pyfmto.experiments import Statistics
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import (
@@ -332,3 +335,55 @@ class TestStatistics(unittest.TestCase):
         self.assertTrue(np.all(sta.y_global==np.array([21, 22])))
         self.assertEqual(sta.fe_init, 10)
         self.assertEqual(sta.fe_max, 20)
+
+
+class TestExportTools(unittest.TestCase):
+    def setUp(self):
+        self.alg_dir = Path('algorithms')
+        self.conf = Path('config.yaml')
+        self.tmp_files = []
+
+    def tearDown(self):
+        shutil.rmtree(self.alg_dir, ignore_errors=True)
+        Path('run.py').unlink(missing_ok=True)
+        self.conf.unlink(missing_ok=True)
+
+    def test_export_alg_template(self):
+        export_alg_template('TMP') # export an exist algorithm
+
+        alg_modules = [
+            Path('algorithms/TMP/__init__.py'),
+            Path('algorithms/TMP/tmp_client.py'),
+            Path('algorithms/TMP/tmp_server.py'),
+        ]
+        for f in alg_modules:
+            self.assertTrue(f.exists())
+
+        alg_modules[0].unlink() # remove the init file, and re-export
+        export_alg_template('TMP') # re-export only non-exist files
+
+        export_launch_module() # export the launch module
+        self.assertTrue(Path('run.py').exists())
+
+    def test_export_default_config(self):
+        export_default_config()
+        self.assertTrue(self.conf.exists())
+
+    def test_export_to_new(self):
+        funcs = [
+            export_launcher_config,
+            export_reporter_config,
+            export_algorithm_config,
+            export_problem_config,
+        ]
+
+        # each func repeat twice to cover file exists case
+        tmp_files = [f() for f in funcs+funcs]
+        for p in tmp_files:
+            self.assertTrue(p.exists())
+        for p in tmp_files:
+            p.unlink()
+
+    def test_export_invalid_config(self):
+        export_algorithm_config(algs=['INVALID'])
+        export_problem_config(probs=['INVALID'])
