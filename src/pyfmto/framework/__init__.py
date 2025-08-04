@@ -15,9 +15,10 @@ def export_launch_module():
     rows = """
     from pyfmto.experiments import Launcher
 
+
     if __name__ == '__main__':
-        lau = Launcher()
-        lau.run()
+        launcher = Launcher()
+        launcher.run()
     """
     with open('run.py', 'w') as f:
         f.write(textwrap.dedent(rows))
@@ -26,27 +27,10 @@ def export_launch_module():
 def export_alg_template(name: str):
     alg_dir = Path(f'algorithms/{name.upper()}')
     alg_dir.mkdir(parents=True, exist_ok=True)
-    srv_name = f"{name.title()}Server"
     clt_name = f"{name.title()}Client"
-    srv_module = f"{name.lower()}_server"
+    srv_name = f"{name.title()}Server"
     clt_module = f"{name.lower()}_client"
-    srv_rows = f"""
-        from pyfmto.framework import Server, ClientPackage, ServerPackage
-        from pyfmto.utilities import logger\n\n
-        class {srv_name}(Server):
-            \"\"\"
-            alpha: 0.5
-            \"\"\"
-            def __init__(self, **kwargs):
-                super().__init__()
-                kwargs = self.update_kwargs(kwargs)
-                self.alpha = kwargs['alpha']
-            def handle_request(self, client_data: ClientPackage) -> ServerPackage:
-                pass
-            def aggregate(self):
-                pass
-    """
-
+    srv_module = f"{name.lower()}_server"
     clt_rows = f"""
         import time
         import numpy as np
@@ -54,17 +38,34 @@ def export_alg_template(name: str):
         from pyfmto.utilities import logger\n\n
         class {clt_name}(Client):
             \"\"\"
-            gamma: 0.5
+            alpha: 0.02
             \"\"\"
             def __init__(self, problem, **kwargs):
                 super().__init__(problem)
                 kwargs = self.update_kwargs(kwargs)
-                self.gamma = kwargs['gamma']
+                self.alpha = kwargs['alpha']
                 self.problem.auto_update_solutions = True\n
             def optimize(self):
                 x = self.problem.random_uniform_x(1)
                 self.problem.evaluate(x)
-                time.sleep(np.random.random())\n
+                time.sleep(self.alpha)\n
+    """
+
+    srv_rows = f"""
+        from pyfmto.framework import Server, ClientPackage, ServerPackage
+        from pyfmto.utilities import logger\n\n
+        class {srv_name}(Server):
+            \"\"\"
+            beta: 0.5
+            \"\"\"
+            def __init__(self, **kwargs):
+                super().__init__()
+                kwargs = self.update_kwargs(kwargs)
+                self.beta = kwargs['beta']
+            def handle_request(self, client_data: ClientPackage) -> ServerPackage:
+                pass
+            def aggregate(self):
+                pass
     """
 
     init_rows = f"""
