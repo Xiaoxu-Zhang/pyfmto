@@ -17,12 +17,14 @@ importlib_metadata
 importlib_resources
 iniconfig
 joblib
+jinja2
 kiwisolver
 matplotlib
 mccabe
 mypy
 mypy_extensions
 numpy
+openpyxl
 packaging
 pillow
 pluggy

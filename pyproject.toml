@@ -32,7 +32,9 @@ dependencies = [
     "egobox",
     "scienceplots",
     "msgpack",
-    "pydacefit"
+    "pydacefit",
+    "jinja2",
+    "openpyxl"
    ]
 classifiers = [
     "Development Status :: 4 - Beta",
