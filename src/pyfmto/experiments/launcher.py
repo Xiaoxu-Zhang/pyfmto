@@ -8,31 +8,29 @@ from pyfmto.algorithms import load_algorithm, get_alg_kwargs
 from pyfmto.problems import load_problem, Solution
 from pyfmto.utilities.schemas import LauncherConfig
 from pyfmto.utilities import (
-    logger, reset_log, show_in_table,
+    logger, reset_log, show_in_table, clear_console,
     backup_log_to, load_yaml, save_yaml)
-from .utils import (
-    clear_console, gen_path, kill_server,
-    gen_exp_combinations, RunSolutions, start_server, start_clients)
+from .utils import LauncherUtils, RunSolutions
 
 __all__ = ['Launcher']
 
 
 class Launcher:
-    def __init__(self, conf_file: str='config.yaml'):
+    def __init__(self, conf_file: str = 'config.yaml'):
         reset_log()
         clear_console()
-        kill_server()
+        LauncherUtils.kill_server()
         all_conf = load_yaml(conf_file)
         launcher_conf = LauncherConfig(**all_conf.get('launcher'))
-        self.combinations = gen_exp_combinations(
+        self.combinations = LauncherUtils.gen_exp_combinations(
             launcher_conf=launcher_conf,
             alg_conf=all_conf.get('algorithms', {}),
             prob_conf=all_conf.get('problems', {}))
         # Launcher settings
-        self.repeat  = launcher_conf.repeat
-        self.save    = launcher_conf.save
-        self.seed    = launcher_conf.seed
-        self.backup  = launcher_conf.backup
+        self.repeat = launcher_conf.repeat
+        self.save = launcher_conf.save
+        self.seed = launcher_conf.seed
+        self.backup = launcher_conf.backup
 
         # Runtime data
         self._iid_info = 0
@@ -42,14 +40,12 @@ class Launcher:
         self._alg = ''
         self._alg_alias = ''
         self._prob = ''
-        self._results = []
         self._res_dir = Path(launcher_conf.results)
-        self._alg_args = {}
         self._prob_args = {}
         self._clt_kwargs = {}
         self._srv_kwargs = {}
 
-        atexit.register(kill_server)
+        atexit.register(LauncherUtils.kill_server)
 
     def run(self):
         self._setup()
@@ -67,12 +63,11 @@ class Launcher:
         self._running_id = idx + 1
         self._alg = alg_args.get('base', alg_alias)
         self._alg_alias = alg_alias
-        self._alg_args = alg_args
         self._clt_kwargs = alg_args.get('client', {})
         self._srv_kwargs = alg_args.get('server', {})
         self._prob = prob_name
         self._prob_args = prob_args
-        self._res_dir = gen_path(alg_alias, prob_name, prob_args)
+        self._res_dir = LauncherUtils.gen_path(alg_alias, prob_name, prob_args)
         self._repeat_id = 0
 
     def _save_kwargs(self):
@@ -90,7 +85,7 @@ class Launcher:
             kwargs.update(server=default_kwargs.get('server', {}))
         fdir = self._res_dir.parents[1]
         fdir.mkdir(parents=True, exist_ok=True)
-        save_yaml(kwargs, fdir / f"arguments.yaml")
+        save_yaml(kwargs, fdir / "arguments.yaml")
 
     def _repeating(self):
         alg_modules = load_algorithm(self._alg)
@@ -106,8 +101,8 @@ class Launcher:
             self._show_settings()
 
             # Launch algorithm
-            start_server(server_cls, **self._srv_kwargs)
-            results = start_clients(clients)
+            LauncherUtils.start_server(server_cls, **self._srv_kwargs)
+            results = LauncherUtils.start_clients(clients)
             self._save_results(results)
             self._update_repeat_id()
             reset_log()
@@ -122,7 +117,7 @@ class Launcher:
 
     def _teardown(self):
         clear_console()
-        print(f'All runs finished.')
+        print('All runs finished.')
         colored_tab, _ = show_in_table(
             exp_total=self._num_comb,
             rep_per_exp=self.repeat,
@@ -136,7 +131,7 @@ class Launcher:
         colored_tab, original_tab = show_in_table(
             running=f"{self._running_id}/{self._num_comb}",
             repeat=f"{self._repeat_id}/{self.repeat}",
-            progress=f"[{n_rep}/{n_all_rep}][{100*n_rep/n_all_rep:.2f}%]",
+            progress=f"[{n_rep}/{n_all_rep}][{100 * n_rep / n_all_rep:.2f}%]",
             algorithm=self._alg_alias,
             problem=self._prob,
             iid=self._iid_info,

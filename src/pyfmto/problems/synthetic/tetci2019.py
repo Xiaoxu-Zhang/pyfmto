@@ -10,6 +10,9 @@ from ..benchmarks import (
     Sphere,
     Weierstrass)
 
+__all__ = ['Tetci2019']
+
+
 class Tetci2019(Mtp):
     is_realworld = False
     intro = ""
@@ -27,14 +30,15 @@ class Tetci2019(Mtp):
         DOI:10.1109/tetci.2019.2916051.
         """
     ]
+
     def __init__(self, dim=10, **kwargs):
         if not 1 <= dim <= 50:
             raise ValueError('dim must be in [1, 50]')
         super().__init__(dim, **kwargs)
 
     def get_info(self):
-        category = ['Easy']*4 + ['Complex']*6
-        assisted_task = [None]*4 + ['T1', 'T2', 'T3,T4', None, 'T4', None]
+        category = ['Easy'] * 4 + ['Complex'] * 6
+        assisted_task = [None] * 4 + ['T1', 'T2', 'T3,T4', None, 'T4', None]
         if self.task_num == 8:
             del category[6], category[3]
             del assisted_task[6], assisted_task[3]
@@ -53,23 +57,23 @@ class Tetci2019(Mtp):
         f2 = Sphere(dim, lb=-100, ub=100, **kwargs)
         f3 = Sphere(dim, lb=-100, ub=100, **kwargs)
         f4 = Weierstrass(dim, lb=-0.5, ub=0.5, **kwargs)
-        f5 = Rosenbrock(dim, lb=-50, ub=50, **kwargs)    # Ideal Assisted Task f1
-        f6 = Ackley(dim, lb=-50, ub=50, **kwargs)        # Ideal Assisted Task f2
-        f7 = Weierstrass(dim, lb=-0.4, ub=0.4, **kwargs) # Ideal Assisted Task f3,f4
+        f5 = Rosenbrock(dim, lb=-50, ub=50, **kwargs)  # Ideal Assisted Task f1
+        f6 = Ackley(dim, lb=-50, ub=50, **kwargs)  # Ideal Assisted Task f2
+        f7 = Weierstrass(dim, lb=-0.4, ub=0.4, **kwargs)  # Ideal Assisted Task f3,f4
         f8 = Schwefel(dim, lb=-500, ub=500, **kwargs)
-        f9 = Griewank(dim, lb=-100, ub=100, **kwargs)    # Ideal Assisted Task f4
+        f9 = Griewank(dim, lb=-100, ub=100, **kwargs)  # Ideal Assisted Task f4
         f10 = Rastrigin(dim, lb=-50, ub=50, **kwargs)
 
         functions = [f1, f2, f3, f4, f5, f6, f7, f8, f9, f10]
-        [functions[idx].set_id(idx+1) for idx in range(len(functions))]
+        [functions[idx].set_id(idx + 1) for idx in range(len(functions))]
 
         s9 = np.ones(dim)
         s9[:dim // 2] = -80
-        s9[s9==1] = 80
+        s9[s9 == 1] = 80
 
         s10 = np.ones(dim)
-        s10[: dim//2] = 40
-        s10[s10==1] = -40
+        s10[: dim // 2] = 40
+        s10[s10 == 1] = -40
 
         # Here, we set the f8 shift value to 0; if we set it
         # to 420.9687, which is the setting from the reference

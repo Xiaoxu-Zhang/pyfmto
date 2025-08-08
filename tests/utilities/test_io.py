@@ -7,7 +7,6 @@ from ruamel.yaml.error import MarkedYAMLError
 from pyfmto.utilities import save_yaml, dumps_yaml, parse_yaml
 from pyfmto.utilities.io import load_yaml, save_msgpack, load_msgpack
 
-
 YAML_OK = """
 key1:
   key11: value1
@@ -106,7 +105,7 @@ class TestMsgpack(unittest.TestCase):
                     'x': np.array([1, 2, 3]),
                     'y': 0.5
                 },
-                'ids': {1,2,3}
+                'ids': {1, 2, 3}
             }
         }
         pack_recursive_dict = self.tmp_dir / 'pack_recursive.msgpack'

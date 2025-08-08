@@ -2,9 +2,10 @@ import shutil
 import unittest
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 from pyfmto.utilities import tabulate_formats
-from pyfmto.utilities.tools import colored, timer, show_in_table, titled_tabulate, update_kwargs
+from pyfmto.utilities.tools import colored, timer, show_in_table, titled_tabulate, update_kwargs, clear_console
 
 
 class TestTools(unittest.TestCase):
@@ -15,6 +16,19 @@ class TestTools(unittest.TestCase):
     def tearDown(self):
         if self.out_path.exists():
             shutil.rmtree(self.out_path)
+
+    def test_cross_platform_tools(self):
+        with patch('os.system') as mock_system:
+
+            with patch('platform.system', return_value="Windows"):
+                clear_console()
+                mock_system.assert_called_once_with('cls')
+                mock_system.reset_mock()
+
+            with patch('platform.system', return_value="Linux"):
+                clear_console()
+                mock_system.assert_called_once_with('clear')
+                mock_system.reset_mock()
 
     def test_colored(self):
         text = "test"

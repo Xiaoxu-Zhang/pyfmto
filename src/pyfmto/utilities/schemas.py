@@ -1,7 +1,6 @@
-import warnings
-
 import numpy as np
-from typing import Union, Optional, Literal
+import warnings
+from typing import Union, Optional
 from pydantic import BaseModel, field_validator, model_validator, ConfigDict, StrictInt, StrictFloat
 
 T_Bound = Union[int, float, list, tuple, np.ndarray]
@@ -89,7 +88,7 @@ class TransformerConfig(BaseModel):
     Basically, this model makes the following validation and conversion:
 
     - ``dim``: a positive integer (has been validated by STPConfig)
-    - ``shift``: finally a ndarray with shape (dim,)
+    - ``shift``: finally a ndarray with shape (dim, )
     - ``rotation``: finally a ndarray with shape (dim, dim)
     - ``rotation_inv``: set to inverse of rotation matrix
     """
@@ -220,7 +219,7 @@ class PlottingArgs(BaseModel):
         if len(v) != 2:
             raise ValueError(f"dims must be a tuple of two >=0 integers, got {v}")
         if min(v) < 0:
-            raise ValueError(f"dims must be integers and >= 0")
+            raise ValueError("dims must be integers and >= 0")
         if v[0] == v[1]:
             raise ValueError(f"dims should be two different integers, got dims={v}")
         return min(v), max(v)
@@ -228,17 +227,17 @@ class PlottingArgs(BaseModel):
     @field_validator('n_points')
     def warning_if_too_large(cls, v):
         if v > 1000:
-            warnings.warn(f"A large n_points may cause slow plotting. Using 1000 instead.")
+            warnings.warn("A large n_points may cause slow plotting. Using 1000 instead.")
             return 1000
         if v < 10:
-            warnings.warn(f"A small n_points may cause detail loss in plotting. Using 10 instead.")
+            warnings.warn("A small n_points may cause detail loss in plotting. Using 10 instead.")
             return 10
         return v
 
     @model_validator(mode='after')
     def check_and_set_defaults(self):
         if self.dims[1] >= self.dim:
-            raise ValueError(f"selected dim must be in [0, {self.dim-1}], got dims={self.dims}")
+            raise ValueError(f"selected dim must be in [0, {self.dim - 1}], got dims={self.dims}")
         if self.fixed is None:
             self.fixed = (self.lb + self.ub) / 2
         elif isinstance(self.fixed, (int, float)):

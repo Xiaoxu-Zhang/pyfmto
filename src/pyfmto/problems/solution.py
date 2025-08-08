@@ -6,6 +6,7 @@ from tabulate import tabulate
 
 __all__ = ['Solution']
 
+
 def _only_single_obj(func):
     def wrapped(*args, **kwargs):
         instance = args[0]

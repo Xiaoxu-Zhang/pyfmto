@@ -47,7 +47,7 @@ class Client(ABC):
 
         self.set_addr()
 
-    def set_addr(self, ip='localhost', port=18510, conn_retry: int=3):
+    def set_addr(self, ip='localhost', port=18510, conn_retry: int = 3):
         """
         Configure the server address and port that this client will connect to.
 
@@ -100,7 +100,7 @@ class Client(ABC):
             )
             logger.info(tab)
 
-    def record_round_info(self, name:str, value: str):
+    def record_round_info(self, name: str, value: str):
         self._round_info[name].append(value)
 
     @final
@@ -150,7 +150,7 @@ class Client(ABC):
         return pickle.loads(package) if package is not None else None
 
     def request_server(self, package: ClientPackage,
-                       repeat: int=10, interval: float=1.,
+                       repeat: int = 10, interval: float = 1.,
                        msg=None) -> Optional[ServerPackage]:
         """
         Send a request to the server and wait for a response that satisfies a given condition.
@@ -194,7 +194,8 @@ class Client(ABC):
                 logger.debug(f"{self.name} [Request retry {curr_repeat}/{repeat_max}] {msg}")
             data = pickle.dumps(package)
             try:
-                res = requests.post(f"{self._url}/alg-comm", data=data, headers={"Content-Type": "application/x-pickle"})
+                res = requests.post(f"{self._url}/alg-comm", data=data,
+                                    headers={"Content-Type": "application/x-pickle"})
                 if res.status_code == 200:
                     server_pkg = self.deserialize_pickle(res.content)
                     if self.check_pkg(server_pkg):

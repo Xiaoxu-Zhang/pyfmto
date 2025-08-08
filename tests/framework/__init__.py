@@ -16,10 +16,10 @@ def start_subprocess_clients(client: Type[Client]):
         sys.executable, "-c",
         f"from {module_name} import {class_name}; "
         f"from pyfmto.problems import load_problem; "
-        f"from pyfmto.experiments.utils import start_clients; "
+        f"from pyfmto.experiments.utils import LauncherUtils; "
         f"prob = load_problem('tetci2019', fe_init=20, fe_max=25); "
         f"clients = [{class_name}(p) for p in prob[:3]]; "
-        f"start_clients(clients)"
+        f"LauncherUtils.start_clients(clients)"
     ]
     print('\n'.join(cmd[2].split('; ')))
     subprocess.Popen(
@@ -36,8 +36,10 @@ class OfflineServer(Server):
         super().__init__()
         self.alpha = 0.1
         self.beta = 0.2
+
     def handle_request(self, client_data: ClientPackage) -> ServerPackage:
         pass
+
     def aggregate(self):
         pass
 
@@ -61,14 +63,14 @@ class OnlineClient(Client):
         super().__init__(problem)
 
     def optimize(self):
-        time.sleep(0.1) # sleep for 0.1 seconds to avoid frequent requests
+        time.sleep(0.1)  # sleep for 0.1 seconds to avoid frequent requests
         self.push()
         self.optimizing()
 
-    @record_runtime() # cover the decorator and round info logging method
+    @record_runtime()  # cover the decorator and round info logging method
     def push(self):
-        msg = f"request failed" # set a message to cover the message logging case
-        pkg = ClientPackage(cid=self.id, action='test', data='client data') # create a request package
+        msg = "request failed"  # set a message to cover the message logging case
+        pkg = ClientPackage(cid=self.id, action='test', data='client data')  # create a request package
 
         # Setting the request interval to 0.1 seconds to
         # speed up the process when requesting an offline server
@@ -76,7 +78,7 @@ class OnlineClient(Client):
         if res:
             assert res.data == 'server data', f"res.data is {res.data} != 'server data'"
 
-    @record_runtime('Optimizing') # cover the custom record name
+    @record_runtime('Optimizing')  # cover the custom record name
     def optimizing(self):
         x = self.problem.random_uniform_x(1)
         y = self.problem.evaluate(x)

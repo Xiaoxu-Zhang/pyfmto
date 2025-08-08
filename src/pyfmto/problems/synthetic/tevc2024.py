@@ -32,7 +32,7 @@ class Tevc2024(Mtp):
         """
     ]
 
-    def __init__(self, dim=10, src_problem: T_SrcProblem='Ackley', **kwargs):
+    def __init__(self, dim=10, src_problem: T_SrcProblem = 'Ackley', **kwargs):
         if not isinstance(src_problem, str):
             raise TypeError(f"original_problem should be str, but {type(src_problem)} is given")
         try:
@@ -54,7 +54,7 @@ class Tevc2024(Mtp):
 
     def _init_tasks(self, dim: int, src_prob_cls: Type[SingleTaskProblem], **kwargs):
         funcs = [src_prob_cls(dim, **kwargs) for _ in range(10)]
-        datasets = Path(__file__).parents[1] / 'datasets' / 'mtso_tevc2024' / 'composition_func_M_D10.mat'
+        datasets = Path(__file__).parents[1] / 'datasets' / 'tevc2024' / 'composition_func_M_D10.mat'
         rot_mats = loadmat(str(datasets))
         mats = [rot_mats[f"M{i + 1}"][0:dim, 0:dim] for i in range(10)]
         for f, mat in zip(funcs, mats):

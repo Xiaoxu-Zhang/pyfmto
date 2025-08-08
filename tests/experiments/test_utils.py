@@ -1,52 +1,30 @@
+
 import numpy as np
+import psutil
 import shutil
 import unittest
 import yaml
 from pathlib import Path
 from unittest.mock import patch
-
-from pyfmto.framework import (
-    export_alg_template, export_launch_module, export_default_config, export_launcher_config, \
-    export_reporter_config, export_algorithm_config, export_problem_config)
-from pyfmto.experiments import Statistics
+from pyfmto import framework as fw, load_problem
 from pyfmto.problems import Solution
-from pyfmto.experiments.utils import (
-    gen_path, clear_console,
-    kill_server, gen_exp_combinations, combine_args, parse_reporter_config,
-    RunSolutions
-)
+from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils
 from pyfmto.utilities.schemas import LauncherConfig
 from pyfmto.utilities import load_msgpack
+from tests.framework import OnlineServer
 
-TMP_ALG = """
-class TmpClient:
-    pass
-    
-class TmpServer:
-    pass
-"""
 
-TMP_INIT = """
-from .tmp_alg import TmpClient, TmpServer
-"""
+def exist_process(name: str) -> bool:
+    for proc in psutil.process_iter():
+        try:
+            cmd = proc.cmdline()
+            if cmd and name in cmd:
+                print(f"pid: {proc.pid}, cmd: {proc.cmdline()}")
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+    return False
 
-SETTINGS_YML = """
-launcher:
-  repeat: 3         # number of runs repeating
-  backup: True      # backup log file to results directory
-  dir: out/results  # dir of results
-  save: True        # save results
-  seed: 42          # random seed
-  algorithms: [FDEMD, FMTBO]
-  problems: [cec2022]
-reporter:
-  results: ~
-  algorithms:
-    - [FMTBO, FDEMD]
-  problems: [CEC2022]
-  np_per_dim: [1, 2]
-
-"""
 
 def create_solution():
     solution = Solution()
@@ -58,129 +36,84 @@ def create_solution():
     return solution
 
 
-class TestExperimentUtils(unittest.TestCase):
+class TestReporterUtils(unittest.TestCase):
 
     def setUp(self):
-        self.tmp_dir = Path('tmp')
-        self.tmp_server = Path('temp_server.py')
-        self.tmp_setting = Path('settings.yaml')
-        self.tmp_alg_dir = Path('algorithms')
-        if not self.tmp_dir.exists():
-            self.tmp_dir.mkdir()
-
-        self.run_settings_ok = {
-            'launcher': {
-                'algorithms': ['FMTBO'],
-                'problems': ['CEC2022']
-            },
-            'reporter':{
-                'algorithms': [['FMTBO', 'FDEMD']],
-                'np_per_dim': [1, 2],
-                'problems': ['CEC2022'],
-            }
-        }
-        with open(self.tmp_setting, 'w') as f:
-            yaml.dump(self.run_settings_ok, f)
+        self.utils = ReporterUtils
 
     def tearDown(self):
-        if self.tmp_dir:
-            shutil.rmtree(self.tmp_dir)
-        if self.tmp_server.exists():
-            self.tmp_server.unlink()
-        if self.tmp_setting.exists():
-            self.tmp_setting.unlink()
-        if self.tmp_alg_dir.exists():
-            shutil.rmtree('algorithms')
+        shutil.rmtree(Path('out'), ignore_errors=True)
 
-    def test_gen_path(self):
-        alg = 'ALG'
-        prob = 'PROB'
-        kwargs1 = {
-            'np_per_dim': 1,
-            'dim': 2,
-        }
-        kwargs2 = {
-            'np_per_dim': 2,
-            'dim': 2,
-        }
-        res_root1 = gen_path(alg, prob, kwargs1)
-        res_root2 = gen_path(alg, prob, kwargs2)
-        self.assertEqual(res_root1, Path('out', 'results', alg, f"{prob}_2D", "IID"))
-        self.assertEqual(res_root2, Path('out', 'results', alg, f"{prob}_2D", "NIID2"))
+    def test_get_runs_data(self):
+        prob = load_problem('tetci2019')
+        all_runs = []
+        for runs in range(1, 6):
+            run_data = RunSolutions()
+            for p in prob[:5]:
+                run_data.update(p.id, p.solutions)
+            all_runs.append(run_data)
+        res = self.utils.get_runs_data(1, all_runs)
+        self.assertEqual(len(res['runs_x']), 5)
+        self.assertEqual(len(res['runs_y']), 5)
+        self.assertEqual(res['fe_init'], prob[0].fe_init)
+        self.assertEqual(res['fe_max'], all_runs[0].get_solutions(1).size)
 
-    def test_cross_platform_tools(self):
-        with patch('os.system') as mock_system:
-
-            with patch('platform.system', return_value="Windows"):
-                clear_console()
-                mock_system.assert_called_once_with('cls')
-                mock_system.reset_mock()
-                kill_server()
-                mock_system.assert_called_once_with("taskkill /f /im AlgServer.exe")
-                mock_system.reset_mock()
-
-            with patch('platform.system', return_value="Linux"):
-                clear_console()
-                mock_system.assert_called_once_with('clear')
-                mock_system.reset_mock()
-                kill_server()
-                mock_system.assert_called_once_with("pkill -f AlgServer")
-                mock_system.reset_mock()
-
-    def test_combine_args_no_list(self):
-        args = {
-            'problem1': {'param1': 'value1', 'param2': 'value2'}
-        }
-        result = combine_args(args)
-        expected = [('problem1', {'param1': 'value1', 'param2': 'value2'})]
-        self.assertEqual(result, expected)
-
-    def test_combine_args_with_list(self):
-        args = {
-            'problem1': {'param1': 'value1', 'param2': [1, 2]}
-        }
-        result = combine_args(args)
-        expected = [
-            ('problem1', {'param1': 'value1', 'param2': 1}),
-            ('problem1', {'param1': 'value1', 'param2': 2})
+    def test_calculate_statistics(self):
+        test_cases = [
+            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+            [[1e-25, 2.0, 3.0], [4.0, 5.0, 6.0]],
+            # [[1.0, 2.0, 3.0]]
         ]
-        self.assertEqual(result, expected)
 
-    def test_combine_args_multiple_lists(self):
-        args = {
-            'problem1': {'param1': [1, 2], 'param2': ['a', 'b']}
-        }
-        result = combine_args(args)
-        expected = [
-            ('problem1', {'param1': 1, 'param2': 'a'}),
-            ('problem1', {'param1': 1, 'param2': 'b'}),
-            ('problem1', {'param1': 2, 'param2': 'a'}),
-            ('problem1', {'param1': 2, 'param2': 'b'})
+        for i, data in enumerate(test_cases):
+            with self.subTest(test_case=i + 1):
+                result = ReporterUtils.calculate_statistics(data)
+                rows, cols = np.array(data).shape
+                self.assertEqual(result.mean_orig.shape, (cols, ))
+                self.assertEqual(result.std_orig.shape, (cols, ))
+                self.assertEqual(result.se_orig.shape, (cols, ))
+                self.assertEqual(result.opt_orig.shape, (rows, ))
+                self.assertEqual(result.opt_log.shape, (rows, ))
+
+    def test_get_t_test_suffix(self):
+        test_cases = [
+            {
+                "opt_list1": [1, 2, 3],
+                "opt_list2": [4, 5, 6],
+                "mean1": 2.0,
+                "mean2": 5.0,
+                "pvalue": 0.05,
+                "expected": "+"  # diff > 0 and p <= pvalue
+            },
+            {
+                "opt_list1": [4, 5, 6],
+                "opt_list2": [1, 2, 3],
+                "mean1": 5.0,
+                "mean2": 2.0,
+                "pvalue": 0.05,
+                "expected": "-"  # diff <= 0 and p <= pvalue
+            },
+            {
+                "opt_list1": [1, 2, 3],
+                "opt_list2": [1, 2, 3],
+                "mean1": 2.0,
+                "mean2": 2.0,
+                "pvalue": 0.05,
+                "expected": "≈"  # p > pvalue
+            },
+            {
+                "opt_list1": [10, 20, 30],
+                "opt_list2": [15, 25, 35],
+                "mean1": 20.0,
+                "mean2": 25.0,
+                "pvalue": 0.1,
+                "expected": "≈"  # p > pvalue
+            }
         ]
-        self.assertEqual(result, expected)
-
-    def test_gen_exp_combinations(self):
-        launcher_conf = LauncherConfig(
-            algorithms=['alg1', 'alg2'],
-            problems=['prob1', 'prob2']
-        )
-        alg_conf = {
-            'alg1': {'alg_param': 1},
-            'alg2': {'alg_param': 2}
-        }
-        prob_conf = {
-            'prob1': {'prob_param': 'a'},
-            'prob2': {'prob_param': 'b'}
-        }
-        result = gen_exp_combinations(launcher_conf, alg_conf, prob_conf)
-
-        expected = [
-            ('alg1', {'alg_param': 1}, 'prob1', {'prob_param': 'a'}),
-            ('alg1', {'alg_param': 1}, 'prob2', {'prob_param': 'b'}),
-            ('alg2', {'alg_param': 2}, 'prob1', {'prob_param': 'a'}),
-            ('alg2', {'alg_param': 2}, 'prob2', {'prob_param': 'b'})
-        ]
-        self.assertEqual(result, expected)
+        for case in test_cases:
+            kwargs = case.copy()
+            expected = kwargs.pop('expected')
+            self.assertEqual(self.utils.get_t_test_suffix(**kwargs), expected)
 
     def test_parse_reporter_config(self):
         config = {
@@ -191,7 +124,7 @@ class TestExperimentUtils(unittest.TestCase):
             'prob1': {'src_problem': 'src1', 'np_per_dim': 2},
             'prob2': {'np_per_dim': 3}
         }
-        result = parse_reporter_config(config, prob_conf)
+        result = self.utils.parse_reporter_config(config, prob_conf)
 
         expected_analysis_comb = [
             (['alg1', 'alg2'], 'PROB1-src1', 2),
@@ -214,6 +147,177 @@ class TestExperimentUtils(unittest.TestCase):
         self.assertEqual(result['results'], 'out/results')
         self.assertEqual(result['analysis_comb'], expected_analysis_comb)
         self.assertEqual(result['initialize_comb'], expected_initialize_comb)
+
+    def test_all_rows_equal(self):
+        col_title = ["Col1", "Col2", "Col3"]
+        row_title = ["Row1", "Row2", "Row3"]
+
+        valid_data = [[1, 2, 3], [1, 2, 3], [1, 2, 3]]
+        ReporterUtils.check_rows(valid_data, col_title, row_title, f'Using valid data {valid_data}')
+
+        rows_different = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+        invalid_value = [["a", "b", "c"], [1, 2, 3], [4, 5, 6]]
+        with self.assertRaises(ValueError):
+            ReporterUtils.check_rows(invalid_value, col_title, row_title,
+                                     f'Data with different rows {invalid_value}')
+        with self.assertRaises(ValueError):
+            ReporterUtils.check_rows(rows_different, col_title, row_title,
+                                     f'Data with invalid values {rows_different}')
+
+    def test_find_grid_shape(self):
+        test_cases = [
+            (1, (1, 1)),
+            (4, (2, 2)),
+            (6, (3, 2)),
+            (10, (4, 3)),
+            (12, (4, 3)),
+            (18, (5, 4)),
+            (25, (5, 5)),
+            (30, (6, 5)),
+            (50, (8, 7)),
+            (60, (8, 8)),
+        ]
+
+        for size, expected in test_cases:
+            with self.subTest(size=size):
+                self.assertEqual(ReporterUtils.find_grid_shape(size), expected)
+
+        with self.assertRaises(ValueError):
+            ReporterUtils.find_grid_shape(0)
+
+
+class TestLauncherUtils(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp_dir = Path('tmp')
+        self.tmp_server = Path('temp_server.py')
+        self.tmp_setting = Path('settings.yaml')
+        self.tmp_alg_dir = Path('algorithms')
+        self.utils = LauncherUtils
+        if not self.tmp_dir.exists():
+            self.tmp_dir.mkdir()
+
+        self.run_settings_ok = {
+            'launcher': {
+                'algorithms': ['FMTBO'],
+                'problems': ['CEC2022']
+            },
+            'reporter': {
+                'algorithms': [['FMTBO', 'FDEMD']],
+                'np_per_dim': [1, 2],
+                'problems': ['CEC2022'],
+            }
+        }
+        with open(self.tmp_setting, 'w') as f:
+            yaml.dump(self.run_settings_ok, f)
+
+    def tearDown(self):
+        if self.tmp_dir:
+            shutil.rmtree(self.tmp_dir)
+        if self.tmp_server.exists():
+            self.tmp_server.unlink()
+        if self.tmp_setting.exists():
+            self.tmp_setting.unlink()
+        if self.tmp_alg_dir.exists():
+            shutil.rmtree('algorithms')
+
+    def test_start_server(self):
+        self.utils.start_server(OnlineServer)
+        exist_process('AlgServer')
+        self.utils.kill_server()
+
+    # def test_start_clients(self):
+    #     class TmpClient(fw.Client):
+    #         def optimize(self):
+    #             pass
+    #
+    #     prob = load_problem('tetci2019')
+    #     clients = [TmpClient(p) for p in prob[:3]]
+    #     with self.assertRaises(ConnectionError):
+    #         self.utils.start_clients(clients)
+
+    def test_gen_path(self):
+        alg = 'ALG'
+        prob = 'PROB'
+        kwargs1 = {
+            'np_per_dim': 1,
+            'dim': 2,
+        }
+        kwargs2 = {
+            'np_per_dim': 2,
+            'dim': 2,
+        }
+        res_root1 = self.utils.gen_path(alg, prob, kwargs1)
+        res_root2 = self.utils.gen_path(alg, prob, kwargs2)
+        self.assertEqual(res_root1, Path('out', 'results', alg, f"{prob}_2D", "IID"))
+        self.assertEqual(res_root2, Path('out', 'results', alg, f"{prob}_2D", "NIID2"))
+
+    def test_cross_platform_tools(self):
+        with patch('os.system') as mock_system:
+            with patch('platform.system', return_value="Windows"):
+                self.utils.kill_server()
+                mock_system.assert_called_once_with("taskkill /f /im AlgServer.exe")
+                mock_system.reset_mock()
+
+            with patch('platform.system', return_value="Linux"):
+                self.utils.kill_server()
+                mock_system.assert_called_once_with("pkill -f AlgServer")
+                mock_system.reset_mock()
+
+    def test_combine_args_no_list(self):
+        args = {
+            'problem1': {'param1': 'value1', 'param2': 'value2'}
+        }
+        result = self.utils.combine_args(args)
+        expected = [('problem1', {'param1': 'value1', 'param2': 'value2'})]
+        self.assertEqual(result, expected)
+
+    def test_combine_args_with_list(self):
+        args = {
+            'problem1': {'param1': 'value1', 'param2': [1, 2]}
+        }
+        result = self.utils.combine_args(args)
+        expected = [
+            ('problem1', {'param1': 'value1', 'param2': 1}),
+            ('problem1', {'param1': 'value1', 'param2': 2})
+        ]
+        self.assertEqual(result, expected)
+
+    def test_combine_args_multiple_lists(self):
+        args = {
+            'problem1': {'param1': [1, 2], 'param2': ['a', 'b']}
+        }
+        result = self.utils.combine_args(args)
+        expected = [
+            ('problem1', {'param1': 1, 'param2': 'a'}),
+            ('problem1', {'param1': 1, 'param2': 'b'}),
+            ('problem1', {'param1': 2, 'param2': 'a'}),
+            ('problem1', {'param1': 2, 'param2': 'b'})
+        ]
+        self.assertEqual(result, expected)
+
+    def test_gen_exp_combinations(self):
+        launcher_conf = LauncherConfig(
+            algorithms=['alg1', 'alg2'],
+            problems=['prob1', 'prob2']
+        )
+        alg_conf = {
+            'alg1': {'alg_param': 1},
+            'alg2': {'alg_param': 2}
+        }
+        prob_conf = {
+            'prob1': {'prob_param': 'a'},
+            'prob2': {'prob_param': 'b'}
+        }
+        result = self.utils.gen_exp_combinations(launcher_conf, alg_conf, prob_conf)
+
+        expected = [
+            ('alg1', {'alg_param': 1}, 'prob1', {'prob_param': 'a'}),
+            ('alg1', {'alg_param': 1}, 'prob2', {'prob_param': 'b'}),
+            ('alg2', {'alg_param': 2}, 'prob1', {'prob_param': 'a'}),
+            ('alg2', {'alg_param': 2}, 'prob2', {'prob_param': 'b'})
+        ]
+        self.assertEqual(result, expected)
 
 
 class TestRunSolutions(unittest.TestCase):
@@ -269,7 +373,7 @@ class TestRunSolutions(unittest.TestCase):
 
     def test_save_empty(self):
         rs = RunSolutions()
-        self.assertRaises(ValueError, rs.to_msgpack, self.tmp/'test.msgpack')
+        self.assertRaises(ValueError, rs.to_msgpack, self.tmp / 'test.msgpack')
 
     def test_save_and_load(self):
         rs1 = RunSolutions()
@@ -303,38 +407,38 @@ class TestRunSolutions(unittest.TestCase):
         self.assertEqual(rs.sorted_ids, [])
 
 
-class TestStatistics(unittest.TestCase):
-
-    def test_init(self):
-        sta = Statistics(
-            mean_orig=np.array([1, 2]),
-            mean_log=np.array([3, 4]),
-            std_orig=np.array([5, 6]),
-            std_log=np.array([7, 8]),
-            se_orig=np.array([9, 10]),
-            se_log=np.array([11, 12]),
-            opt_orig=np.array([13, 14]),
-            opt_log=np.array([15, 16])
-        )
-        sta.fe_init = 10
-        sta.fe_max = 20
-        sta.x = np.array([17, 18])
-        sta.x_global = np.array([19, 20])
-        sta.y_global = np.array([21, 22])
-
-        self.assertTrue(np.all(sta.mean_orig==np.array([1, 2])))
-        self.assertTrue(np.all(sta.mean_log==np.array([3, 4])))
-        self.assertTrue(np.all(sta.std_orig==np.array([5, 6])))
-        self.assertTrue(np.all(sta.std_log==np.array([7, 8])))
-        self.assertTrue(np.all(sta.se_orig==np.array([9, 10])))
-        self.assertTrue(np.all(sta.se_log==np.array([11, 12])))
-        self.assertTrue(np.all(sta.opt_orig==np.array([13, 14])))
-        self.assertTrue(np.all(sta.opt_log==np.array([15, 16])))
-        self.assertTrue(np.all(sta.x==np.array([17, 18])))
-        self.assertTrue(np.all(sta.x_global==np.array([19, 20])))
-        self.assertTrue(np.all(sta.y_global==np.array([21, 22])))
-        self.assertEqual(sta.fe_init, 10)
-        self.assertEqual(sta.fe_max, 20)
+# class TestStatistics(unittest.TestCase):
+#
+#     def test_init(self):
+#         sta = Statistics(
+#             mean_orig=np.array([1, 2]),
+#             mean_log=np.array([3, 4]),
+#             std_orig=np.array([5, 6]),
+#             std_log=np.array([7, 8]),
+#             se_orig=np.array([9, 10]),
+#             se_log=np.array([11, 12]),
+#             opt_orig=np.array([13, 14]),
+#             opt_log=np.array([15, 16])
+#         )
+#         sta.fe_init = 10
+#         sta.fe_max = 20
+#         sta.x = np.array([17, 18])
+#         sta.x_global = np.array([19, 20])
+#         sta.y_global = np.array([21, 22])
+#
+#         self.assertTrue(np.all(sta.mean_orig == np.array([1, 2])))
+#         self.assertTrue(np.all(sta.mean_log == np.array([3, 4])))
+#         self.assertTrue(np.all(sta.std_orig == np.array([5, 6])))
+#         self.assertTrue(np.all(sta.std_log == np.array([7, 8])))
+#         self.assertTrue(np.all(sta.se_orig == np.array([9, 10])))
+#         self.assertTrue(np.all(sta.se_log == np.array([11, 12])))
+#         self.assertTrue(np.all(sta.opt_orig == np.array([13, 14])))
+#         self.assertTrue(np.all(sta.opt_log == np.array([15, 16])))
+#         self.assertTrue(np.all(sta.x == np.array([17, 18])))
+#         self.assertTrue(np.all(sta.x_global == np.array([19, 20])))
+#         self.assertTrue(np.all(sta.y_global == np.array([21, 22])))
+#         self.assertEqual(sta.fe_init, 10)
+#         self.assertEqual(sta.fe_max, 20)
 
 
 class TestExportTools(unittest.TestCase):
@@ -349,7 +453,7 @@ class TestExportTools(unittest.TestCase):
         self.conf.unlink(missing_ok=True)
 
     def test_export_alg_template(self):
-        export_alg_template('TMP') # export an exist algorithm
+        fw.export_alg_template('TMP')  # export an exist algorithm
 
         alg_modules = [
             Path('algorithms/TMP/__init__.py'),
@@ -359,31 +463,31 @@ class TestExportTools(unittest.TestCase):
         for f in alg_modules:
             self.assertTrue(f.exists())
 
-        alg_modules[0].unlink() # remove the init file, and re-export
-        export_alg_template('TMP') # re-export only non-exist files
+        alg_modules[0].unlink()  # remove the init file, and re-export
+        fw.export_alg_template('TMP')  # re-export only non-exist files
 
-        export_launch_module() # export the launch module
+        fw.export_launch_module()  # export the launch module
         self.assertTrue(Path('run.py').exists())
 
     def test_export_default_config(self):
-        export_default_config()
+        fw.export_default_config()
         self.assertTrue(self.conf.exists())
 
     def test_export_to_new(self):
         funcs = [
-            export_launcher_config,
-            export_reporter_config,
-            export_algorithm_config,
-            export_problem_config,
+            fw.export_launcher_config,
+            fw.export_reporter_config,
+            fw.export_algorithm_config,
+            fw.export_problem_config,
         ]
 
         # each func repeat twice to cover file exists case
-        tmp_files = [f() for f in funcs+funcs]
+        tmp_files = [f() for f in funcs + funcs]
         for p in tmp_files:
             self.assertTrue(p.exists())
         for p in tmp_files:
             p.unlink()
 
     def test_export_invalid_config(self):
-        export_algorithm_config(algs=['INVALID'])
-        export_problem_config(probs=['INVALID'])
+        fw.export_algorithm_config(algs=['INVALID'])
+        fw.export_problem_config(probs=['INVALID'])

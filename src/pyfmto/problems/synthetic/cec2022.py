@@ -17,18 +17,17 @@ class _BenchmarksCec2022(Stp):
         return f"CEC2022F{self.id}"
 
     def _eval_single(self, x):
-         return self.func.evaluate(x)
+        return self.func.evaluate(x)
 
 
 class Cec2022(Mtp):
-
     is_realworld = False
     intro = """
         Synthetic of CEC 2022 benchmark problems
     """
 
     def __init__(self, dim=10, **kwargs):
-        if not dim in [10, 20]:
+        if dim not in [10, 20]:
             raise ValueError('CEC2022 only support 10D and 20D')
         super().__init__(dim, **kwargs)
 

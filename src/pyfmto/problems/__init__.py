@@ -17,7 +17,8 @@ __all__ = [
     'SingleTaskProblem'
 ]
 
-PROBLEMS = {name: cls
+PROBLEMS = {
+    name: cls
     for name, cls in globals().items()
     if inspect.isclass(cls) and issubclass(cls, MultiTaskProblem) and cls != MultiTaskProblem
 }

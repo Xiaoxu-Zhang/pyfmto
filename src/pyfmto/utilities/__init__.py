@@ -8,6 +8,7 @@ from .tools import (
     timer,
     colored,
     update_kwargs,
+    clear_console,
     show_in_table,
     titled_tabulate,
     tabulate_formats,

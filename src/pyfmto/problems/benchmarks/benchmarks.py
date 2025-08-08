@@ -2,7 +2,7 @@
 Single-Task Single-Objective Benchmark Problems
 
 This module implements a collection of classical single-objective continuous optimization benchmark functions,
-commonly used in evolutionary multitasking optimization, federated optimization, and other multi-task learning scenarios.
+commonly used in evolutionary multitasking optimization, federated optimization, and other multitask learning scenarios.
 
 Each function is defined as a class derived from the base class `SingleTaskProblem`, and overrides the `evaluate` method
 to support batched input and vectorized computation using NumPy.
@@ -35,7 +35,16 @@ import numpy as np
 
 from ..problem import SingleTaskProblem as Stp
 
-__all__ = ["Griewank", "Rastrigin", "Ackley", "Schwefel", "Sphere", "Rosenbrock", "Weierstrass", "Ellipsoid"]
+__all__ = [
+    "Ackley",
+    "Sphere",
+    "Schwefel",
+    "Griewank",
+    "Ellipsoid",
+    "Rastrigin",
+    "Rosenbrock",
+    "Weierstrass",
+]
 
 
 class Griewank(Stp):
@@ -102,9 +111,6 @@ class Rosenbrock(Stp):
         self.set_x_global(np.ones(self.dim))
 
     def _eval_single(self, x):
-        """
-        Rosenbrock: :math:`f(x) = \\sum_{i=1}^{d-1} \\left[ 100 \\left( x_{i+1} - x_i^2 \\right)^2 + (x_i - 1)^2 \\right]`
-        """
         x_squared_diff = x[1:] ** 2 - x[:-1]
         term1 = 100 * np.sum(np.power(x_squared_diff, 2))
         term2 = np.sum(np.power(x[:-1] - 1, 2))

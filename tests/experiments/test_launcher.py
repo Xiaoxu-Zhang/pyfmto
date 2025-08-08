@@ -31,7 +31,7 @@ class TestLauncher(unittest.TestCase):
         launcher.run()
 
     def test_kwargs_update(self):
-        export_algorithm_config(algs=['TMP'], mode='update') # cover kwargs update logic
+        export_algorithm_config(algs=['TMP'], mode='update')  # cover kwargs update logic
         conf = load_yaml('config.yaml')
         conf['algorithms']['TMP'].update({'client': {'alpha': 0.01}})
         save_yaml(conf, 'config.yaml')

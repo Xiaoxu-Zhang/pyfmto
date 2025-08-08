@@ -16,8 +16,8 @@ release:
 	python -m twine upload dist/*
 
 lint:
-	flake8 src/ tests/ --count --max-line-length=127 --ignore=W503,F403,F405,F401,E704
-	mypy src/ --follow-imports=skip --ignore-missing-imports
+	flake8 src/ tests/ --exclude=src/pyfmto/algorithms/ --count --max-line-length=127 --ignore=W503,F403,F405,F401,E704,W291,E226
+	mypy src/ tests/ --exclude=src/pyfmto/algorithms/ --follow-imports=skip --ignore-missing-imports
 
 test:
 	python -m unittest

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pyfmto import load_problem, export_reporter_config
 from pyfmto.experiments import RunSolutions, Reports
+
 plt.use('Agg')
 
 
@@ -21,10 +22,18 @@ class TestValidReporting(unittest.TestCase):
         shutil.rmtree(self.root, ignore_errors=True)
         Path('config.yaml').unlink()
 
+    def test_reinit_data_hit_cache(self):
+        self.reports.analyzer.init_data()
+
     def test_to_curve(self):
         self.reports.to_curve()
+        self.reports.to_curve(showing_size=10)
 
     def test_to_excel(self):
+        self.reports.to_excel()
+        self.algs.append('ALG3')  # add a non-existing algorithm
+        export_reporter_config(algs=[self.algs], probs=self.probs, mode='update')
+        self.reports = Reports()
         self.reports.to_excel()
 
     def test_to_latex(self):
@@ -55,4 +64,4 @@ class TestValidReporting(unittest.TestCase):
                         y = task.evaluate(x)
                         task.solutions.append(x, y)
                         run_solutions.update(task.id, task.solutions)
-                    run_solutions.to_msgpack(res_root / f"Run {run+1}.msgpack")
+                    run_solutions.to_msgpack(res_root / f"Run {run + 1}.msgpack")

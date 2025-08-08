@@ -5,7 +5,6 @@ from scipy.io import loadmat
 
 from pyfmto.problems import load_problem
 
-
 DEFAULT_DIM = 10
 DEFAULT_INIT_FE = 5 * DEFAULT_DIM
 DEFAULT_MAX_FE = 11 * DEFAULT_DIM
@@ -22,7 +21,7 @@ class TestArxiv2017(unittest.TestCase):
         default = load_problem('arxiv2017')
         mod_dim = load_problem('arxiv2017', dim=MODIFIED_DIM)
         mod_fe = load_problem('arxiv2017', fe_init=MODIFIED_INIT_FE, fe_max=MODIFIED_MAX_FE,
-                                 np_per_dim=MODIFIED_NP_PER_DIM)
+                              np_per_dim=MODIFIED_NP_PER_DIM)
 
         self.assertEqual(len(default), 18)
         self.assertEqual(len(mod_dim), 18)

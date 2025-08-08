@@ -49,7 +49,6 @@ class TestEmptyServer(unittest.TestCase):
         server.enable_consol_log()
 
 
-
 class TestLoadBody(unittest.IsolatedAsyncioTestCase):
     async def test_load_body_empty_body(self):
         mock_request = AsyncMock()
@@ -69,4 +68,3 @@ class TestLoadBody(unittest.IsolatedAsyncioTestCase):
         mock_request.body.return_value = b"invalid_pickle_data"
         with self.assertRaises(pickle.UnpicklingError):
             await load_body(mock_request)
-

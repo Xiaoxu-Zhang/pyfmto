@@ -1,3 +1,5 @@
+import os
+import platform
 import time
 import wrapt
 from pyfmto.utilities import logger
@@ -7,11 +9,13 @@ from typing import Literal, Optional
 __all__ = [
     'colored',
     'timer',
-    'titled_tabulate',
+    'clear_console',
     'show_in_table',
+    'update_kwargs',
+    'titled_tabulate',
     'tabulate_formats',
-    'update_kwargs'
 ]
+
 
 class TabulatesFormats:
     plain = 'plain'
@@ -244,3 +248,10 @@ def _log_diff(name, defaults: dict, updates: dict):
         colalign=("left", "center", "center", "center")
     )
     logger.info(table)
+
+
+def clear_console():
+    if platform.system() == 'Windows':
+        os.system('cls')
+    else:
+        os.system('clear')

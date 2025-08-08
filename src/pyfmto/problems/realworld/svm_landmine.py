@@ -71,7 +71,6 @@ class SvmLandmine(Mtp):
             tasks.append(t)
         return tasks
 
-
     def get_info(self):
         return {
             "DecDim": [2],

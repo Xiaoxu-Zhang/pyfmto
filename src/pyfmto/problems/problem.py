@@ -44,7 +44,7 @@ class Transformer:
     def rotation_inv(self):
         return self._transform.rotation_inv
 
-    def set_transform(self, rotation: Optional[np.ndarray]=None, shift: Union[int, float, np.ndarray, None]=None):
+    def set_transform(self, rotation: Optional[np.ndarray] = None, shift: Union[int, float, np.ndarray, None] = None):
         self._transform = TransformerConfig(
             dim=self.dim,
             rotation=rotation,
@@ -161,8 +161,8 @@ class SingleTaskProblem(ABC):
             dims=(0, 1),
             n_points=100,
             fixed=None,
-            scale_mode: Optional[str]=None,
-        ) -> tuple[ndarray, ndarray, ndarray, PlottingArgs]:
+            scale_mode: str = '',
+    ) -> tuple[ndarray, ndarray, ndarray, PlottingArgs]:
         """
 
         Parameters
@@ -210,21 +210,21 @@ class SingleTaskProblem(ABC):
             x_range = self.ub[0] - self.lb[0]
             Z = x_range * (Z - np.min(Z)) / (np.max(Z) - np.min(Z) + 1e-8)
         else:
-            pass # do nothing
+            pass
         return D1, D2, Z, args
 
     def plot_2d(
             self,
-            filename: Optional[Union[str, Path]]=None,
-            dims: Union[list[int, int], tuple[int, int]]=(0, 1),
-            n_points: int=100,
-            figsize: tuple[float, float, float]=(5., 4., 1.),
-            cmap: Union[str, Cmaps]=Cmaps.viridis,
-            levels: int=30,
-            labels: tuple[Optional[str], Optional[str]]=(None, None),
-            title: str=None,
-            alpha: float=0.7,
-            fixed: Union[float, np.ndarray, None]=None):
+            filename: Optional[Union[str, Path]] = None,
+            dims: Union[list[int, int], tuple[int, int]] = (0, 1),
+            n_points: int = 100,
+            figsize: tuple[float, float, float] = (5., 4., 1.),
+            cmap: Union[str, Cmaps] = Cmaps.viridis,
+            levels: int = 30,
+            labels: tuple[Optional[str], Optional[str]] = (None, None),
+            title: Optional[str] = None,
+            alpha: float = 0.7,
+            fixed: Union[float, np.ndarray, None] = None):
         """
         Plot the function's 2D contour.
 
@@ -250,7 +250,7 @@ class SingleTaskProblem(ABC):
         alpha : float
             The alpha parameter of contourf function
         fixed : float, np.ndarray
-            Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,)
+            Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim, ).
         """
         w, h, s = figsize
         figsize = (w * s, h * s)
@@ -278,13 +278,13 @@ class SingleTaskProblem(ABC):
     def plot_3d(
             self,
             filename: Optional[Union[str, Path]] = None,
-            dims: tuple[int, int]=(0, 1),
+            dims: tuple[int, int] = (0, 1),
             n_points: int = 100,
             figsize: tuple[float, float, float] = (5., 4., 1.),
-            cmap: Union[str, Cmaps]=Cmaps.viridis,
+            cmap: Union[str, Cmaps] = Cmaps.viridis,
             levels: int = 30,
-            labels: tuple[Optional[str], Optional[str], Optional[str]]=(None, None, None),
-            title: str=None,
+            labels: tuple[Optional[str], Optional[str], Optional[str]] = (None, None, None),
+            title: Optional[str] = None,
             alpha=0.7,
             fixed=None,
     ):
@@ -349,7 +349,7 @@ class SingleTaskProblem(ABC):
             n_points: int = 100,
             font_size: float = 10,
             cmap: Union[str, Cmaps] = Cmaps.viridis,
-            color: Union[str, StrColors, list[float, float, float], tuple[float, float, float], None]=None,
+            color: Union[str, StrColors, list[float, float, float], tuple[float, float, float], None] = None,
             show_grid: bool = True,
             scale_mode: Literal['xy', 'y'] = 'y',
             fixed=None,
@@ -380,7 +380,7 @@ class SingleTaskProblem(ABC):
             if pass 'y', scale objective value to match the decision space, which will keep
             the original decision space information.
         fixed : float, np.ndarray
-            Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,)
+            Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim, ).
         plotter:
             The pyvista.Plotter object. If the plotter is not None, plot on it and return, else plot
             on a new created plotter and show.
@@ -426,7 +426,7 @@ class SingleTaskProblem(ABC):
         """
         self._x_global = x_global
 
-    def set_transform(self, rotation: Optional[np.ndarray]=None, shift: Union[int, float, np.ndarray, None]=None):
+    def set_transform(self, rotation: Optional[np.ndarray] = None, shift: Union[int, float, np.ndarray, None] = None):
         self._transformer.set_transform(rotation, shift)
 
     def set_id(self, _id: int):
@@ -722,15 +722,15 @@ class MultiTaskProblem(ABC):
 
     def iplot_tasks_3d(
             self,
-            tasks_id: Union[list, tuple, range]=(1, 2, 3, 4),
-            shape: tuple[int, int]=(2, 2),
+            tasks_id: Union[list, tuple, range] = (1, 2, 3, 4),
+            shape: tuple[int, int] = (2, 2),
             dims=(0, 1),
-            font_size: int=10,
-            cmap: Union[str, Cmaps]=Cmaps.viridis,
-            color: Union[str, StrColors, list[float, float, float], tuple[float, float, float], None]=None,
-            n_points: int=100,
-            scale_mode: Literal['xy', 'y']='y',
-            show_grid: bool=True,
+            font_size: int = 10,
+            cmap: Union[str, Cmaps] = Cmaps.viridis,
+            color: Union[str, StrColors, list[float, float, float], tuple[float, float, float], None] = None,
+            n_points: int = 100,
+            scale_mode: Literal['xy', 'y'] = 'y',
+            show_grid: bool = True,
     ):
         """
         Plot a set of tasks' 3d landscape in an interactive window.
@@ -775,7 +775,7 @@ class MultiTaskProblem(ABC):
         for index, tid in enumerate(tasks_id):
             row, col = index // shape[1], index % shape[1]
             plotter.subplot(row, col)
-            task = self._problem[tid-1]
+            task = self._problem[tid - 1]
             task.iplot_3d(
                 dims=dims,
                 n_points=n_points,
@@ -791,8 +791,8 @@ class MultiTaskProblem(ABC):
     def plot_distribution(
             self,
             dims=(0, 1),
-            style: Union[str, SeabornStyles]=SeabornStyles.whitegrid,
-            figsize: tuple[float, float, float]=(11., 9., 1.),
+            style: Union[str, SeabornStyles] = SeabornStyles.whitegrid,
+            figsize: tuple[float, float, float] = (11., 9., 1.),
             filename=None
     ):
         """
@@ -845,7 +845,7 @@ class MultiTaskProblem(ABC):
                     'problem': label
                 })
         w, h, s = figsize
-        _figsize = (w*s, h*s)
+        _figsize = (w * s, h * s)
         plt.figure(figsize=_figsize)
         sns.set(style=str(style))
         sns.scatterplot(data=pd.DataFrame(data), x='x', y='y', hue='problem', style='problem', s=80)
@@ -854,7 +854,7 @@ class MultiTaskProblem(ABC):
         plt.ylabel(f'X{dim2}', rotation=0)
         plt.xticks(ticks)
         plt.yticks(ticks)
-        plt.legend(title=f'Tasks', bbox_to_anchor=(1., 1), loc='upper left')
+        plt.legend(title='Tasks', bbox_to_anchor=(1., 1), loc='upper left')
         plt.tight_layout()
         if filename:
             plt.savefig(filename)
@@ -863,19 +863,19 @@ class MultiTaskProblem(ABC):
 
     def plot_similarity_heatmap(
             self,
-            n_samples: int=1000,
-            method: Literal['kendalltau', 'spearmanr', 'pearsonr']='spearmanr',
-            p_value: float=1.,
-            figsize: tuple[float, float, float]=(9., 7., 1.),
-            cmap: Optional[Union[str, Cmaps]]=None,
-            masker: Optional[float]=np.nan,
-            font_size: int=10,
-            fmt: str= '.2f',
-            triu: Literal['full', 'lower', 'upper']='full',
-            vmax: Optional[float]=None,
-            vmin: Optional[float]=None,
-            linewidth: float=0.5,
-            filename: Optional[Union[str, Path]]=None,
+            n_samples: int = 1000,
+            method: Literal['kendalltau', 'spearmanr', 'pearsonr'] = 'spearmanr',
+            p_value: float = 1.,
+            figsize: tuple[float, float, float] = (9., 7., 1.),
+            cmap: Optional[Union[str, Cmaps]] = None,
+            masker: Optional[float] = np.nan,
+            font_size: int = 10,
+            fmt: str = '.2f',
+            triu: Literal['full', 'lower', 'upper'] = 'full',
+            vmax: Optional[float] = None,
+            vmin: Optional[float] = None,
+            linewidth: float = 0.5,
+            filename: Optional[Union[str, Path]] = None,
     ):
         """
         Plot a heatmap showing the similarity between tasks.
@@ -969,7 +969,7 @@ class MultiTaskProblem(ABC):
             statis[triu_mask] = np.nan
         cols = [f"T{f.id:02}" for f in self]
         w, h, s = figsize
-        _figsize = (w*s, h*s)
+        _figsize = (w * s, h * s)
         df = pd.DataFrame(statis[::-1], columns=cols, index=cols[::-1])
         _, ax = plt.subplots(figsize=_figsize)
         sns.heatmap(
@@ -1029,8 +1029,8 @@ class MultiTaskProblem(ABC):
         tab = tabulate(self.get_info(), headers="keys", tablefmt="rounded_grid")
         tab = textwrap.indent(tab, " " * 8)
         tab_width = tab.find('\n') + 8
-        prob_name = self.name.center(tab_width-16, '=')
-        prob_name  = textwrap.indent(prob_name, " " * 8)
+        prob_name = self.name.center(tab_width - 16, '=')
+        prob_name = textwrap.indent(prob_name, " " * 8)
         intro = _reformat_lines(self.intro, tab_width)
         notes = _reformat_lines(self.notes, tab_width)
         ref = [_reformat_lines(txt, tab_width) for txt in self.references]

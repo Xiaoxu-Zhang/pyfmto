@@ -3,13 +3,14 @@ from typing import Optional, Any
 
 __all__ = ['Actions', 'ClientPackage', 'ServerPackage', 'DataArchive']
 
+
 class Actions(Enum):
     REGISTER = auto()
     QUIT = auto()
 
 
 class ClientPackage:
-    def __init__(self, cid: Optional[int], action: Any, data: Any=None):
+    def __init__(self, cid: Optional[int], action: Any, data: Any = None):
         self.cid = cid
         self.action = action
         self.data = data

@@ -73,7 +73,7 @@ class Server(ABC):
             self._updated_server_info = True
 
     def start(self):
-        setproctitle(f'AlgServer')
+        setproctitle('AlgServer')
         self._server = uvicorn.Server(self._config)
         asyncio.run(self._run_server())
 

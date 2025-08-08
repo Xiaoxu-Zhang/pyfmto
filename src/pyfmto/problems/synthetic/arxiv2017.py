@@ -1,7 +1,6 @@
 import numpy as np
 from pathlib import Path
 from scipy.io import loadmat
-from tabulate import tabulate
 
 from ..problem import MultiTaskProblem as Mtp
 from ..benchmarks import (
@@ -61,9 +60,8 @@ class Arxiv2017(Mtp):
             "Upper": [t.ub[0] for t in self._problem]
         }
 
-
     def _init_tasks(self, dim, **kwargs):
-        datasets = Path(__file__).parents[1] / 'datasets' / 'mtso_arxiv2017'
+        datasets = Path(__file__).parents[1] / 'datasets' / 'arxiv2017'
         cih = loadmat(str(datasets / 'CI_H.mat'))
         cim = loadmat(str(datasets / 'CI_M.mat'))
         cil = loadmat(str(datasets / 'CI_L.mat'))

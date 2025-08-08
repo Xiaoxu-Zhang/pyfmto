@@ -42,7 +42,8 @@ class TestProblemBase(unittest.TestCase):
             self.assertEqual(prob.fe_init, 5*dim)
             self.assertEqual(prob.fe_max, 11*dim)
             self.assertEqual(prob.solutions.size, 0)
-            self.assertEqual(prob.fe_available, 11*dim, f"fe_init={prob.fe_init}, size={prob.solutions.size}, fe_max={prob.fe_max}")
+            self.assertEqual(prob.fe_available, 11*dim,
+                             f"fe_init={prob.fe_init}, size={prob.solutions.size}, fe_max={prob.fe_max}")
             self.assertEqual(prob.np_per_dim, 1)
             self.assertTrue(np.all(prob.lb == -5))
             self.assertTrue(np.all(prob.ub == 5))

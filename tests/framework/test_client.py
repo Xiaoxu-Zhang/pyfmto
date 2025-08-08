@@ -27,8 +27,8 @@ class TestClient(unittest.TestCase):
         self.assertEqual(client.fe_max, task.fe_max)
         self.assertEqual(client.y_min, task.solutions.y_min)
         self.assertEqual(client.y_max, task.solutions.y_max)
-        self.assertTrue(np.all(client.lb==task.lb))
-        self.assertTrue(np.all(client.ub==task.ub))
+        self.assertTrue(np.all(client.lb == task.lb))
+        self.assertTrue(np.all(client.ub == task.ub))
 
     def test_configurable_client(self):
         class ConfigurableClient(Client):
@@ -36,13 +36,16 @@ class TestClient(unittest.TestCase):
             alpha: 0.1
             beta: 0.2
             """
+
             def __init__(self, problem, **kwargs):
                 super().__init__(problem)
                 kwargs = self.update_kwargs(kwargs)
                 self.alpha = kwargs['alpha']
                 self.beta = kwargs['beta']
+
             def optimize(self):
                 pass
+
         prob = self.problems[0]
         defaults = parse_yaml(ConfigurableClient.__doc__)
         default_config = ConfigurableClient(prob)
