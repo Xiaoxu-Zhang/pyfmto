@@ -26,7 +26,7 @@ class Tevc2024(Mtp):
     """
     references = [
         """
-        Wang, X., & Jin, Y. (2024). Distilling Ensemble Surrogates for Federated Data-Driven 
+        Wang, X., & Jin, Y. (2024). Distilling Ensemble Surrogates for Federated Data-Driven
         Many-Task Optimization. IEEE Transactions on Evolutionary Computation, 1–1.
         https://doi.org/10.1109/TEVC.2024.3428701
         """

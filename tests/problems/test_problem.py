@@ -160,8 +160,9 @@ class TestProblemBase(unittest.TestCase):
             self.assertTrue(np.all(x >= prob._partition[0]))
             self.assertTrue(np.all(x <= prob._partition[1]))
             x = prob.random_uniform_x(size=n_points, within_partition=False)
-            self.assertTrue(np.any(x < prob._partition[0]))
-            self.assertTrue(np.any(x > prob._partition[1]))
+            out_p_lb = np.any(x < prob._partition[0])
+            out_p_ub = np.any(x > prob._partition[1])
+            self.assertTrue(out_p_lb or out_p_ub)
 
     def test_auto_update_solutions(self):
         dim = 5

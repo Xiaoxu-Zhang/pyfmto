@@ -26,6 +26,7 @@ mypy_extensions
 numpy
 openpyxl
 packaging
+pandas
 pillow
 pluggy
 pycodestyle
@@ -38,7 +39,10 @@ pyproject_hooks
 pytest
 pytest-cov
 pytest-env
+pytest-html
 python-dateutil
+pyvista
+psutil
 PyYAML
 requests
 scikit-learn

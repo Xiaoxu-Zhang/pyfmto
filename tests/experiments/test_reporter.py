@@ -15,7 +15,7 @@ class TestValidReporting(unittest.TestCase):
         self.algs = ['ALG1', 'ALG2']
         self.probs = ['tetci2019', 'arxiv2017']
         self.gen_fake_data()
-        export_reporter_config(algs=[self.algs], probs=self.probs, mode='update')
+        export_reporter_config(algs=(self.algs, ), probs=tuple(self.probs), mode='update')
         self.reports = Reports()
 
     def tearDown(self):
@@ -32,7 +32,7 @@ class TestValidReporting(unittest.TestCase):
     def test_to_excel(self):
         self.reports.to_excel()
         self.algs.append('ALG3')  # add a non-existing algorithm
-        export_reporter_config(algs=[self.algs], probs=self.probs, mode='update')
+        export_reporter_config(algs=(tuple(self.algs), ), probs=tuple(self.probs), mode='update')
         self.reports = Reports()
         self.reports.to_excel()
 

@@ -5,6 +5,7 @@ from typing import Type
 
 import numpy as np
 
+from pyfmto.experiments.utils import LauncherUtils
 from pyfmto.framework import Server, ClientPackage, ServerPackage, Client, record_runtime
 from pyfmto.problems import SingleTaskProblem
 
@@ -21,13 +22,16 @@ def start_subprocess_clients(client: Type[Client]):
         f"clients = [{class_name}(p) for p in prob[:3]]; "
         f"LauncherUtils.start_clients(clients)"
     ]
-    print('\n'.join(cmd[2].split('; ')))
-    subprocess.Popen(
+    proc = subprocess.Popen(
         cmd,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
+    try:
+        yield proc
+    finally:
+        LauncherUtils.terminate_popen(proc)
 
 
 class OfflineServer(Server):

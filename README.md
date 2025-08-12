@@ -12,7 +12,7 @@
 
 # Federated Many-task Optimization Library for Python
 
-**pyfmto** is a Python library for federated many-task optimization
+**pyfmto** is a Python library for federated many-task optimization research
 
 ## Install
 

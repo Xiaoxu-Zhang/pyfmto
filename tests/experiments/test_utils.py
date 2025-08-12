@@ -1,6 +1,5 @@
-
+import subprocess
 import numpy as np
-import psutil
 import shutil
 import unittest
 import yaml
@@ -14,16 +13,12 @@ from pyfmto.utilities import load_msgpack
 from tests.framework import OnlineServer
 
 
-def exist_process(name: str) -> bool:
-    for proc in psutil.process_iter():
-        try:
-            cmd = proc.cmdline()
-            if cmd and name in cmd:
-                print(f"pid: {proc.pid}, cmd: {proc.cmdline()}")
-                return True
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            continue
-    return False
+def process_is_running(process: subprocess.Popen) -> bool:
+    exit_code = process.poll()
+    if exit_code is None:
+        return True
+    else:
+        return False
 
 
 def create_solution():
@@ -222,19 +217,9 @@ class TestLauncherUtils(unittest.TestCase):
             shutil.rmtree('algorithms')
 
     def test_start_server(self):
-        self.utils.start_server(OnlineServer)
-        exist_process('AlgServer')
-        self.utils.kill_server()
-
-    # def test_start_clients(self):
-    #     class TmpClient(fw.Client):
-    #         def optimize(self):
-    #             pass
-    #
-    #     prob = load_problem('tetci2019')
-    #     clients = [TmpClient(p) for p in prob[:3]]
-    #     with self.assertRaises(ConnectionError):
-    #         self.utils.start_clients(clients)
+        with self.utils.running_server(OnlineServer) as s:
+            self.assertTrue(process_is_running(s))
+        self.assertFalse(process_is_running(s))
 
     def test_gen_path(self):
         alg = 'ALG'
@@ -354,18 +339,6 @@ class TestRunSolutions(unittest.TestCase):
         self.assertIsInstance(rs.solutions, list)
         self.assertEqual(len(rs.solutions), 1)
 
-    def test_get_multiple_solutions(self):
-        rs = RunSolutions()
-        solution = create_solution()
-
-        rs.update(1, solution)
-        rs.update(2, solution)
-
-        retrieved = rs.get_solutions([1, 2])
-        self.assertIsInstance(retrieved, dict)
-        self.assertIn(1, retrieved)
-        self.assertIn(2, retrieved)
-
     def test_get_nonexistent_client_raises_error(self):
         rs = RunSolutions()
         with self.assertRaises(KeyError):
@@ -405,40 +378,6 @@ class TestRunSolutions(unittest.TestCase):
         rs.clear()
         self.assertEqual(rs.num_clients, 0)
         self.assertEqual(rs.sorted_ids, [])
-
-
-# class TestStatistics(unittest.TestCase):
-#
-#     def test_init(self):
-#         sta = Statistics(
-#             mean_orig=np.array([1, 2]),
-#             mean_log=np.array([3, 4]),
-#             std_orig=np.array([5, 6]),
-#             std_log=np.array([7, 8]),
-#             se_orig=np.array([9, 10]),
-#             se_log=np.array([11, 12]),
-#             opt_orig=np.array([13, 14]),
-#             opt_log=np.array([15, 16])
-#         )
-#         sta.fe_init = 10
-#         sta.fe_max = 20
-#         sta.x = np.array([17, 18])
-#         sta.x_global = np.array([19, 20])
-#         sta.y_global = np.array([21, 22])
-#
-#         self.assertTrue(np.all(sta.mean_orig == np.array([1, 2])))
-#         self.assertTrue(np.all(sta.mean_log == np.array([3, 4])))
-#         self.assertTrue(np.all(sta.std_orig == np.array([5, 6])))
-#         self.assertTrue(np.all(sta.std_log == np.array([7, 8])))
-#         self.assertTrue(np.all(sta.se_orig == np.array([9, 10])))
-#         self.assertTrue(np.all(sta.se_log == np.array([11, 12])))
-#         self.assertTrue(np.all(sta.opt_orig == np.array([13, 14])))
-#         self.assertTrue(np.all(sta.opt_log == np.array([15, 16])))
-#         self.assertTrue(np.all(sta.x == np.array([17, 18])))
-#         self.assertTrue(np.all(sta.x_global == np.array([19, 20])))
-#         self.assertTrue(np.all(sta.y_global == np.array([21, 22])))
-#         self.assertEqual(sta.fe_init, 10)
-#         self.assertEqual(sta.fe_max, 20)
 
 
 class TestExportTools(unittest.TestCase):
@@ -489,5 +428,5 @@ class TestExportTools(unittest.TestCase):
             p.unlink()
 
     def test_export_invalid_config(self):
-        fw.export_algorithm_config(algs=['INVALID'])
-        fw.export_problem_config(probs=['INVALID'])
+        fw.export_algorithm_config(algs=('INVALID', ))
+        fw.export_problem_config(probs=('INVALID', ))

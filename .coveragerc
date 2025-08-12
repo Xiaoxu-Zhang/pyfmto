@@ -1,4 +1,8 @@
 [run]
-source = src/pyfmto
 data_file = coverage/.coverage
-omit = src/pyfmto/algorithms/*
+source = pyfmto
+omit =
+    # Don't test the algorithms
+    */pyfmto/algorithms/*
+[html]
+directory = coverage/html

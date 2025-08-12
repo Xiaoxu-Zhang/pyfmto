@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from PIL import Image
 from matplotlib import pyplot as plt
 from scipy import stats
@@ -31,28 +32,25 @@ class RunSolutions:
     def update(self, cid: int, solution: Solution):
         self._solutions[cid] = copy.deepcopy(solution.to_dict())
 
-    def get_solutions(self, ids: Union[int, list[int], tuple[int]]) -> Union[Solution, dict[int, Solution]]:
+    def get_solutions(self, cid: int) -> Solution:
         """
         Retrieve solutions for the specified client IDs.
 
         Parameters
         ----------
-        ids : Union[int, list[int], tuple[int]]
+        cid : Union[int, list[int], tuple[int]]
             A single client ID (int) or a list/tuple of client IDs.
 
         Returns
         -------
-        Union[Solution, dict[int, Solution]]
+        Solution
             - A `Solution` object if a single client ID is provided.
             - A dictionary of `Solution` objects if a list or tuple of client IDs is provided.
         """
-        if not isinstance(ids, (list, tuple)):
-            return self._get_solution(int(ids))
-        else:
-            solutions = {}
-            for cid in ids:
-                solutions[cid] = self._get_solution(cid)
-            return solutions
+        try:
+            return Solution(self._solutions[cid])
+        except KeyError:
+            raise KeyError(f"Client {cid} not found in results")
 
     @property
     def solutions(self) -> list[Solution]:
@@ -76,12 +74,6 @@ class RunSolutions:
     @property
     def sorted_ids(self):
         return sorted(map(int, self._solutions.keys()))
-
-    def _get_solution(self, cid: int):
-        try:
-            return Solution(self._solutions[cid])
-        except KeyError:
-            raise KeyError(f"Client {cid} not found in results")
 
 
 class Statistics:
@@ -122,17 +114,33 @@ class Statistics:
         self.opt_log = opt_log
         self.fe_init = 0
         self.fe_max = 0
-        self.x = None
-        self.x_global = None
-        self.y_global = None
+        self.x = np.array([])
+        self.x_global = np.array([])
+        self.y_global = np.array([])
 
 
 class LauncherUtils:
 
     @staticmethod
-    def start_server(server: Type[Server], **kwargs):
+    def terminate_popen(process: subprocess.Popen):
+        if process.stdout:
+            process.stdout.close()
+        if process.stderr:
+            process.stderr.close()
+
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+
+    @staticmethod
+    @contextmanager
+    def running_server(server: Type[Server], **kwargs):
         """
-        Start the server in a subprocess with a unified approach.
+        Start the server in a subprocess with a context manager approach.
+        The server will be automatically terminated when exiting the context.
 
         Parameters
         ----------
@@ -140,6 +148,13 @@ class LauncherUtils:
             The server class itself, not an instance.
         kwargs:
             The kwargs of the server.
+
+        Example
+        -------
+        with LauncherUtils.start_server_context(MyServer, port=8080) as server_process:
+            # Do something with the server
+            pass
+        # Server is automatically terminated here
         """
         module_name = server.__module__
         class_name = server.__name__
@@ -151,14 +166,19 @@ class LauncherUtils:
             f"srv.start()"
         ]
 
-        subprocess.Popen(
+        process = subprocess.Popen(
             cmd,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
         logger.debug("Server started.")
-        time.sleep(2)
+        time.sleep(1)
+        try:
+            yield process
+        finally:
+            LauncherUtils.terminate_popen(process)
+            logger.debug("Server terminated.")
 
     @staticmethod
     def start_clients(clients: list[Client]) -> list[tuple[int, Solution]]:
@@ -478,7 +498,7 @@ class ReporterUtils:
         size_info = []
         images = []
         for row in img_grid:
-            row_img = []
+            row_img: list[Optional[Image.Image]] = []
             for filename in row:
                 if not filename:
                     row_img.append(None)

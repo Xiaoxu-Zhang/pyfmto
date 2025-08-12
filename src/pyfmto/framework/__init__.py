@@ -110,8 +110,8 @@ def export_launcher_config(
         save: bool = True,
         seed: int = 42,
         backup: bool = True,
-        algs: Union[tuple[str], list[str]] = ('BO', 'FMTBO'),
-        probs: Union[tuple[str], list[str]] = ('tetci2019', 'arxiv2017'),
+        algs: Union[tuple[str, ...], list[str]] = ('BO', 'FMTBO'),
+        probs: Union[tuple[str, ...], list[str]] = ('tetci2019', 'arxiv2017'),
         mode: Literal['new', 'update'] = 'new',
 ):
     data = LauncherConfig(
@@ -128,20 +128,20 @@ def export_launcher_config(
 
 def export_reporter_config(
         results: str = 'out/results',
-        algs: list[list[str]] = (('BO', 'FMTBO'),),
-        probs: list[str] = ('tetci2019', 'arxiv2017'),
+        algs: tuple[list[str], ...] = (['BO', 'FMTBO'], ),
+        probs: tuple[str, ...] = ('tetci2019', 'arxiv2017'),
         mode: Literal['new', 'update'] = 'new',
 ):
     data = ReporterConfig(
         results=results,
-        algorithms=algs,
-        problems=probs,
+        algorithms=list(algs),
+        problems=list(probs),
     )
     return save_config('reporter', data.model_dump(), mode)
 
 
 def export_algorithm_config(
-        algs: list[str] = ('BO', 'FMTBO'),
+        algs: tuple[str, ...] = ('BO', 'FMTBO'),
         mode: Literal['new', 'update'] = 'new'
 ):
     all_algorithms = {}
@@ -155,7 +155,7 @@ def export_algorithm_config(
 
 
 def export_problem_config(
-        probs: list[str] = ('arxiv2017', 'tetci2019'),
+        probs: tuple[str, ...] = ('arxiv2017', 'tetci2019'),
         mode: Literal['new', 'update'] = 'new'
 ):
     all_problems = {}

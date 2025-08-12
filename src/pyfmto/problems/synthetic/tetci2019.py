@@ -17,11 +17,11 @@ class Tetci2019(Mtp):
     is_realworld = False
     intro = ""
     notes = """
-        The number of tasks is either 10 or 8, depending on the input dimension. 
-        If dim <= 25, 10 tasks. 
-        If dim > 25, 8 tasks (due to Weierstrass function only support 1 <= dim <= 25) 
-        All tasks share the same dimensionality. 
-        Tasks differ by shift vectors applied to their base functions. 
+        The number of tasks is either 10 or 8, depending on the input dimension.
+        If dim <= 25, 10 tasks.
+        If dim > 25, 8 tasks (due to Weierstrass function only support 1 <= dim <= 25)
+        All tasks share the same dimensionality.
+        Tasks differ by shift vectors applied to their base functions.
     """
     references = [
         """

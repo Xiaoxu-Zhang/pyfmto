@@ -47,7 +47,7 @@ class Reporter:
             alpha: float,
             palette: Union[str, SeabornPalettes],
             suffix: str,
-            styles: Union[list[str], tuple[str]],
+            styles: tuple[str, ...],
             showing_size: int,
             quality: int,
             merge: bool,
@@ -90,7 +90,7 @@ class Reporter:
             problem: str,
             np_per_dim: int,
             pvalue: float,
-            styles: Union[list[str], tuple[str]]
+            styles: tuple[str, ...]
     ):
         style_map = {
             "color-bg-red": "background-color: #ff0000",
@@ -195,7 +195,7 @@ class Reporter:
             problem: str,
             np_per_dim: int,
             suffix: str,
-            figsize: tuple,
+            figsize: tuple[float, float, float],
             merge: bool,
             clear: bool
     ):
@@ -298,8 +298,10 @@ class Reporter:
         np_name = self._utils.get_np_name(np_per_dim)
         res_dir = Path(f"{self._root}/{alg_name}/{problem}/{np_name}")
         if res_dir.exists():
-            result_list = os.listdir(res_dir)
-            result_list = [res_dir / f_name for f_name in result_list if f_name.endswith('.msgpack')]
+            result_list = [
+                res_dir / f_name
+                for f_name in os.listdir(res_dir) if f_name.endswith('.msgpack')
+            ]
             return result_list
         logger.warning(f"{res_dir} does not exist")
 
@@ -393,7 +395,7 @@ class Reports:
             alpha: T_Fraction = 0.2,
             palette: Union[str, SeabornPalettes] = SeabornPalettes.bright,
             suffix: T_Suffix = '.png',
-            styles: Union[list[str], tuple[str]] = ('science', 'ieee', 'no-latex'),
+            styles: tuple[str, ...] = ('science', 'ieee', 'no-latex'),
             showing_size: Annotated[Optional[int], Field(ge=1)] = None,
             quality: T_Levels10 = 3,
             merge: bool = True,
@@ -449,7 +451,7 @@ class Reports:
     def to_excel(
             self,
             pvalue: T_Fraction = 0.05,
-            styles: Union[list[str], tuple[str]] = ('color-bg-grey', 'style-font-bold', 'style-font-underline')
+            styles: tuple[str, ...] = ('color-bg-grey', 'style-font-bold', 'style-font-underline')
     ) -> None:
         """
         Generate and save an Excel file containing performance statistics for specified algorithms and problem settings.

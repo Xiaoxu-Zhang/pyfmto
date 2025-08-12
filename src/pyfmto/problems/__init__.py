@@ -5,11 +5,10 @@ from tabulate import tabulate
 
 from .problem import SingleTaskProblem, MultiTaskProblem
 from .solution import Solution
-from .realworld import *
-from .synthetic import *
+from . import realworld
+from . import synthetic
 
 __all__ = [
-    'PROBLEMS',
     'load_problem',
     'list_problems',
     'MultiTaskProblem',
@@ -17,12 +16,18 @@ __all__ = [
     'SingleTaskProblem'
 ]
 
-PROBLEMS = {
-    name: cls
-    for name, cls in globals().items()
-    if inspect.isclass(cls) and issubclass(cls, MultiTaskProblem) and cls != MultiTaskProblem
-}
 
+def collect_problems_meta():
+    results = {}
+    for module in [realworld, synthetic]:
+        for name in dir(module):
+            cls = getattr(module, name)
+            if inspect.isclass(cls) and issubclass(cls, MultiTaskProblem) and cls != MultiTaskProblem:
+                results[name] = cls
+    return results
+
+
+PROBLEMS = collect_problems_meta()
 _lowercase_map = {name.lower(): name for name in PROBLEMS}
 
 

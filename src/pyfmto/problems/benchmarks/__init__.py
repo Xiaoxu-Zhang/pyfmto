@@ -1,10 +1,22 @@
 from .benchmarks import (
-    Griewank,
-    Rastrigin,
     Ackley,
-    Schwefel,
     Sphere,
+    Griewank,
+    Schwefel,
+    Ellipsoid,
+    Rastrigin,
     Rosenbrock,
     Weierstrass,
-    Ellipsoid,
 )
+
+
+__all__ = [
+    'Ackley',
+    'Sphere',
+    'Griewank',
+    'Schwefel',
+    'Ellipsoid',
+    'Rastrigin',
+    'Rosenbrock',
+    'Weierstrass',
+]

@@ -12,7 +12,7 @@ class TestLauncher(unittest.TestCase):
     def setUp(self):
         export_alg_template('TMP')
         export_launcher_config(algs=['TMP'], repeat=2, probs=['tetci2019'], mode='update')
-        export_problem_config(probs=['tetci2019'], mode='update')
+        export_problem_config(probs=('tetci2019', ), mode='update')
         conf = load_yaml('config.yaml')
         conf['problems'].update(
             {
@@ -31,7 +31,7 @@ class TestLauncher(unittest.TestCase):
         launcher.run()
 
     def test_kwargs_update(self):
-        export_algorithm_config(algs=['TMP'], mode='update')  # cover kwargs update logic
+        export_algorithm_config(algs=('TMP', ), mode='update')  # cover kwargs update logic
         conf = load_yaml('config.yaml')
         conf['algorithms']['TMP'].update({'client': {'alpha': 0.01}})
         save_yaml(conf, 'config.yaml')

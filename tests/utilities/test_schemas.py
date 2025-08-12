@@ -134,7 +134,6 @@ class TestFunctionInputs(unittest.TestCase):
 
 class TestLauncherConfig(unittest.TestCase):
     def test_valid_config(self):
-        """Test creating a valid LauncherConfig instance."""
         config = LauncherConfig(
             results='out/results',
             repeat=3,
@@ -153,7 +152,6 @@ class TestLauncherConfig(unittest.TestCase):
         self.assertEqual(config.problems, ['prob1', 'prob2'])
 
     def test_defaults(self):
-        """Test LauncherConfig with default values."""
         config = LauncherConfig(algorithms=['alg1'], problems=['prob1'])
         self.assertEqual(config.results, 'out/results')
         self.assertEqual(config.repeat, 1)
@@ -162,9 +160,12 @@ class TestLauncherConfig(unittest.TestCase):
         self.assertTrue(config.save)
 
     def test_results_none(self):
-        """Test LauncherConfig with results set to None."""
         config = LauncherConfig(results=None, algorithms=['alg1'], problems=['prob1'])
         self.assertEqual(config.results, 'out/results')
+
+    def test_invalid_results(self):
+        with self.assertRaises(TypeError):
+            LauncherConfig(results=0, algorithms=['alg1'], problems=['prob1'])
 
     def test_invalid_config_repeat(self):
         invalid_repeat = {'repeat': -1, 'algorithms': ['alg1'], 'problems': ['prob1']}
@@ -179,7 +180,6 @@ class TestLauncherConfig(unittest.TestCase):
 
 class TestReporterConfig(unittest.TestCase):
     def test_valid_config(self):
-        """Test creating a valid ReporterConfig instance."""
         config = ReporterConfig(
             results='out/results',
             algorithms=[['alg1', 'alg2'], ['alg3', 'alg4']],
@@ -190,12 +190,10 @@ class TestReporterConfig(unittest.TestCase):
         self.assertEqual(config.problems, ['prob1', 'prob2'])
 
     def test_defaults(self):
-        """Test ReporterConfig with minimal valid values."""
         config = ReporterConfig(algorithms=[['alg1', 'alg2']], problems=['prob1'])
         self.assertEqual(config.results, 'out/results')
 
     def test_results_none(self):
-        """Test ReporterConfig with results set to None."""
         config = ReporterConfig(results=None, algorithms=[['alg1', 'alg2']], problems=['prob1'])
         self.assertEqual(config.results, 'out/results')
 
@@ -211,7 +209,6 @@ class TestReporterConfig(unittest.TestCase):
 class TestPlottingArgs(unittest.TestCase):
 
     def test_valid_defaults(self):
-        """Test PlottingArgs with valid default configurations."""
         dim = 3
         lb = -1 * np.ones(dim)
         ub = np.ones(dim)
@@ -243,7 +240,6 @@ class TestPlottingArgs(unittest.TestCase):
             self.assertTrue(np.all(plotting_args.fixed == fixed))
 
     def test_valid_selected_dims(self):
-        """Test PlottingArgs with various valid inputs."""
         valid_selected_dims = product([0, 1, 2, 3], [0, 1, 2, 3])
         for d1, d2 in valid_selected_dims:
             if d1 == d2:
@@ -260,7 +256,6 @@ class TestPlottingArgs(unittest.TestCase):
             self.assertEqual(args.dims[1], max(d1, d2), f"while dims={(d1, d2)}, args.dims=({args.dims})")
 
     def test_invalid_func_dim(self):
-        """Test invalid values for dim."""
         invalid_func_dims = [1, -1, 0]
         for dim in invalid_func_dims:
             with self.assertRaises(ValueError, msg=f"while dim={dim}"):
@@ -274,7 +269,6 @@ class TestPlottingArgs(unittest.TestCase):
                 )
 
     def test_invalid_selected_dims(self):
-        """Test invalid values for dims."""
         invalid_selected_dims = [
             (-1, 1), (2, 2), (1, 3),  # Out of range or not distinct
             (0, 1, 2)  # Too many selected dimensions
@@ -291,7 +285,6 @@ class TestPlottingArgs(unittest.TestCase):
                 )
 
     def test_invalid_n_points(self):
-        """Test invalid values for n_points."""
         for n_points in [5, 1500]:
             with self.assertWarns(UserWarning, msg=f"while n_points={n_points}"):
                 PlottingArgs(
@@ -304,7 +297,6 @@ class TestPlottingArgs(unittest.TestCase):
                 )
 
     def test_invalid_fixed(self):
-        """Test invalid values for fixed."""
         invalid_fixed = [
             np.array([2, 2, 2]),  # Out of bounds
             np.array([-2, -2, -2]),  # Out of bounds

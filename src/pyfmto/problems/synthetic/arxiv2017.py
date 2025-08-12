@@ -19,7 +19,7 @@ class Arxiv2017(Mtp):
     is_realworld = False
     intro = """
         A many-task single-objective optimization problem based on transformed versions
-        of classical single-objective benchmark functions. Each task corresponds to an 
+        of classical single-objective benchmark functions. Each task corresponds to an
         individual optimization problem.
     """
     notes = """

@@ -143,7 +143,7 @@ class FunctionInputs(BaseModel):
 
 
 class LauncherConfig(BaseModel):
-    results: Optional[str] = 'out/results'
+    results: str = 'out/results'
     repeat: int = 1
     seed: int = 42
     backup: bool = True
@@ -151,8 +151,10 @@ class LauncherConfig(BaseModel):
     algorithms: list[str]
     problems: list[str]
 
-    @field_validator('results')
+    @field_validator('results', mode='before')
     def results_must_be_not_none(cls, v):
+        if not isinstance(v, (str, type(None))):
+            raise TypeError(f'results must be a string or None, got {type(v)} instead')
         return v if v is not None else 'out/results'
 
     @field_validator('repeat', 'seed')

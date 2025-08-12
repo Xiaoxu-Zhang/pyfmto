@@ -158,10 +158,10 @@ class SingleTaskProblem(ABC):
 
     def gen_plot_data(
             self,
-            dims=(0, 1),
-            n_points=100,
+            dims: tuple[int, int] = (0, 1),
+            n_points: int = 100,
             fixed=None,
-            scale_mode: str = '',
+            scale_mode: Literal['', 'y', 'xy'] = '',
     ) -> tuple[ndarray, ndarray, ndarray, PlottingArgs]:
         """
 
@@ -205,10 +205,10 @@ class SingleTaskProblem(ABC):
         if scale_mode == 'xy':
             dn = np.linspace(0, 1, n_points)
             D1, D2 = np.meshgrid(dn, dn)
-            Z = (Z - np.min(Z)) / (np.max(Z) - np.min(Z) + 1e-8)
+            Z = (Z - np.min(Z)) / (np.max(Z) - np.min(Z) + 1e-8)  # type: ignore
         elif scale_mode == 'y':
             x_range = self.ub[0] - self.lb[0]
-            Z = x_range * (Z - np.min(Z)) / (np.max(Z) - np.min(Z) + 1e-8)
+            Z = x_range * (Z - np.min(Z)) / (np.max(Z) - np.min(Z) + 1e-8)  # type: ignore
         else:
             pass
         return D1, D2, Z, args
@@ -216,7 +216,7 @@ class SingleTaskProblem(ABC):
     def plot_2d(
             self,
             filename: Optional[Union[str, Path]] = None,
-            dims: Union[list[int, int], tuple[int, int]] = (0, 1),
+            dims: tuple[int, int] = (0, 1),
             n_points: int = 100,
             figsize: tuple[float, float, float] = (5., 4., 1.),
             cmap: Union[str, Cmaps] = Cmaps.viridis,
@@ -253,8 +253,7 @@ class SingleTaskProblem(ABC):
             Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim, ).
         """
         w, h, s = figsize
-        figsize = (w * s, h * s)
-        plt.figure(figsize=figsize)
+        plt.figure(figsize=(w * s, h * s))
         D1, D2, Z, args = self.gen_plot_data(dims=dims, n_points=n_points, fixed=fixed)
         cont = plt.contourf(D1, D2, Z, levels=levels, cmap=str(cmap), alpha=alpha)
         cbar = plt.colorbar(cont)
@@ -315,9 +314,8 @@ class SingleTaskProblem(ABC):
             Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,).
         """
         w, h, s = figsize
-        figsize = (w * s, h * s)
         D1, D2, Z, args = self.gen_plot_data(dims=dims, n_points=n_points, fixed=fixed)
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure(figsize=(w * s, h * s))
         ax = fig.add_subplot(111, projection='3d')
         surf = ax.plot_surface(D1, D2, Z, cmap=str(cmap), edgecolor='none', alpha=alpha)
         ax.contour(D1, D2, Z, zdir='z', offset=np.min(Z), cmap=str(cmap), levels=levels)
@@ -349,9 +347,9 @@ class SingleTaskProblem(ABC):
             n_points: int = 100,
             font_size: float = 10,
             cmap: Union[str, Cmaps] = Cmaps.viridis,
-            color: Union[str, StrColors, list[float, float, float], tuple[float, float, float], None] = None,
+            color: Union[str, StrColors, tuple[float, float, float], None] = None,
             show_grid: bool = True,
-            scale_mode: Literal['xy', 'y'] = 'y',
+            scale_mode: Literal['', 'y', 'xy'] = 'y',
             fixed=None,
             plotter=None
     ) -> None:
@@ -578,7 +576,7 @@ class SingleTaskProblem(ABC):
         return self._transformer.rotation
 
     @abstractmethod
-    def _eval_single(self, x: np.ndarray):
+    def _eval_single(self, x: np.ndarray) -> np.ndarray:
         """
         OjbFunc:= :math:`\\mathbf{x} \\to f \\to \\mathbf{y}, \\mathbf{x} \\in \\mathbb{R}^{D1},
         \\mathbf{y}\\in \\mathbb{R}^{D2}`, where :math:`D1` is the dimension of decision space
@@ -604,11 +602,11 @@ class SingleTaskProblem(ABC):
 
     @property
     def lb(self) -> ndarray:
-        return self._config.lb
+        return np.asarray(self._config.lb)
 
     @property
     def ub(self) -> ndarray:
-        return self._config.ub
+        return np.asarray(self._config.ub)
 
     @property
     def name(self) -> str:
@@ -727,7 +725,7 @@ class MultiTaskProblem(ABC):
             dims=(0, 1),
             font_size: int = 10,
             cmap: Union[str, Cmaps] = Cmaps.viridis,
-            color: Union[str, StrColors, list[float, float, float], tuple[float, float, float], None] = None,
+            color: Union[str, StrColors, tuple[float, float, float], None] = None,
             n_points: int = 100,
             scale_mode: Literal['xy', 'y'] = 'y',
             show_grid: bool = True,
@@ -845,8 +843,7 @@ class MultiTaskProblem(ABC):
                     'problem': label
                 })
         w, h, s = figsize
-        _figsize = (w * s, h * s)
-        plt.figure(figsize=_figsize)
+        plt.figure(figsize=(w * s, h * s))
         sns.set(style=str(style))
         sns.scatterplot(data=pd.DataFrame(data), x='x', y='y', hue='problem', style='problem', s=80)
         plt.title(f'Initial Solutions of Each Task (np_per_dim={np_per_dim})')
@@ -957,8 +954,8 @@ class MultiTaskProblem(ABC):
         x = lhs(self[0].dim, samples=n_samples)
         evals = [f.evaluate(f.denormalize_x(x)).squeeze() for f in self]
         evals = np.array(evals)
-        significance = [[[*corr(evals[i], evals[j])] for j in range(self.task_num)] for i in range(self.task_num)]
-        significance = np.array(significance)
+        _sig = [[[*corr(evals[i], evals[j])] for j in range(self.task_num)] for i in range(self.task_num)]
+        significance = np.array(_sig)
         statis = significance[:, :, 0]
         pvalue = significance[:, :, 1]
         triu_mask = np.triu(np.ones_like(statis, dtype=bool), k=1)
@@ -968,10 +965,9 @@ class MultiTaskProblem(ABC):
         elif triu == 'upper':
             statis[triu_mask] = np.nan
         cols = [f"T{f.id:02}" for f in self]
-        w, h, s = figsize
-        _figsize = (w * s, h * s)
         df = pd.DataFrame(statis[::-1], columns=cols, index=cols[::-1])
-        _, ax = plt.subplots(figsize=_figsize)
+        w, h, s = figsize
+        _, ax = plt.subplots(figsize=(w * s, h * s))
         sns.heatmap(
             data=df,
             cmap=_cmap,

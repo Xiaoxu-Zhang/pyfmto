@@ -27,7 +27,7 @@ async def load_body(request: Request):
 
 class Server(ABC):
     def __init__(self):
-        self._server: Optional[uvicorn.Server] = None
+        self._server: Optional[uvicorn.Server] = None  # type: ignore
         self._active_clients = set()
         self._server_info = defaultdict(list)
         self._agg_interval = 0.5
@@ -91,7 +91,7 @@ class Server(ABC):
                 self.aggregate()
             except Exception:
                 logger.error(f"Server error: {traceback.format_exc()}")
-                self.shutdown('aggregate error')
+                self.force_shutdown('aggregate error')
 
     async def _monitor(self):
         await asyncio.sleep(1)
@@ -123,18 +123,21 @@ class Server(ABC):
         else:
             try:
                 resp = self.handle_request(data)
-                if not isinstance(resp, ServerPackage):
-                    raise TypeError(f"handle_request return unexpected type {type(resp)}")
-                return resp
             except Exception:
-                print(traceback.format_exc())
-                self.shutdown('handle_request error')
+                logger.error(traceback.format_exc())
+                self.force_shutdown()
+                resp = None
+            if not isinstance(resp, ServerPackage):
+                self.force_shutdown(f"handle_request return unexpected type {type(resp)}")
+            return resp
 
     @abstractmethod
-    def handle_request(self, client_data: ClientPackage) -> Optional[ServerPackage]: ...
+    def handle_request(self, client_data: ClientPackage) -> Optional[ServerPackage]:
+        ...  # pragma: no cover
 
     @abstractmethod
-    def aggregate(self): ...
+    def aggregate(self):
+        ...  # pragma: no cover
 
     def _add_client(self, client_id):
         self._active_clients.add(client_id)
@@ -151,6 +154,10 @@ class Server(ABC):
             logger.info(f"Server shutting down ({msg})")
             self._quit = True
             self._server.should_exit = True
+
+    def force_shutdown(self, msg='Force shutdown'):
+        self.shutdown(msg)
+        self._server.force_exit = True
 
     def update_kwargs(self, kwargs: dict):
         docstr = parse_yaml(self.__class__.__doc__)

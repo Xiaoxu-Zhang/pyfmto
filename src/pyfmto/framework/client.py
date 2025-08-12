@@ -40,10 +40,10 @@ def record_runtime(name=None):
 
 class Client(ABC):
     def __init__(self, problem: SingleTaskProblem):
-        self._url = None
-        self._conn_retry = None
+        self._url: str = ''
+        self._conn_retry: int = -1
         self.problem = problem
-        self._round_info = defaultdict(list)
+        self._round_info: dict[str, list[str]] = defaultdict(list)
 
         self.set_addr()
 
@@ -135,7 +135,8 @@ class Client(ABC):
         return self.id, self.solutions
 
     @abstractmethod
-    def optimize(self): ...
+    def optimize(self):
+        ...  # pragma: no cover
 
     def __register_id(self):
         while True:
@@ -189,6 +190,7 @@ class Client(ABC):
         repeat_max = max(1, repeat)
         curr_repeat = 1
         conn_retry = 0
+        server_pkg: Optional[ServerPackage] = None
         while curr_repeat <= repeat_max:
             if msg:
                 logger.debug(f"{self.name} [Request retry {curr_repeat}/{repeat_max}] {msg}")
@@ -199,7 +201,7 @@ class Client(ABC):
                 if res.status_code == 200:
                     server_pkg = self.deserialize_pickle(res.content)
                     if self.check_pkg(server_pkg):
-                        return server_pkg
+                        break
             except ConnectionError:
                 time.sleep(interval)
                 conn_retry += 1
@@ -209,6 +211,7 @@ class Client(ABC):
                 continue
             curr_repeat += 1
             time.sleep(interval)
+        return server_pkg
 
     def check_pkg(self, x) -> bool:
         """
@@ -239,8 +242,8 @@ class Client(ABC):
         self.request_server(quit_pkg)
 
     def update_kwargs(self, kwargs: dict):
-        docstr = self.__class__.__doc__
-        docstr = {} if not docstr else safe_load(docstr)
+        _docstr = self.__class__.__doc__
+        docstr = {} if not _docstr else safe_load(_docstr)
         return update_kwargs(self.__class__.__name__, docstr, kwargs)
 
     @property

@@ -3,6 +3,7 @@ import os
 import time
 from pathlib import Path
 from setproctitle import setproctitle
+from typing import Any
 
 from pyfmto.algorithms import load_algorithm, get_alg_kwargs
 from pyfmto.problems import load_problem, Solution
@@ -41,9 +42,9 @@ class Launcher:
         self._alg_alias = ''
         self._prob = ''
         self._res_dir = Path(launcher_conf.results)
-        self._prob_args = {}
-        self._clt_kwargs = {}
-        self._srv_kwargs = {}
+        self._prob_args: dict[str, Any] = {}
+        self._clt_kwargs: dict[str, Any] = {}
+        self._srv_kwargs: dict[str, Any] = {}
 
         atexit.register(LauncherUtils.kill_server)
 
@@ -101,8 +102,8 @@ class Launcher:
             self._show_settings()
 
             # Launch algorithm
-            LauncherUtils.start_server(server_cls, **self._srv_kwargs)
-            results = LauncherUtils.start_clients(clients)
+            with LauncherUtils.running_server(server_cls, **self._srv_kwargs):
+                results = LauncherUtils.start_clients(clients)
             self._save_results(results)
             self._update_repeat_id()
             reset_log()

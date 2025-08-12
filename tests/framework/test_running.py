@@ -5,8 +5,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pyfmto.experiments.utils import LauncherUtils
 from pyfmto.framework import Client, Server, ClientPackage, ServerPackage
 from pyfmto.problems import load_problem
+from tests.experiments.test_utils import process_is_running
 from tests.framework import (
-    start_subprocess_clients, OfflineServer, OnlineClient, OnlineServer
+    OfflineServer, OnlineClient, OnlineServer
 )
 from requests.exceptions import ConnectionError
 
@@ -28,16 +29,16 @@ class TestClientSide(unittest.TestCase):
                 y = self.problem.evaluate(x)
                 self.problem.solutions.append(x, y)
         clients = [OfflineClient(prob) for prob in self.problems[:N_CLIENTS]]
-        self.utils.kill_server()
-        self.utils.start_server(OfflineServer)
-        self.utils.start_clients(clients)
+        with self.utils.running_server(OfflineServer):
+            self.utils.start_clients(clients)
 
     def test_valid_online_client(self):
         clients = [OnlineClient(prob) for prob in self.problems[:N_CLIENTS]]
-        self.utils.kill_server()
-        self.utils.start_server(OfflineServer)
-        with self.assertRaises(ConnectionError):
-            self.utils.start_clients(clients)
+        with self.utils.running_server(OfflineServer) as s:
+            self.assertTrue(process_is_running(s))
+            with self.assertRaises(ConnectionError):
+                self.utils.start_clients(clients)
+        self.assertFalse(process_is_running(s))
 
     def test_request_failed(self):
         client = OnlineClient(self.problems[0])
@@ -56,31 +57,20 @@ class TestClientSide(unittest.TestCase):
                 self.request_server(None)
 
         clients = [ClientWithOptimizeErr(prob) for prob in self.problems[:N_CLIENTS]]
-        self.utils.kill_server()
-        self.utils.start_server(OnlineServer)
-        with self.assertRaises(RuntimeError):
-            self.utils.start_clients(clients)
+        with self.utils.running_server(OnlineServer):
+            with self.assertRaises(RuntimeError):
+                self.utils.start_clients(clients)
 
         clients = [ClientWithRequestErr(prob) for prob in self.problems[:N_CLIENTS]]
-        self.utils.kill_server()
-        self.utils.start_server(OnlineServer)
-        with self.assertRaises(ValueError):
-            self.utils.start_clients(clients)
-
-
-class TestServerSide(unittest.TestCase):
-    def setUp(self):
-        LauncherUtils.kill_server()
+        with self.utils.running_server(OnlineServer):
+            with self.assertRaises(ValueError):
+                self.utils.start_clients(clients)
 
     def test_valid_server(self):
-        server = OnlineServer()
-        thread_pool = ThreadPoolExecutor(max_workers=1)
-        thread_pool.submit(server.start)
-        start_subprocess_clients(OnlineClient)
-        thread_pool.shutdown(wait=True)
+        clients = [OnlineClient(prob) for prob in self.problems[:N_CLIENTS]]
+        with self.utils.running_server(OnlineServer):
+            self.utils.start_clients(clients)
 
-
-class TestInvalidServerAgg(unittest.TestCase):
     def test_invalid_server_agg(self):
         class InvalidServerAgg(Server):
             def handle_request(self, client_data: ClientPackage) -> ServerPackage:
