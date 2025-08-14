@@ -1,12 +1,12 @@
 import pickle
-import requests
+import requests  # type: ignore
 import time
 import traceback
 import wrapt
 from abc import abstractmethod, ABC
 from collections import defaultdict
 from numpy import ndarray
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError  # type: ignore
 from tqdm import tqdm
 from typing import final, Optional, Any
 from yaml import safe_load

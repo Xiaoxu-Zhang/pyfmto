@@ -20,14 +20,14 @@ def _only_single_obj(func):
 class Solution:
     def __init__(self, solution: Optional[dict] = None):
         # config
-        self._dim: Optional[int] = None
-        self._obj: Optional[int] = None
-        self._fe_init: Optional[int] = None
+        self._dim = -1
+        self._obj = -1
+        self._fe_init = -1
 
-        self._x: Optional[ndarray] = None
-        self._y: Optional[ndarray] = None
-        self._x_global: Optional[ndarray] = None
-        self._y_global: Optional[ndarray] = None
+        self._x = np.array([])
+        self._y = np.array([])
+        self._x_global = np.array([])
+        self._y_global = np.array([])
         self._prev_size = 0
 
         if solution:
@@ -50,9 +50,7 @@ class Solution:
 
     @property
     def size(self):
-        if self._x is not None:
-            return self._x.shape[0]
-        return 0
+        return self._x.shape[0]
 
     @property
     def num_updated(self):
@@ -61,24 +59,24 @@ class Solution:
         return num
 
     @property
-    def x(self) -> Optional[np.ndarray]:
+    def x(self) -> ndarray:
         return self._x
 
     @property
-    def y(self) -> Optional[np.ndarray]:
+    def y(self) -> ndarray:
         return self._y
 
     @property
-    def x_global(self) -> Optional[np.ndarray]:
+    def x_global(self) -> ndarray:
         return self._x_global
 
     @property
-    def y_global(self) -> Optional[np.ndarray]:
+    def y_global(self) -> ndarray:
         return self._y_global
 
     @property
     def initialized(self):
-        return self._fe_init is not None
+        return self._fe_init >= 0
 
     @property
     def dim(self):
@@ -161,15 +159,3 @@ class Solution:
                     f"expect x.shape=(n,{self.dim}), y.shape=(n,{self.obj}) ,got x.shape={x.shape}, y.shape={y.shape} instead")
             self._x = np.vstack((self.x, x))
             self._y = np.vstack((self.y, y))
-
-    def clear(self):
-        """
-        Clear all solutions from the solution set. After calling this
-        method, the solution set will be considered uninitialized.
-        """
-        self._dim = None
-        self._obj = None
-        self._x = None
-        self._y = None
-        self._fe_init = None
-        self._prev_size = 0

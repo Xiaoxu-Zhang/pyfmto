@@ -21,10 +21,12 @@ jinja2
 kiwisolver
 matplotlib
 mccabe
+msgpack
 mypy
 mypy_extensions
 numpy
 openpyxl
+opfunu
 packaging
 pandas
 pillow
@@ -45,6 +47,9 @@ pyvista
 psutil
 PyYAML
 requests
+ruamel-yaml
+seaborn
+scienceplots
 scikit-learn
 scipy
 setproctitle
@@ -57,6 +62,7 @@ tomli
 tqdm
 types-PyYAML
 types-tabulate
+types-requests
 typing-inspection
 typing_extensions
 urllib3

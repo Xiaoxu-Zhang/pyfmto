@@ -118,6 +118,10 @@ class Statistics:
         self.x_global = np.array([])
         self.y_global = np.array([])
 
+    @property
+    def is_known_optimal(self):
+        return self.x_global.size > 0
+
 
 class LauncherUtils:
 
@@ -408,7 +412,7 @@ class ReporterUtils:
         size_optimization = fe_max - fe_init
         size_plot = fe_max if showing_size is None else showing_size
 
-        x_indices = np.arange(size_plot) + 1
+        x_indices: np.ndarray = np.arange(size_plot) + 1
         avg = c_data.mean_log[-size_plot:] if in_log_scale else c_data.mean_orig[-size_plot:]
         se = c_data.se_log[-size_plot:] if in_log_scale else c_data.se_orig[-size_plot:]
         se_upper = list(map(lambda x: x[0] - x[1], zip(avg, se)))

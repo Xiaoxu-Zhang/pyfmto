@@ -7,6 +7,8 @@ from itertools import product
 from unittest.mock import patch
 from pathlib import Path
 
+from numpy import ndarray
+
 from tests.problems import ConstantProblem, SimpleProblem, MtpSynthetic, MtpRealworld, MtpNonIterableReturn
 
 matplotlib.use('Agg')
@@ -102,11 +104,21 @@ class TestProblemBase(unittest.TestCase):
 
     def test_set_x_global(self):
         prob = SimpleProblem(dim=5, obj=1, lb=-1, ub=1)
-        self.assertTrue(np.all(prob.x_global == 0))
+        self.assertTrue(prob.is_known_optimal)
         self.assertTrue(np.all(prob.y_global == 0))
+
+        prob.set_x_global(None)
+        self.assertFalse(prob.is_known_optimal)
+        with self.assertRaises(ValueError):
+            _ = prob.y_global
+
         prob.set_x_global(np.arange(5))
         self.assertTrue(np.all(prob.x_global == np.arange(5)))
         self.assertTrue(np.any(prob.y_global != 0))
+
+        with self.assertRaises(ValueError):
+            prob.set_x_global([1, 2, 3, 4, 5])
+
         prob.set_transform(rotation=3*np.eye(5), shift=1)
         self.assertTrue(np.all(prob.x_global == prob.inverse_transform_x(np.arange(5))))
 
@@ -131,9 +143,9 @@ class TestProblemBase(unittest.TestCase):
         x_out_src_bound = x_in_src_bound - 2
         x_out_normal_bound = x_in_src_bound
 
-        x_in_src_bound_normalized = prob.normalize_x(x_in_src_bound)
+        x_in_src_bound_normalized: ndarray = prob.normalize_x(x_in_src_bound)
         x_in_src_bound_denormalized = prob.denormalize_x(x_in_src_bound_normalized)
-        x_out_src_bound_normalized = prob.normalize_x(x_out_src_bound)
+        x_out_src_bound_normalized: ndarray = prob.normalize_x(x_out_src_bound)
         x_out_normal_bound_denormalized = prob.denormalize_x(x_out_normal_bound)
 
         self.assertTrue(np.all(x_in_src_bound_normalized >= 0))
@@ -145,7 +157,7 @@ class TestProblemBase(unittest.TestCase):
         self.assertTrue(np.all(x_in_src_bound_denormalized <= prob.ub))
         self.assertTrue(np.all(x_out_normal_bound_denormalized >= prob.lb))
         self.assertTrue(np.all(x_out_normal_bound_denormalized <= prob.ub))
-        err = x_in_src_bound - x_in_src_bound_denormalized
+        err: ndarray = x_in_src_bound - x_in_src_bound_denormalized
         self.assertTrue(np.all(err < 1e-10), msg=f"{err < 1e-10}")
 
     def test_uniform_solution(self):
@@ -155,7 +167,7 @@ class TestProblemBase(unittest.TestCase):
         for np_value in [2, 3, 4, 5]:
             prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1, **{'np_per_dim': np_value})
             prob.init_partition()
-            x = prob.random_uniform_x(size=n_points)
+            x: ndarray = prob.random_uniform_x(size=n_points)
             self.assertEqual(x.shape[0], n_points)
             self.assertTrue(np.all(x >= prob._partition[0]))
             self.assertTrue(np.all(x <= prob._partition[1]))

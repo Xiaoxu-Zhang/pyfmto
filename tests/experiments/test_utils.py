@@ -4,7 +4,7 @@ import shutil
 import unittest
 import yaml
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from pyfmto import framework as fw, load_problem
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils
@@ -57,7 +57,6 @@ class TestReporterUtils(unittest.TestCase):
         test_cases = [
             [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
             [[1e-25, 2.0, 3.0], [4.0, 5.0, 6.0]],
-            # [[1.0, 2.0, 3.0]]
         ]
 
         for i, data in enumerate(test_cases):
@@ -69,6 +68,7 @@ class TestReporterUtils(unittest.TestCase):
                 self.assertEqual(result.se_orig.shape, (cols, ))
                 self.assertEqual(result.opt_orig.shape, (rows, ))
                 self.assertEqual(result.opt_log.shape, (rows, ))
+                self.assertFalse(result.is_known_optimal)
 
     def test_get_t_test_suffix(self):
         test_cases = [
@@ -220,6 +220,45 @@ class TestLauncherUtils(unittest.TestCase):
         with self.utils.running_server(OnlineServer) as s:
             self.assertTrue(process_is_running(s))
         self.assertFalse(process_is_running(s))
+
+    def test_terminate_popen_normal(self):
+        mock_process = Mock(spec=subprocess.Popen)
+        mock_process.stdout = Mock()
+        mock_process.stderr = Mock()
+        mock_process.wait = Mock()
+
+        LauncherUtils.terminate_popen(mock_process)
+
+        mock_process.stdout.close.assert_called_once()
+        mock_process.stderr.close.assert_called_once()
+
+        mock_process.terminate.assert_called_once()
+        mock_process.wait.assert_called_once_with(timeout=5)
+
+        mock_process.kill.assert_not_called()
+
+    def test_terminate_popen_timeout(self):
+        mock_process = Mock(spec=subprocess.Popen)
+        mock_process.stdout = Mock()
+        mock_process.stderr = Mock()
+
+        def wait_side_effect(*args, **kwargs):
+            if not hasattr(wait_side_effect, "called"):
+                wait_side_effect.called = True
+                raise subprocess.TimeoutExpired(cmd="cmd", timeout=5)
+            else:
+                return None
+
+        mock_process.wait = Mock(side_effect=wait_side_effect)
+
+        LauncherUtils.terminate_popen(mock_process)
+
+        mock_process.stdout.close.assert_called_once()
+        mock_process.stderr.close.assert_called_once()
+        mock_process.terminate.assert_called_once()
+        self.assertEqual(mock_process.wait.call_count, 2)
+        mock_process.wait.assert_any_call(timeout=5)
+        mock_process.kill.assert_called_once()
 
     def test_gen_path(self):
         alg = 'ALG'

@@ -22,6 +22,7 @@ utest:
 
 ptest:
 	pytest
+	coverage report -m
 
 clean:
 	rm -rf coverage

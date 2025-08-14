@@ -44,7 +44,7 @@ class Transformer:
     def rotation_inv(self):
         return self._transform.rotation_inv
 
-    def set_transform(self, rotation: Optional[np.ndarray] = None, shift: Union[int, float, np.ndarray, None] = None):
+    def set_transform(self, rotation: Optional[ndarray] = None, shift: Union[int, float, ndarray, None] = None):
         self._transform = TransformerConfig(
             dim=self.dim,
             rotation=rotation,
@@ -101,7 +101,7 @@ class SingleTaskProblem(ABC):
         self._config = STPConfig(dim=dim, obj=obj, lb=lb, ub=ub, **kwargs)
         self._id = -1
         self._x_global = np.zeros(self.dim)
-        self._partition = np.zeros((2, self.dim))
+        self._partition = np.array([])
         self._solutions = Solution()
         self._transformer = Transformer(self.dim)
         self.auto_update_solutions = False
@@ -197,7 +197,7 @@ class SingleTaskProblem(ABC):
         d1 = np.linspace(lb1, ub1, n_points)
         d2 = np.linspace(lb2, ub2, n_points)
         D1, D2 = np.meshgrid(d1, d2)
-        points = np.ones(shape=(n_points, n_points, self.dim)) * args.fixed
+        points: ndarray = np.ones(shape=(n_points, n_points, self.dim)) * args.fixed
         points[:, :, dim1] = D1
         points[:, :, dim2] = D2
         Z = np.apply_along_axis(self.evaluate, axis=-1, arr=points)
@@ -224,7 +224,7 @@ class SingleTaskProblem(ABC):
             labels: tuple[Optional[str], Optional[str]] = (None, None),
             title: Optional[str] = None,
             alpha: float = 0.7,
-            fixed: Union[float, np.ndarray, None] = None):
+            fixed: Union[float, ndarray, None] = None):
         """
         Plot the function's 2D contour.
 
@@ -249,7 +249,7 @@ class SingleTaskProblem(ABC):
             The figure title
         alpha : float
             The alpha parameter of contourf function
-        fixed : float, np.ndarray
+        fixed : float, ndarray
             Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim, ).
         """
         w, h, s = figsize
@@ -310,7 +310,7 @@ class SingleTaskProblem(ABC):
             The figure title.
         alpha : float
             The alpha parameter of contourf function.
-        fixed : float, np.ndarray
+        fixed : float, ndarray
             Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim,).
         """
         w, h, s = figsize
@@ -377,7 +377,7 @@ class SingleTaskProblem(ABC):
             if pass 'xy', normalize both the decision space and objective space to (0, 1).
             if pass 'y', scale objective value to match the decision space, which will keep
             the original decision space information.
-        fixed : float, np.ndarray
+        fixed : float, ndarray
             Fixed values for all the unused dimensions, if pass a ndarray, its shape should be (dim, ).
         plotter:
             The pyvista.Plotter object. If the plotter is not None, plot on it and return, else plot
@@ -422,9 +422,14 @@ class SingleTaskProblem(ABC):
         Default to zero vector if it doesn't set,
         pass a None if it is unknown.
         """
-        self._x_global = x_global
+        if x_global is None:
+            self._x_global = np.array([])
+        elif isinstance(x_global, ndarray):
+            self._x_global = x_global
+        else:
+            raise ValueError(f"x_global must ndarray or None, got ({x_global}) instead.")
 
-    def set_transform(self, rotation: Optional[np.ndarray] = None, shift: Union[int, float, np.ndarray, None] = None):
+    def set_transform(self, rotation: Optional[ndarray] = None, shift: Union[int, float, ndarray, None] = None):
         self._transformer.set_transform(rotation, shift)
 
     def set_id(self, _id: int):
@@ -458,7 +463,7 @@ class SingleTaskProblem(ABC):
             x_init = x_init * (self._partition[1] - self._partition[0]) + self._partition[0]
 
         y_init = np.array(self.evaluate(x_init))
-        self.solutions.clear()  # Do not remove this line
+        self._solutions = Solution()  # Do not remove this line
         self.solutions.append(x_init, y_init)
 
         self.solutions._x_global = self.x_global
@@ -473,7 +478,7 @@ class SingleTaskProblem(ABC):
         else:
             self.solutions._y_global = self.y_global
 
-    def random_uniform_x(self, size, within_partition=True):
+    def random_uniform_x(self, size, within_partition=True) -> ndarray:
         """
         Sample points uniformly within the hypercube defined by :math:`(x_{lb}, x_{ub})^{dim}`.
 
@@ -486,7 +491,7 @@ class SingleTaskProblem(ABC):
 
         Returns
         -------
-        samples : np.ndarray
+        samples : ndarray
             Samples
         """
 
@@ -502,11 +507,11 @@ class SingleTaskProblem(ABC):
 
         Parameters
         ----------
-        points : np.ndarray or list or tuple
+        points : ndarray or list or tuple
             A set of points.
         Returns
         -------
-        points : np.ndarray
+        points : ndarray
             Normalized points
         """
         points = FunctionInputs(x=points, dim=self.dim).x
@@ -521,11 +526,11 @@ class SingleTaskProblem(ABC):
         decision variables :math:`x \\in (0,1)^d`
         Parameters
         ----------
-        points : np.ndarray or list or tuple
+        points : ndarray or list or tuple
             A set of points. :math:`x \\in (0,1)^d`
         Returns
         -------
-        points : np.ndarray
+        points : ndarray
             Denormalized points
         """
         points = FunctionInputs(x=points, dim=self.dim).x
@@ -539,7 +544,7 @@ class SingleTaskProblem(ABC):
     def inverse_transform_x(self, x):
         return self._transformer.inverse_transform_x(x)
 
-    def evaluate(self, x: np.ndarray):
+    def evaluate(self, x: ndarray):
         _x = self.before_eval(x)
         y = np.apply_along_axis(self._eval_single, 1, _x)
         y = self.after_eval(x, y)
@@ -561,11 +566,18 @@ class SingleTaskProblem(ABC):
 
     @property
     def x_global(self):
-        return None if self._x_global is None else self.inverse_transform_x(self._x_global)
+        if self.is_known_optimal:
+            return self.inverse_transform_x(self._x_global)
+        else:
+            raise ValueError("global optimum solution is unknown.")
+
+    @property
+    def is_known_optimal(self):
+        return self._x_global.size > 0
 
     @property
     def y_global(self):
-        return None if self._x_global is None else self.evaluate(self.x_global).squeeze()
+        return self.evaluate(self.x_global).squeeze()
 
     @property
     def shift(self):
@@ -576,7 +588,7 @@ class SingleTaskProblem(ABC):
         return self._transformer.rotation
 
     @abstractmethod
-    def _eval_single(self, x: np.ndarray) -> np.ndarray:
+    def _eval_single(self, x: ndarray) -> ndarray:
         """
         OjbFunc:= :math:`\\mathbf{x} \\to f \\to \\mathbf{y}, \\mathbf{x} \\in \\mathbb{R}^{D1},
         \\mathbf{y}\\in \\mathbb{R}^{D2}`, where :math:`D1` is the dimension of decision space
@@ -584,12 +596,12 @@ class SingleTaskProblem(ABC):
 
         Parameters
         ----------
-        x: np.ndarray
+        x: ndarray
             Input vector of the problem.
 
         Returns
         -------
-        np.ndarray or float
+        ndarray or float
         """
 
     @property
@@ -828,7 +840,7 @@ class MultiTaskProblem(ABC):
         >>> problem.plot_distribution()
         >>> problem.plot_distribution(dims=(1, 2), filename='distribution.png')
         """
-        init_x = {f"T{p.id:02}({p.name})": p.normalize_x(p.solutions.x) for p in self}
+        init_x: dict[str, ndarray] = {f"T{p.id:02}({p.name})": p.normalize_x(p.solutions.x) for p in self}
         np_per_dim = self[0].np_per_dim
         tick_interval = 1.0 / np_per_dim
         ticks = np.arange(0, 1 + tick_interval, tick_interval)

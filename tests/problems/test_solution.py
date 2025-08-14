@@ -20,13 +20,13 @@ class TestSolution(unittest.TestCase):
 
     def test_empty_solutions_attributes(self):
         """Test that solution initialization sets correct attributes."""
-        self.assertIsNone(self.solution_empty.dim)
-        self.assertIsNone(self.solution_empty.obj)
-        self.assertIsNone(self.solution_empty.fe_init)
-        self.assertIsNone(self.solution_empty.x)
-        self.assertIsNone(self.solution_empty.y)
-        self.assertIsNone(self.solution_empty.x_global)
-        self.assertIsNone(self.solution_empty.y_global)
+        self.assertEqual(self.solution_empty.dim, -1)
+        self.assertEqual(self.solution_empty.obj, -1)
+        self.assertEqual(self.solution_empty.fe_init, -1)
+        self.assertEqual(self.solution_empty.x.size, 0)
+        self.assertEqual(self.solution_empty.y.size, 0)
+        self.assertEqual(self.solution_empty.x_global.size, 0)
+        self.assertEqual(self.solution_empty.y_global.size, 0)
         self.assertFalse(self.solution_empty.initialized)
         self.assertEqual(self.solution_empty.size, 0)
 
@@ -87,18 +87,6 @@ class TestSolution(unittest.TestCase):
         self.assertEqual(self.solution_initialized.size, self.init_fe + x1.shape[0] + x2.shape[0])
         self.assertEqual(self.solution_initialized.x.shape[0], self.solution_initialized.size)
         self.assertEqual(self.solution_initialized.y.shape[0], self.solution_initialized.size)
-
-    def test_clear_resets_attributes(self):
-        """Test clear method resets state but keeps problem config."""
-        self.assertTrue(self.solution_initialized.initialized)
-        self.solution_initialized.clear()
-        self.assertFalse(self.solution_initialized.initialized)
-        self.assertEqual(self.solution_initialized.size, 0)
-        self.assertIsNone(self.solution_initialized.fe_init)
-        self.assertIsNone(self.solution_initialized.dim)
-        self.assertIsNone(self.solution_initialized.obj)
-        self.assertIsNone(self.solution_initialized.x)
-        self.assertIsNone(self.solution_initialized.y)
 
     def test_properties_return_expected_values_for_single_objective(self):
         """Test property values for single objective case."""
