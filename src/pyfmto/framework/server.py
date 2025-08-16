@@ -64,12 +64,11 @@ class Server(ABC):
         self._agg_interval = max(0.01, seconds)
 
     def update_server_info(self, name: str, value: str):
-        if len(self._server_info[name]) == 1:
-            if self._server_info[name][0] != value:
-                self._server_info[name][0] = value
-                self._updated_server_info = True
+        lts = self._server_info[name][-1:]
+        if [value] == lts:
+            return
         else:
-            self._server_info[name] = [value]
+            self._server_info[name].append(value)
             self._updated_server_info = True
 
     def start(self):
@@ -91,7 +90,7 @@ class Server(ABC):
                 self.aggregate()
             except Exception:
                 logger.error(f"Server error: {traceback.format_exc()}")
-                self.force_shutdown('aggregate error')
+                self.shutdown('aggregate error')
 
     async def _monitor(self):
         await asyncio.sleep(1)
@@ -103,12 +102,23 @@ class Server(ABC):
         @app.post("/alg-comm")
         async def alg_comm(client_pkg: ClientPackage = Depends(load_body)):
             self._last_request_time = time.time()
-            server_pkg = self._handle_request(client_pkg)
+            try:
+                server_pkg = self._handle_request(client_pkg)
+            except Exception:
+                logger.error(traceback.format_exc())
+                self.shutdown(traceback.format_exc())
+                server_pkg = None
+            if not isinstance(server_pkg, ServerPackage):
+                self.shutdown(f"handle_request return unexpected type {type(server_pkg)}")
             return Response(content=pickle.dumps(server_pkg), media_type="application/x-pickle")
 
     def _log_server_info(self):
-        if self._updated_server_info and self._server_info is not None:
-            tab = tabulate(self._server_info, headers="keys", tablefmt="psql")
+        data: dict[str, list[str]] = {}
+        for key, value in self._server_info.items():
+            if len(value) > 0:
+                data[key] = value[-1:]
+        if data and self._updated_server_info:
+            tab = tabulate(data, headers="keys", tablefmt="psql")
             logger.info(f"\n{'=' * 30} Saved {len(self._server_info)} clients data {'=' * 30}\n{tab}")
             self._updated_server_info = False
 
@@ -121,15 +131,7 @@ class Server(ABC):
             self._del_client(data.cid)
             return ServerPackage(desc='quit', data='quit success')
         else:
-            try:
-                resp = self.handle_request(data)
-            except Exception:
-                logger.error(traceback.format_exc())
-                self.force_shutdown()
-                resp = None
-            if not isinstance(resp, ServerPackage):
-                self.force_shutdown(f"handle_request return unexpected type {type(resp)}")
-            return resp
+            return self.handle_request(data)
 
     @abstractmethod
     def handle_request(self, client_data: ClientPackage) -> Optional[ServerPackage]:
@@ -146,7 +148,7 @@ class Server(ABC):
     def _del_client(self, client_id):
         self._active_clients.remove(client_id)
         logger.info(f"Client {client_id} quit, remain {self.num_clients} clients")
-        if self.num_clients == 0:
+        if self.num_clients < 1:
             self.shutdown('No active clients')
 
     def shutdown(self, msg='no message'):
@@ -154,10 +156,7 @@ class Server(ABC):
             logger.info(f"Server shutting down ({msg})")
             self._quit = True
             self._server.should_exit = True
-
-    def force_shutdown(self, msg='Force shutdown'):
-        self.shutdown(msg)
-        self._server.force_exit = True
+            self._server.force_exit = True
 
     def update_kwargs(self, kwargs: dict):
         docstr = parse_yaml(self.__class__.__doc__)

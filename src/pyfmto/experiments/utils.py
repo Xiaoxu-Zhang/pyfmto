@@ -198,10 +198,10 @@ class LauncherUtils:
         -------
             List of clients results
         """
-        thread_pool = ThreadPoolExecutor(max_workers=len(clients))
-        client_futures = [thread_pool.submit(c.start) for c in clients]
-        thread_pool.shutdown(wait=True)
-        return [c.result() for c in client_futures]
+        pool = ThreadPoolExecutor(max_workers=len(clients))
+        futures = [pool.submit(c.start) for c in clients]
+        pool.shutdown(wait=True)
+        return [fut.result() for fut in futures]
 
     @staticmethod
     def kill_server():

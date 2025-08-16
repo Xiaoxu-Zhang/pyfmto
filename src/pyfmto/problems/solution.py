@@ -155,7 +155,7 @@ class Solution:
             self._y = y
         else:
             if x.shape[1] != self.dim or y.shape[1] != self.obj:
-                raise ValueError(
-                    f"expect x.shape=(n,{self.dim}), y.shape=(n,{self.obj}) ,got x.shape={x.shape}, y.shape={y.shape} instead")
+                raise ValueError(f"expect x.shape=(n,{self.dim}), y.shape=(n,{self.obj}), "
+                                 f"got x.shape={x.shape}, y.shape={y.shape} instead")
             self._x = np.vstack((self.x, x))
             self._y = np.vstack((self.y, y))

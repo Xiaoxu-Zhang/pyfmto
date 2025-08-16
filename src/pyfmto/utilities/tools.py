@@ -131,6 +131,7 @@ def timer(name: Optional[str] = None, where: Literal['log', 'console', 'both'] =
     =============== demo cost 0.100 s ===============
     """
 
+    # noinspection PyUnusedLocal
     @wrapt.decorator
     def wrapper(wrapped, instance, args, kwargs):
         start_time = time.time()

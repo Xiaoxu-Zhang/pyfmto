@@ -1,37 +1,7 @@
-import subprocess
-import sys
 import time
-from typing import Type
 
-import numpy as np
-
-from pyfmto.experiments.utils import LauncherUtils
 from pyfmto.framework import Server, ClientPackage, ServerPackage, Client, record_runtime
 from pyfmto.problems import SingleTaskProblem
-
-
-def start_subprocess_clients(client: Type[Client]):
-    module_name = client.__module__
-    class_name = client.__name__
-    cmd = [
-        sys.executable, "-c",
-        f"from {module_name} import {class_name}; "
-        f"from pyfmto.problems import load_problem; "
-        f"from pyfmto.experiments.utils import LauncherUtils; "
-        f"prob = load_problem('tetci2019', fe_init=20, fe_max=25); "
-        f"clients = [{class_name}(p) for p in prob[:3]]; "
-        f"LauncherUtils.start_clients(clients)"
-    ]
-    proc = subprocess.Popen(
-        cmd,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    try:
-        yield proc
-    finally:
-        LauncherUtils.terminate_popen(proc)
 
 
 class OfflineServer(Server):
@@ -56,9 +26,8 @@ class OnlineServer(Server):
         return ServerPackage('response', 'server data')
 
     def aggregate(self):
-        rand = np.random.random()
-        time.sleep(rand)
-        self.update_server_info('round sleep', f"sleep {rand} s")
+        time.sleep(0.05)
+        self.update_server_info('round sleep', "sleep 0.05 s")
 
 
 class OnlineClient(Client):
@@ -67,7 +36,7 @@ class OnlineClient(Client):
         super().__init__(problem)
 
     def optimize(self):
-        time.sleep(0.1)  # sleep for 0.1 seconds to avoid frequent requests
+        time.sleep(0.5)  # sleep for 0.1 seconds to avoid frequent requests
         self.push()
         self.optimizing()
 

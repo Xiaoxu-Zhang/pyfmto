@@ -69,6 +69,7 @@ class Client(ABC):
         None
             This method does not return any value.
         """
+        # noinspection HttpUrlsUsage
         self._url = f"http://{ip}:{port}"
         self._conn_retry = conn_retry
 
