@@ -1,7 +1,7 @@
 import numpy as np
 import warnings
 from typing import Union, Optional, cast
-from pydantic import BaseModel, field_validator, model_validator, ConfigDict, StrictInt, StrictFloat
+from pydantic import BaseModel, field_validator, model_validator, ConfigDict
 
 T_Bound = Union[int, float, list, tuple, np.ndarray]
 
@@ -94,7 +94,7 @@ class TransformerConfig(BaseModel):
     """
     model_config = ConfigDict(arbitrary_types_allowed=True, extra='forbid')
     dim: int
-    shift: Optional[Union[int, float, np.ndarray]] = None
+    shift: Optional[np.ndarray] = None
     rotation: Optional[np.ndarray] = None
     rotation_inv: Optional[np.ndarray] = None
 
@@ -105,11 +105,6 @@ class TransformerConfig(BaseModel):
             self.rotation_inv = np.eye(self.dim)
         if self.shift is None:
             self.shift = np.zeros(self.dim)
-        elif isinstance(self.shift, (int, float)):
-            self.shift = np.ones(self.dim) * self.shift
-
-        self.shift = cast(np.ndarray, self.shift)
-        self.rotation = cast(np.ndarray, self.rotation)
 
         if self.rotation.shape != (self.dim, self.dim):
             raise ValueError(f"{self.dim} dimensional task's rotation shape must be ({self.dim}, {self.dim})")
@@ -122,21 +117,24 @@ class TransformerConfig(BaseModel):
 
 
 class FunctionInputs(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra='forbid')
-    x: Union[StrictInt, StrictFloat, list, tuple, np.ndarray]
-    dim: int
+    """
+    Basically, this model makes the following validation and reshaping:
 
-    @field_validator('x')
-    def x_must_ndarray(cls, v):
-        if isinstance(v, (int, float)):
-            return np.array([v])
-        if isinstance(v, (list, tuple)):
-            return np.array(v)
-        return v
+    - ``x``: finally a ndarray with shape (n, dim)
+    - ``dim``: a positive integer (has been validated by STPConfig)
+
+    Notes
+    -----
+    Additionally, this model validates that:
+        1. ``x`` must be a numpy array.
+        2. The final shape of ``x`` must be (n, dim).
+    """
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='forbid')
+    x: np.ndarray
+    dim: int
 
     @model_validator(mode='after')
     def check_and_reshape_x(self):
-        self.x = cast(np.ndarray, self.x)
         if self.x.ndim <= 1:
             self.x = self.x.reshape(-1, self.dim)
         if self.x.ndim != 2:

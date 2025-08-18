@@ -119,7 +119,7 @@ class TestProblemBase(unittest.TestCase):
         with self.assertRaises(ValueError):
             prob.set_x_global([1, 2, 3, 4, 5])
 
-        prob.set_transform(rotation=3*np.eye(5), shift=1)
+        prob.set_transform(rotation=3*np.eye(5), shift=np.ones(5))
         self.assertTrue(np.all(prob.x_global == prob.inverse_transform_x(np.arange(5))))
 
     def test_plots(self):

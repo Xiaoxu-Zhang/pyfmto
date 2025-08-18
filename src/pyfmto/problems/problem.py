@@ -44,7 +44,7 @@ class Transformer:
     def rotation_inv(self):
         return self._transform.rotation_inv
 
-    def set_transform(self, rotation: Optional[ndarray] = None, shift: Union[int, float, ndarray, None] = None):
+    def set_transform(self, rotation: Optional[ndarray] = None, shift: Optional[ndarray] = None):
         self._transform = TransformerConfig(
             dim=self.dim,
             rotation=rotation,
@@ -432,7 +432,7 @@ class SingleTaskProblem(ABC):
         else:
             raise ValueError(f"x_global must ndarray or None, got ({x_global}) instead.")
 
-    def set_transform(self, rotation: Optional[ndarray] = None, shift: Union[int, float, ndarray, None] = None):
+    def set_transform(self, rotation: Optional[ndarray] = None, shift: Optional[ndarray] = None):
         self._transformer.set_transform(rotation, shift)
 
     def set_id(self, _id: int):

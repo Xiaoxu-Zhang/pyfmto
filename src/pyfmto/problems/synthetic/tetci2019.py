@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import ndarray
 
 from ..problem import MultiTaskProblem as Mtp
 from ..benchmarks import (
@@ -86,6 +87,10 @@ class Tetci2019(Mtp):
             del functions[6], functions[3]
             del shifts[6], shifts[3]
 
-        [func.set_transform(shift=shift) for func, shift in zip(functions, shifts)]
+        for func, shift in zip(functions, shifts):
+            if not isinstance(shift, ndarray):
+                func.set_transform(shift=np.ones(dim) * shift)
+            else:
+                func.set_transform(shift=shift)
 
         return functions

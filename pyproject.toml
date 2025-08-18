@@ -63,7 +63,7 @@ addopts = [
     "--cov=pyfmto",
     "--cov-report=html:coverage/html"
 ]
-env = ["COLUMNS=129"]
+env = ["COLUMNS=120"]
 testpaths = ["tests/"]
 filterwarnings = [
     "ignore:FigureCanvasAgg is non-interactive",

@@ -101,7 +101,7 @@ class TestTransformerConfig(unittest.TestCase):
             self.assertTrue(np.all(trans.rotation_inv @ trans.rotation == np.eye(dim)))
 
         for dim, shift in zip(dims, scales):
-            trans = TransformerConfig(dim=dim, shift=shift)
+            trans = TransformerConfig(dim=dim, shift=shift*np.ones(dim))
             self.assertTrue(np.all(trans.shift == shift))
 
     def test_invalid(self):
@@ -116,7 +116,7 @@ class TestFunctionInputs(unittest.TestCase):
 
     def test_valid_inputs(self):
         for valid_x in [1, [1, 2, 3], [1], (1,)]:
-            fin = FunctionInputs(x=valid_x, dim=1)
+            fin = FunctionInputs(x=np.array(valid_x), dim=1)
             self.assertEqual(fin.x.ndim, 2)
             self.assertEqual(fin.x.shape[1], 1)
 
@@ -129,7 +129,10 @@ class TestFunctionInputs(unittest.TestCase):
     def test_invalid_inputs(self):
         for invalid_x in ['1', [[[1]]], [[1, 2], [3, 4]]]:
             with self.assertRaises(ValueError, msg=f"while x={invalid_x}"):
-                FunctionInputs(dim=1, x=invalid_x)
+                if isinstance(invalid_x, list):
+                    FunctionInputs(dim=1, x=np.array(invalid_x))
+                else:
+                    FunctionInputs(dim=1, x=invalid_x)
 
 
 class TestLauncherConfig(unittest.TestCase):
