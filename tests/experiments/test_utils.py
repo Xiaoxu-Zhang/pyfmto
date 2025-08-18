@@ -8,7 +8,7 @@ from unittest.mock import patch, Mock
 from pyfmto import framework as fw, load_problem
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils
-from pyfmto.utilities.schemas import LauncherConfig
+from pyfmto.utilities.schemas import LauncherConfig, STPConfig
 from pyfmto.utilities import load_msgpack
 from tests.framework import OnlineServer
 
@@ -22,11 +22,9 @@ def process_is_running(process: subprocess.Popen) -> bool:
 
 
 def create_solution():
-    solution = Solution()
-    dim, obj = 2, 1
-
-    x = np.random.random((5, dim))
-    y = np.random.random((5, obj))
+    solution = Solution(STPConfig(dim=2, obj=1, lb=[-1, -1], ub=[1, 1]))
+    x = np.random.random((solution.fe_init, solution.dim))
+    y = np.random.random((solution.fe_init, solution.obj))
     solution.append(x, y)
     return solution
 
@@ -371,9 +369,9 @@ class TestRunSolutions(unittest.TestCase):
 
         retrieved = rs.get_solutions(1)
         self.assertIsInstance(retrieved, Solution)
-        self.assertEqual(retrieved.dim, 2)
-        self.assertEqual(retrieved.obj, 1)
-        self.assertEqual(retrieved.size, 5)
+        self.assertEqual(retrieved.dim, solution.dim)
+        self.assertEqual(retrieved.obj, solution.obj)
+        self.assertEqual(retrieved.size, solution.size)
 
         self.assertIsInstance(rs.solutions, list)
         self.assertEqual(len(rs.solutions), 1)

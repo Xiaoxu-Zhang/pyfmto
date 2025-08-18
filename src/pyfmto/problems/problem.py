@@ -59,6 +59,13 @@ class Transformer:
 
 
 class SingleTaskProblem(ABC):
+    _id: int
+    _x_global: ndarray
+    _partition: ndarray
+    _solutions: Solution
+    _transformer: Transformer
+    auto_update_solutions = False
+
     def __init__(self, dim: int, obj: int, lb: T_Bound, ub: T_Bound, **kwargs):
         """
         Initialize a `SingleTaskProblem` instance.
@@ -99,12 +106,8 @@ class SingleTaskProblem(ABC):
         - The optimal solutions and Pareto Front (`self.optimum`, `self.PF`) are precomputed with default settings.
         """
         self._config = STPConfig(dim=dim, obj=obj, lb=lb, ub=ub, **kwargs)
-        self._id = -1
         self._x_global = np.zeros(self.dim)
-        self._partition = np.array([])
-        self._solutions = Solution()
         self._transformer = Transformer(self.dim)
-        self.auto_update_solutions = False
 
     def __str__(self):
         lb, ub = self.lb, self.ub
@@ -456,6 +459,7 @@ class SingleTaskProblem(ABC):
         - The number of initial samples is determined by `self.solutions.fe_init`.
         - The sampled points are transformed from the normalized space to the original decision space.
         """
+        self._solutions = Solution(self._config)
         x_init = lhs(self.dim, samples=self.fe_init)
         if self.no_partition:
             x_init = x_init * (self.ub - self.lb) + self.lb
@@ -463,8 +467,6 @@ class SingleTaskProblem(ABC):
             x_init = x_init * (self._partition[1] - self._partition[0]) + self._partition[0]
 
         y_init = np.array(self.evaluate(x_init))
-        self._solutions = Solution()  # Do not remove this line
-        self.solutions.append(x_init, y_init)
 
         self.solutions._x_global = self.x_global
         if self.auto_update_solutions:
@@ -476,6 +478,7 @@ class SingleTaskProblem(ABC):
             self.solutions._y_global = self.y_global
             self.auto_update_solutions = True
         else:
+            self.solutions.append(x_init, y_init)
             self.solutions._y_global = self.y_global
 
     def random_uniform_x(self, size, within_partition=True) -> ndarray:
@@ -606,12 +609,12 @@ class SingleTaskProblem(ABC):
         """
 
     @property
-    def no_partition(self):
-        return np.all(self._partition == 0)
+    def no_partition(self) -> bool:
+        return not hasattr(self, "_partition")
 
     @property
     def id(self) -> int:
-        return self._id
+        return self._id if hasattr(self, "_id") else -1
 
     @property
     def lb(self) -> ndarray:
@@ -630,19 +633,19 @@ class SingleTaskProblem(ABC):
         return self._config.dim
 
     @property
-    def obj(self):
+    def obj(self) -> int:
         return self._config.obj
 
     @property
-    def fe_init(self):
+    def fe_init(self) -> int:
         return self._config.fe_init
 
     @property
-    def fe_max(self):
+    def fe_max(self) -> int:
         return self._config.fe_max
 
     @property
-    def fe_available(self):
+    def fe_available(self) -> int:
         return self.fe_max - self.solutions.size
 
     @property
@@ -651,7 +654,7 @@ class SingleTaskProblem(ABC):
 
     @property
     def solutions(self) -> Solution:
-        return self._solutions
+        return self._solutions if hasattr(self, '_solutions') else Solution(self._config)
 
 
 class MultiTaskProblem(ABC):

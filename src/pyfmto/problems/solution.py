@@ -1,8 +1,9 @@
-import copy
 import numpy as np
-from typing import Optional
+from typing import Union
 from numpy import ndarray
 from tabulate import tabulate
+
+from pyfmto.utilities.schemas import STPConfig
 
 __all__ = ['Solution']
 
@@ -18,20 +19,27 @@ def _only_single_obj(func):
 
 
 class Solution:
-    def __init__(self, solution: Optional[dict] = None):
-        # config
-        self._dim = -1
-        self._obj = -1
-        self._fe_init = -1
+    _dim: int
+    _obj: int
+    _fe_init: int
+    _fe_max: int
+    _np_per_dim: int
+    _prev_size: int
+    _lb: ndarray
+    _ub: ndarray
+    _x: ndarray
+    _y: ndarray
+    _x_global: ndarray
+    _y_global: ndarray
 
-        self._x = np.array([])
-        self._y = np.array([])
-        self._x_global = np.array([])
-        self._y_global = np.array([])
+    def __init__(self, data: Union[STPConfig, dict]):
         self._prev_size = 0
-
-        if solution:
-            self.__dict__.update(copy.deepcopy(solution))
+        if isinstance(data, dict):
+            self._init_from_dict(data)
+        elif isinstance(data, STPConfig):
+            self._init_from_config(data)
+        else:
+            raise TypeError(f"Solution() must be initialized with a dict or STPConfig, got {type(data)} instead.")
 
     def __repr__(self):
         return f"SolutionSet(dim={self.dim}, obj={self.obj}, solution_size={self.size})"
@@ -47,6 +55,36 @@ class Solution:
 
     def to_dict(self):
         return self.__dict__
+
+    def _init_from_dict(self, data: dict):
+        required_keys = set(self.required_keys)
+        actual_keys = set(data.keys())
+        missing_keys = required_keys - actual_keys
+        extra_keys = actual_keys - required_keys
+        if missing_keys or extra_keys:
+            error_msg = "Invalid data:\n"
+            error_msg += f"  Expected keys: {sorted(required_keys)}"
+            error_msg += f"  Missing keys: {sorted(missing_keys)}\n"
+            error_msg += f"  Extra keys: {sorted(extra_keys)}\n"
+            raise ValueError(error_msg)
+        self.__dict__.update(data.copy())
+
+    def _init_from_config(self, config: STPConfig):
+        self._dim = config.dim
+        self._obj = config.obj
+        self._fe_init = config.fe_init
+        self._fe_max = config.fe_max
+        self._np_per_dim = config.np_per_dim
+        self._lb = config.lb  # type: ignore
+        self._ub = config.ub  # type: ignore
+        self._x = np.array([])
+        self._y = np.array([])
+        self._x_global = np.array([])
+        self._y_global = np.array([])
+
+    @property
+    def required_keys(self):
+        return sorted(self.__class__.__annotations__.keys())
 
     @property
     def size(self):
@@ -76,7 +114,7 @@ class Solution:
 
     @property
     def initialized(self):
-        return self._fe_init >= 0
+        return self.size >= self.fe_init
 
     @property
     def dim(self):
@@ -87,8 +125,24 @@ class Solution:
         return self._obj
 
     @property
+    def lb(self):
+        return self._lb
+
+    @property
+    def ub(self):
+        return self._ub
+
+    @property
     def fe_init(self):
         return self._fe_init
+
+    @property
+    def fe_max(self):
+        return self._fe_max
+
+    @property
+    def np_per_dim(self) -> int:
+        return self._np_per_dim
 
     @property
     @_only_single_obj
@@ -142,20 +196,17 @@ class Solution:
         """
         x = np.array(x)
         y = np.array(y)
-        if x.ndim != 2 or y.ndim != 2:
-            raise ValueError(f"expect x,y to have ndim=2, got x.ndim={x.ndim}, y.ndim={y.ndim} instead.")
+        if x.ndim != 2:
+            x = x.reshape(-1, self.dim)
+        if y.ndim != 2:
+            y = y.reshape(-1, self.obj)
         if x.shape[0] != y.shape[0]:
-            raise ValueError(f"expect x,y to have same number of rows, got (x {x.shape[0]}, y {y.shape[0]}) instead.")
+            raise ValueError("expect x,y to have same number of rows, "
+                             f"got (x {x.shape[0]}, y {y.shape[0]}) instead.")
 
-        if not self.initialized:
-            self._dim = x.shape[1]
-            self._obj = y.shape[1]
-            self._fe_init = x.shape[0]
+        if self.size == 0:
             self._x = x
             self._y = y
         else:
-            if x.shape[1] != self.dim or y.shape[1] != self.obj:
-                raise ValueError(f"expect x.shape=(n,{self.dim}), y.shape=(n,{self.obj}), "
-                                 f"got x.shape={x.shape}, y.shape={y.shape} instead")
             self._x = np.vstack((self.x, x))
             self._y = np.vstack((self.y, y))

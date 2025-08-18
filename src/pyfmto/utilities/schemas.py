@@ -14,9 +14,9 @@ class STPConfig(BaseModel):
     - ``obj``: a positive integer
     - ``lb``: finally a ndarray with shape (dim,)
     - ``ub``: finally a ndarray with shape (dim,)
-    - ``fe_init``: default to ``5*dim`` or a positive integer
-    - ``fe_max``: default to ``11*dim`` or a positive integer
-    - ``np_per_dim``: default to 1 or a positive integer
+    - ``fe_init``: a positive integer, default to ``5*dim``
+    - ``fe_max``: a positive integer, default to ``11*dim``
+    - ``np_per_dim``: a positive integer, default to ``1``
 
     Notes
     -----
