@@ -12,13 +12,13 @@ release:
 	python -m twine upload dist/*
 
 lint:
-	flake8 src/ tests/ --exclude=src/pyfmto/algorithms/ --count --max-line-length=127
-	mypy src/ --exclude=src/pyfmto/algorithms/ --follow-imports=skip --ignore-missing-imports
+	flake8
+	mypy
 
 utest:
 	coverage run -m unittest
-	coverage report -m
 	coverage html
+	coverage report -m
 
 ptest:
 	pytest

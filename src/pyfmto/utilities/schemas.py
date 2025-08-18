@@ -1,6 +1,6 @@
 import numpy as np
 import warnings
-from typing import Union, Optional
+from typing import Union, Optional, cast
 from pydantic import BaseModel, field_validator, model_validator, ConfigDict, StrictInt, StrictFloat
 
 T_Bound = Union[int, float, list, tuple, np.ndarray]
@@ -29,9 +29,9 @@ class STPConfig(BaseModel):
     obj: int
     lb: T_Bound
     ub: T_Bound
-    fe_init: Optional[int] = None
-    fe_max: Optional[int] = None
-    np_per_dim: Optional[int] = None
+    fe_init: int = -1
+    fe_max: int = -1
+    np_per_dim: int = 1
 
     @field_validator('dim', 'obj')
     def validate_positive_integer(cls, v):
@@ -41,8 +41,8 @@ class STPConfig(BaseModel):
 
     @field_validator('fe_init', 'fe_max', 'np_per_dim')
     def validate_positive_or_none(cls, v):
-        if v is not None and v < 1:
-            raise ValueError(f"Invalid value: {v} (fe_init, fe_max, and np_per_dim must be positive or None)")
+        if v < 1:
+            raise ValueError(f"Invalid value: {v} (fe_init, fe_max, and np_per_dim must be positive)")
         return v
 
     @model_validator(mode='after')
@@ -58,6 +58,9 @@ class STPConfig(BaseModel):
         else:
             self.ub = np.asarray(self.ub)
 
+        self.lb = cast(np.ndarray, self.lb)
+        self.ub = cast(np.ndarray, self.ub)
+
         # Check dimensionality
         if self.lb.shape != (self.dim,):
             raise ValueError(f"lb must be a scalar or array of shape ({self.dim},)")
@@ -69,13 +72,10 @@ class STPConfig(BaseModel):
             raise ValueError("All elements of lb must be less than corresponding elements of ub")
 
         # Set default values for fe_init and fe_max
-        if self.fe_init is None:
+        if self.fe_init == -1:
             self.fe_init = 5 * self.dim
-        if self.fe_max is None:
+        if self.fe_max == -1:
             self.fe_max = 11 * self.dim
-
-        if self.np_per_dim is None:
-            self.np_per_dim = 1
 
         if self.fe_init > self.fe_max:
             raise ValueError("fe_init must be less than or equal to fe_max")
@@ -108,6 +108,9 @@ class TransformerConfig(BaseModel):
         elif isinstance(self.shift, (int, float)):
             self.shift = np.ones(self.dim) * self.shift
 
+        self.shift = cast(np.ndarray, self.shift)
+        self.rotation = cast(np.ndarray, self.rotation)
+
         if self.rotation.shape != (self.dim, self.dim):
             raise ValueError(f"{self.dim} dimensional task's rotation shape must be ({self.dim}, {self.dim})")
         if self.shift.shape != (self.dim,):
@@ -133,6 +136,7 @@ class FunctionInputs(BaseModel):
 
     @model_validator(mode='after')
     def check_and_reshape_x(self):
+        self.x = cast(np.ndarray, self.x)
         if self.x.ndim <= 1:
             self.x = self.x.reshape(-1, self.dim)
         if self.x.ndim != 2:
@@ -244,6 +248,7 @@ class PlottingArgs(BaseModel):
             self.fixed = (self.lb + self.ub) / 2
         elif isinstance(self.fixed, (int, float)):
             self.fixed = np.ones(self.dim) * self.fixed
+        self.fixed = cast(np.ndarray, self.fixed)
         if self.fixed.shape != (self.dim,):
             raise ValueError(f"fixed shape, if a ndarray, must be ({self.dim},), got fixed shape={self.fixed.shape}")
         if np.any(self.fixed < self.lb) or np.any(self.fixed > self.ub):

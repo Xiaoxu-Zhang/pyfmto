@@ -74,7 +74,7 @@ class Launcher:
     def _save_kwargs(self):
         if not self.save:
             return
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         default_kwargs = get_alg_kwargs(self._alg)
         if self._clt_kwargs:
             kwargs.update(client=self._clt_kwargs)

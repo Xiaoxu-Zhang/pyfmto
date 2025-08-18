@@ -12,7 +12,7 @@ from pydantic import validate_call, Field
 from pyfmto.utilities import logger, reset_log, SeabornPalettes, load_yaml
 from tabulate import tabulate
 from tqdm import tqdm
-from typing import Union, Optional, Literal, Annotated
+from typing import Optional, Literal, Annotated, Any
 from .utils import RunSolutions, Statistics, ReporterUtils
 from pyfmto.utilities.tools import clear_console
 
@@ -26,6 +26,9 @@ __all__ = ['Reports']
 
 
 class Reporter:
+    _root: Path
+    _cache: dict[str, Any]
+    _comb: list[tuple[str, str, int]]
 
     def __init__(self, results, initialize_comb):
         self._root = Path(results)
@@ -43,12 +46,13 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
+            *,
             figsize: tuple[float, float, float],
             alpha: float,
-            palette: Union[str, SeabornPalettes],
+            palette: SeabornPalettes,
             suffix: str,
             styles: tuple[str, ...],
-            showing_size: int,
+            showing_size: Optional[int],
             quality: int,
             merge: bool,
             clear: bool,
@@ -89,6 +93,7 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
+            *,
             pvalue: float,
             styles: tuple[str, ...]
     ):
@@ -165,6 +170,7 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
+            *,
             pvalue: float
     ):
         tab_data = self._get_table_df(algorithms, problem, np_per_dim, pvalue)
@@ -194,6 +200,7 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
+            *,
             suffix: str,
             figsize: tuple[float, float, float],
             merge: bool,
@@ -218,6 +225,7 @@ class Reporter:
             algorithms: list[str],
             problem: str,
             np_per_dim: int,
+            *,
             pvalue: float
     ):
         statistics = self._get_statistics(algorithms, problem, np_per_dim)
@@ -391,12 +399,12 @@ class Reports:
     @validate_call
     def to_curve(
             self,
-            figsize: tuple[float, float, float] = (3, 2.3, 1),
-            alpha: T_Fraction = 0.2,
-            palette: Union[str, SeabornPalettes] = SeabornPalettes.bright,
+            figsize: tuple[float, float, float] = (3., 2.3, 1.),
+            alpha: T_Fraction = .2,
+            palette: SeabornPalettes = SeabornPalettes.bright,
             suffix: T_Suffix = '.png',
             styles: tuple[str, ...] = ('science', 'ieee', 'no-latex'),
-            showing_size: Annotated[Optional[int], Field(ge=1)] = None,
+            showing_size: int = -1,
             quality: T_Levels10 = 3,
             merge: bool = True,
             clear: bool = True,
@@ -407,7 +415,7 @@ class Reports:
 
         Parameters
         ----------
-        figsize : tuple[float, float, float], optional
+        figsize : tuple[float, float, float]
             Controlling the width-to-height ratio and the scale of the ratio. The third value is the scaling factor.
         alpha : float, optional
             Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).

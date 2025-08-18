@@ -11,30 +11,30 @@ requires-python = ">=3.9"
 #license = {file = "LICENSE"}
 dynamic = ["version"]
 dependencies = [
+    "egobox",
+    "fastapi",
+    "jinja2",
+    "matplotlib",
+    "msgpack",
     "numpy",
+    "openpyxl",
+    "opfunu",
     "pandas",
+    "pyDOE",
+    "pydacefit",
     "pyyaml",
     "requests",
+    "ruamel-yaml",
+    "scienceplots",
+    "scikit-learn",
+    "scipy",
+    "seaborn",
+    "setproctitle",
+    "smt",
     "tabulate",
     "tqdm",
     "uvicorn",
     "wrapt",
-    "fastapi",
-    "setproctitle",
-    "scipy",
-    "scikit-learn",
-    "seaborn",
-    "matplotlib",
-    "pyDOE",
-    "opfunu",
-    "ruamel-yaml",
-    "smt",
-    "egobox",
-    "scienceplots",
-    "msgpack",
-    "pydacefit",
-    "jinja2",
-    "openpyxl"
    ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -47,12 +47,44 @@ classifiers = [
     "Operating System :: OS Independent"
 ]
 
-[tool.setuptools.package-data]
-"pyfmto.problems" = ["*.yaml", "datasets/**/*"]
-"pyfmto.utilities" = ["*.yaml"]
-
 [project.urls]
 Homepage = "https://github.com/Xiaoxu-Zhang/pyfmto"
 
 [tool.setuptools.dynamic]
 version = {attr = "pyfmto.__version__"}
+
+# tool configurations
+[tool.setuptools.package-data]
+"pyfmto.problems" = ["*.yaml", "datasets/**/*"]
+"pyfmto.utilities" = ["*.yaml"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--cov=pyfmto",
+    "--cov-report=html:coverage/html"
+]
+env = ["COLUMNS=129"]
+testpaths = ["tests/"]
+filterwarnings = [
+    "ignore:FigureCanvasAgg is non-interactive",
+    "ignore:pkg_resources is deprecated as an API"
+]
+
+[tool.coverage.run]
+data_file = "coverage/.coverage"
+source = ["pyfmto"]
+omit = ["*/pyfmto/algorithms/*"]
+
+[tool.coverage.html]
+directory = "coverage/html"
+
+[tool.mypy]
+files = ["src/"]
+exclude = ["src/pyfmto/algorithms/"]
+follow_imports = "skip"
+ignore_missing_imports = true
+
+[tool.flake8]
+exclude = ["src/pyfmto/algorithms/"]
+max-line-length = 127
+count = true

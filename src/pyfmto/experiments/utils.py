@@ -410,8 +410,7 @@ class ReporterUtils:
         fe_init = c_data.fe_init
         fe_max = c_data.fe_max
         size_optimization = fe_max - fe_init
-        size_plot = fe_max if showing_size is None else showing_size
-
+        size_plot = fe_max if showing_size == -1 else showing_size
         x_indices: np.ndarray = np.arange(size_plot) + 1
         avg = c_data.mean_log[-size_plot:] if in_log_scale else c_data.mean_orig[-size_plot:]
         se = c_data.se_log[-size_plot:] if in_log_scale else c_data.se_orig[-size_plot:]

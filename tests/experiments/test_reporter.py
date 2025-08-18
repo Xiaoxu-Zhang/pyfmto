@@ -32,7 +32,7 @@ class TestValidReporting(unittest.TestCase):
     def test_to_excel(self):
         self.reports.to_excel()
         self.algs.append('ALG3')  # add a non-existing algorithm
-        export_reporter_config(algs=(tuple(self.algs), ), probs=tuple(self.probs), mode='update')
+        export_reporter_config(algs=(self.algs, ), probs=tuple(self.probs), mode='update')
         self.reports = Reports()
         self.reports.to_excel()
 
@@ -63,5 +63,6 @@ class TestValidReporting(unittest.TestCase):
                         x = task.random_uniform_x(task.fe_available)
                         y = task.evaluate(x)
                         task.solutions.append(x, y)
+                        # print(f"task {task.id}: shapes(x,y) is [{task.solutions.x.shape}, {task.solutions.y.shape}]")
                         run_solutions.update(task.id, task.solutions)
                     run_solutions.to_msgpack(res_root / f"Run {run + 1}.msgpack")

@@ -76,11 +76,11 @@ class Client(ABC):
     def __logging_params(self):
         param_dict = defaultdict(list)
         param_dict['TaskName'].append(self.problem.name)
-        param_dict['Dim'].append(self.problem.dim)
-        param_dict['Obj'].append(self.problem.obj)
-        param_dict['IID'].append(self.problem.np_per_dim)
-        param_dict['IniFE'].append(self.problem.fe_init)
-        param_dict['MaxFE'].append(self.problem.fe_max)
+        param_dict['Dim'].append(str(self.problem.dim))
+        param_dict['Obj'].append(str(self.problem.obj))
+        param_dict['IID'].append(str(self.problem.np_per_dim))
+        param_dict['IniFE'].append(str(self.problem.fe_init))
+        param_dict['MaxFE'].append(str(self.problem.fe_max))
         tab = titled_tabulate(
             f"{self.name} Params", '=',
             param_dict, headers='keys', tablefmt=tf.rounded_grid

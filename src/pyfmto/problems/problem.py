@@ -588,7 +588,7 @@ class SingleTaskProblem(ABC):
         return self._transformer.rotation
 
     @abstractmethod
-    def _eval_single(self, x: ndarray) -> ndarray:
+    def _eval_single(self, x: ndarray):
         """
         OjbFunc:= :math:`\\mathbf{x} \\to f \\to \\mathbf{y}, \\mathbf{x} \\in \\mathbb{R}^{D1},
         \\mathbf{y}\\in \\mathbb{R}^{D2}`, where :math:`D1` is the dimension of decision space
@@ -601,7 +601,8 @@ class SingleTaskProblem(ABC):
 
         Returns
         -------
-        ndarray or float
+        y:
+            Function value
         """
 
     @property
@@ -645,7 +646,7 @@ class SingleTaskProblem(ABC):
         return self.fe_max - self.solutions.size
 
     @property
-    def np_per_dim(self) -> Optional[int]:
+    def np_per_dim(self) -> int:
         return self._config.np_per_dim
 
     @property
@@ -1042,12 +1043,12 @@ class MultiTaskProblem(ABC):
         intro = _reformat_lines(self.intro, tab_width)
         notes = _reformat_lines(self.notes, tab_width)
         ref = [_reformat_lines(txt, tab_width) for txt in self.references]
-        ref = "\n".join(ref)
+        ref_str = "\n".join(ref)
 
         return (
             f"{prob_name}\n"
             f"{tab}\n"
             f"Introduction:{intro}\n"
             f"Notes:{notes}\n"
-            f"References:{ref}"
+            f"References:{ref_str}"
         ).replace('\n\n\n', '\n\n')
