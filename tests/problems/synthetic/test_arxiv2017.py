@@ -17,44 +17,41 @@ MODIFIED_NP_PER_DIM = 4
 
 
 class TestArxiv2017(unittest.TestCase):
-    def test_init(self):
+    def test_init_default(self):
         default = load_problem('arxiv2017')
-        mod_dim = load_problem('arxiv2017', dim=MODIFIED_DIM)
-        mod_fe = load_problem('arxiv2017', fe_init=MODIFIED_INIT_FE, fe_max=MODIFIED_MAX_FE,
-                              np_per_dim=MODIFIED_NP_PER_DIM)
-
         self.assertEqual(len(default), 18)
-        self.assertEqual(len(mod_dim), 18)
-        self.assertEqual(len(mod_fe), 18)
+        for task in default:
+            with self.subTest(task=task):
+                self.assertEqual(task.solutions.dim, DEFAULT_DIM)
+                self.assertEqual(task.solutions.fe_init, DEFAULT_INIT_FE)
+                self.assertEqual(task.solutions.size, DEFAULT_INIT_FE)
 
-        task_default = default[0]
-        task_mod_dim = mod_dim[0]
-        task_mod_fe = mod_fe[0]
+    def test_different_dim(self):
+        for dim in [3, 5, 10, 15, 20, 30, 50]:
+            with self.subTest(dim=dim):
+                prob = load_problem('arxiv2017', dim=dim, _init_solutions=False)
+                if dim <= 25:
+                    self.assertEqual(prob.task_num, 18)
+                else:
+                    self.assertEqual(prob.task_num, 17)
+                for task in prob:
+                    self.assertEqual(task.dim, dim)
+                _ = str(prob)
 
-        self.assertEqual(task_default.solutions.dim, DEFAULT_DIM)
-        self.assertEqual(task_default.solutions.fe_init, DEFAULT_INIT_FE)
-        self.assertEqual(task_default.solutions.size, DEFAULT_INIT_FE)
+    def test_different_budgets(self):
+        for fe_init, fe_max in [(10, 20), (30, 40), (50, 60)]:
+            with self.subTest(fe_init=fe_init, fe_max=fe_max):
+                prob = load_problem('arxiv2017', fe_init=fe_init, fe_max=fe_max)
+                for task in prob:
+                    self.assertEqual(task.fe_init, fe_init)
+                    self.assertEqual(task.fe_max, fe_max)
 
-        self.assertEqual(task_mod_dim.solutions.dim, MODIFIED_DIM)
-        self.assertEqual(task_mod_dim.solutions.fe_init, 5 * MODIFIED_DIM)
-        self.assertEqual(task_mod_dim.solutions.size, 5 * MODIFIED_DIM)
-
-        self.assertEqual(task_mod_fe.solutions.fe_init, MODIFIED_INIT_FE)
-
-        problem10 = load_problem('arxiv2017', dim=10, _init_solutions=False)
-        problem25 = load_problem('arxiv2017', dim=25, _init_solutions=False)
-        problem30 = load_problem('arxiv2017', dim=30, _init_solutions=False)
-        problem50 = load_problem('arxiv2017', dim=50, _init_solutions=False)
-        _ = str(problem10)
-
-        self.assertEqual(problem10[0].dim, 10)
-        self.assertEqual(problem25[0].dim, 25)
-        self.assertEqual(problem30[0].dim, 30)
-        self.assertEqual(problem50[0].dim, 50)
-        self.assertEqual(len(problem10), 18)
-        self.assertEqual(len(problem25), 18)
-        self.assertEqual(len(problem30), 17)
-        self.assertEqual(len(problem50), 17)
+    def test_different_np(self):
+        for np_per_dim in [1, 2, 3, 4, 5]:
+            with self.subTest(np_per_dim=np_per_dim):
+                prob = load_problem('arxiv2017', np_per_dim=np_per_dim)
+                for task in prob:
+                    self.assertEqual(task.np_per_dim, np_per_dim)
 
     def test_rasis(self):
         dim_none = {'dim': None}

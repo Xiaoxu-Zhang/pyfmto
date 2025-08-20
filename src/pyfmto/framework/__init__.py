@@ -17,6 +17,7 @@ __all__ = [
     'ClientPackage',
     'ServerPackage',
     'record_runtime',
+    'export_demo',
     'export_alg_template',
     'export_launch_module',
     'export_default_config',
@@ -202,4 +203,13 @@ def export_default_config():
     export_launcher_config(mode='update')
     export_reporter_config(mode='update')
     export_algorithm_config(mode='update')
+    export_problem_config(mode='update')
+
+
+def export_demo(alg_name: str):
+    export_alg_template(alg_name)
+    export_launch_module()
+    export_launcher_config(algs=[alg_name, 'BO'], mode='update')
+    export_reporter_config(algs=([alg_name, 'BO'], ), probs=('tetci2019_10d', 'arxiv2017_10d'), mode='update')
+    export_algorithm_config(algs=(alg_name, 'BO'), mode='update')
     export_problem_config(mode='update')

@@ -5,11 +5,11 @@ import unittest
 import yaml
 from pathlib import Path
 from unittest.mock import patch, Mock
-from pyfmto import framework as fw, load_problem
+from pyfmto import framework as fw, load_problem, list_algorithms
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils
 from pyfmto.utilities.schemas import LauncherConfig, STPConfig
-from pyfmto.utilities import load_msgpack
+from pyfmto.utilities import load_msgpack, load_yaml
 from tests.framework import OnlineServer
 
 
@@ -467,3 +467,9 @@ class TestExportTools(unittest.TestCase):
     def test_export_invalid_config(self):
         fw.export_algorithm_config(algs=('INVALID', ))
         fw.export_problem_config(probs=('INVALID', ))
+
+    def test_export_demo(self):
+        fw.export_demo('TST')
+        conf = load_yaml(self.conf)
+        self.assertTrue('TST' in list_algorithms()['yours'])
+        self.assertTrue('TST' in conf['algorithms'])

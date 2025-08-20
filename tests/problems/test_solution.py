@@ -134,10 +134,19 @@ class TestSolution(unittest.TestCase):
 
     def test_homo_sequences_start_end_with_expected_values(self):
         """Test homogenized sequences start with initial y value and end with max or min value."""
-        self.assertEqual(self.solution_initialized.y_homo_decrease[0], self.solution_initialized.y[0])
-        self.assertEqual(self.solution_initialized.y_homo_increase[0], self.solution_initialized.y[0])
-        self.assertEqual(self.solution_initialized.y_homo_decrease[-1], self.solution_initialized.y_min)
-        self.assertEqual(self.solution_initialized.y_homo_increase[-1], self.solution_initialized.y_max)
+        for _ in range(5):
+            for_homo = Solution(STPConfig(dim=10, obj=1, lb=0, ub=1))
+            x = np.ones(shape=(for_homo.fe_max, for_homo.dim))
+            y = np.random.random(size=(for_homo.fe_max, for_homo.obj))
+            # we set the start value to .5 to make sure
+            # that all the code of inc/dec are covered.
+            start_value = .5
+            y[0, 0] = start_value
+            for_homo.append(x, y)
+            self.assertEqual(for_homo.y_homo_decrease[0], start_value)
+            self.assertEqual(for_homo.y_homo_increase[0], start_value)
+            self.assertEqual(self.solution_initialized.y_homo_decrease[-1], self.solution_initialized.y_min)
+            self.assertEqual(self.solution_initialized.y_homo_increase[-1], self.solution_initialized.y_max)
 
     def test_property_access_raises_error_in_multi_objective_mode(self):
         """Test accessing single-objective properties in multi-objective mode raises error."""

@@ -19,7 +19,7 @@
 Require python >= 3.9
 
 ```bash
-pip install https://pyfmto.oss-cn-hangzhou.aliyuncs.com/dist/pyfmto-0.1.0-py3-none-any.whl
+pip install https://pyfmto.oss-cn-hangzhou.aliyuncs.com/dist/pyfmto-0.0.1-py3-none-any.whl
 ```
 
 ## Usage

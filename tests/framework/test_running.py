@@ -71,14 +71,15 @@ class TestClientSide(unittest.TestCase):
         time.sleep(1)
         self.utils.start_clients(clients)
         server.shutdown()
+        thread.join(timeout=1)
 
-    def test_invalid_server_agg(self):
+    def test_invalid_server_method(self):
         class InvalidServerHandler(Server):
             def handle_request(self, client_data: ClientPackage) -> ServerPackage:
                 raise RuntimeError('Test exception in server.handle_request()')
 
             def aggregate(self):
-                raise RuntimeError("Test exception in server.aggregate()")
+                pass
 
         class InvalidServerAgg(Server):
             def handle_request(self, client_data: ClientPackage) -> ServerPackage:
@@ -87,12 +88,12 @@ class TestClientSide(unittest.TestCase):
             def aggregate(self):
                 raise RuntimeError("Test raise error")
 
-        server = InvalidServerHandler()
-        thread = threading.Thread(target=server.start)
-        thread.start()
-        thread.join(timeout=1)
-
-        server = InvalidServerAgg()
-        thread = threading.Thread(target=server.start)
-        thread.start()
-        thread.join(timeout=1)
+        for server_cls in [InvalidServerHandler, InvalidServerAgg]:
+            with self.subTest(server_cls=server_cls):
+                server = server_cls()
+                server._add_client(1)
+                thread = threading.Thread(target=server.start)
+                thread.start()
+                time.sleep(1)
+                server.shutdown('Shutdown server thread in test')
+                thread.join(timeout=1)

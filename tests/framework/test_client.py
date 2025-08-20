@@ -52,6 +52,7 @@ class TestClient(unittest.TestCase):
         for k, v in defaults.items():
             self.assertEqual(getattr(default_config, k), v, f'Client parameter {k} is not equal to {v}')
         for alpha, beta in product([0.1, 0.2, 0.3], [0.4, 0.5, 0.6]):
-            client = ConfigurableClient(prob, alpha=alpha, beta=beta)
-            self.assertEqual(client.alpha, alpha, f'Client parameter alpha is not equal to {alpha}')
-            self.assertEqual(client.beta, beta, f'Client parameter beta is not equal to {beta}')
+            with self.subTest(alpha=alpha, beta=beta):
+                client = ConfigurableClient(prob, alpha=alpha, beta=beta)
+                self.assertEqual(client.alpha, alpha, f'Client parameter alpha is not equal to {alpha}')
+                self.assertEqual(client.beta, beta, f'Client parameter beta is not equal to {beta}')

@@ -1,4 +1,5 @@
 import time
+from datetime import date
 
 from pyfmto.framework import Server, ClientPackage, ServerPackage, Client, record_runtime
 from pyfmto.problems import SingleTaskProblem
@@ -21,13 +22,18 @@ class OfflineServer(Server):
 class OnlineServer(Server):
     def __init__(self):
         super().__init__()
+        self.set_agg_interval(0.5)
+        self.update_server_info('time init', date.ctime(date.today()))
+        self.update_server_info('time init', date.ctime(date.today()))
+        self.update_server_info('num clients', str(self.num_clients))
 
     def handle_request(self, client_data: ClientPackage) -> ServerPackage:
         return ServerPackage('response', 'server data')
 
     def aggregate(self):
-        time.sleep(0.05)
-        self.update_server_info('round sleep', "sleep 0.05 s")
+        self.update_server_info('time stamp', date.ctime(date.today()))
+        self.update_server_info('time stamp', date.ctime(date.today()))
+        self.update_server_info('num clients', str(self.num_clients))
 
 
 class OnlineClient(Client):
@@ -36,7 +42,7 @@ class OnlineClient(Client):
         super().__init__(problem)
 
     def optimize(self):
-        time.sleep(0.5)  # sleep for 0.1 seconds to avoid frequent requests
+        time.sleep(0.5)
         self.push()
         self.optimizing()
 

@@ -87,6 +87,8 @@ class Server(ABC):
     async def _aggregator(self):
         while not self._quit:
             await asyncio.sleep(self._agg_interval)
+            if self.num_clients == 0:
+                continue
             try:
                 self.aggregate()
             except Exception:
