@@ -3,38 +3,55 @@ import textwrap
 import importlib
 import inspect
 from pathlib import Path
-from typing import Any
+
+from pyfmto.framework import Client, Server
 from pyfmto.utilities import parse_yaml, colored
 
 __all__ = ['list_algorithms', 'load_algorithm', 'get_alg_kwargs']
 
 
+class Algorithm:
+    name: str
+    is_builtin: bool
+    client: Client
+    server: Server
+
+    @property
+    def is_complete(self) -> bool:
+        return hasattr(self, 'client') and hasattr(self, 'server')
+
+
 def load_algorithm(name: str):
+    alg = Algorithm()
+    alg.name = name
     all_alg = list_algorithms()
     if name in all_alg['yours']:
         module = importlib.import_module(f"algorithms.{name}")
-        is_builtin_alg = False
+        alg.is_builtin = False
     elif name in all_alg['builtins']:
         module = importlib.import_module(f"pyfmto.algorithms.{name}")
-        is_builtin_alg = True
+        alg.is_builtin = True
     else:
         raise ValueError(f'algorithm {name} not found.')
-    attr_names = dir(module)
-    res: dict[str: Any] = {}
-    for attr_name in attr_names:
+
+    for attr_name in dir(module):
         attr = getattr(module, attr_name)
         if inspect.isclass(attr):
-            if 'Client' in attr_name:
-                res['client'] = attr
-            if 'Server' in attr_name:
-                res['server'] = attr
-        if len(res) == 2:
+            if issubclass(attr, Client):
+                alg.client = attr
+            if issubclass(attr, Server):
+                alg.server = attr
+        if alg.is_complete:
             break
-    if len(res) != 2:
-        raise RuntimeError(f'load algorithm {name} failed, load result is {res}')
-    res.update(is_builtin_alg=is_builtin_alg)
-    res.update(name=name)
-    return res
+
+    msg: list[str] = [f'load algorithm {name} failed:']
+    if not hasattr(alg, 'client'):
+        msg.append("  Client not found.")
+    if not hasattr(alg, 'server'):
+        msg.append("  Server not found.")
+    if len(msg) > 1:
+        raise RuntimeError('\n'.join(msg))
+    return alg
 
 
 def list_algorithms(print_it=False):
@@ -57,8 +74,8 @@ def list_algorithms(print_it=False):
 
 def get_alg_kwargs(name: str):
     alg_data = load_algorithm(name)
-    clt = alg_data['client'].__doc__
-    srv = alg_data['server'].__doc__
+    clt = alg_data.client.__doc__
+    srv = alg_data.server.__doc__
     data = {}
     if clt:
         data.update({'client': parse_yaml(clt)})

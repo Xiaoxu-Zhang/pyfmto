@@ -89,20 +89,18 @@ class Launcher:
         save_yaml(kwargs, fdir / "arguments.yaml")
 
     def _repeating(self):
-        alg_modules = load_algorithm(self._alg)
-        client_cls = alg_modules['client']
-        server_cls = alg_modules['server']
+        alg = load_algorithm(self._alg)
         self._update_repeat_id()
         while not self._finished:
             # Init clients
             problem = load_problem(self._prob, **self._prob_args)
-            clients = [client_cls(p, **self._clt_kwargs) for p in problem]
+            clients = [alg.client(p, **self._clt_kwargs) for p in problem]
             self._iid_info = problem[0].np_per_dim
             self._num_clients = len(clients)
             self._show_settings()
 
             # Launch algorithm
-            with LauncherUtils.running_server(server_cls, **self._srv_kwargs):
+            with LauncherUtils.running_server(alg.server, **self._srv_kwargs):
                 results = LauncherUtils.start_clients(clients)
             self._save_results(results)
             self._update_repeat_id()
