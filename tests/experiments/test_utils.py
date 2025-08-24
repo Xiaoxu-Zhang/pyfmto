@@ -419,14 +419,15 @@ class TestRunSolutions(unittest.TestCase):
 
 class TestExportTools(unittest.TestCase):
     def setUp(self):
+        self.files = ['run.py', 'config.yaml', 'report.py']
         self.alg_dir = Path('algorithms')
         self.conf = Path('config.yaml')
-        self.tmp_files = []
 
     def tearDown(self):
         shutil.rmtree(self.alg_dir, ignore_errors=True)
         Path('run.py').unlink(missing_ok=True)
-        self.conf.unlink(missing_ok=True)
+        for filename in self.files:
+            Path(filename).unlink(missing_ok=True)
 
     def test_export_alg_template(self):
         fw.export_alg_template('TMP')  # export an exist algorithm
@@ -470,6 +471,11 @@ class TestExportTools(unittest.TestCase):
 
     def test_export_demo(self):
         fw.export_demo('TST')
+        self.assertTrue(Path('algorithms/TST/__init__.py').exists())
+        self.assertTrue(Path('algorithms/TST/tst_client.py').exists())
+        self.assertTrue(Path('algorithms/TST/tst_server.py').exists())
+        for filename in self.files:
+            self.assertTrue(Path(filename).exists())
         conf = load_yaml(self.conf)
         self.assertTrue('TST' in list_algorithms()['yours'])
         self.assertTrue('TST' in conf['algorithms'])

@@ -35,9 +35,25 @@ def export_launch_module():
 
     if __name__ == '__main__':
         launcher = Launcher()
-        launcher.run()
+        launcher.run()\n
     """
     with open('run.py', 'w') as f:
+        f.write(textwrap.dedent(rows))
+
+
+def export_report_module():
+    rows = """
+    from pyfmto.experiments import Reports
+
+
+    if __name__ == '__main__':
+        reports = Reports()
+        reports.to_curve()
+        # reports.to_excel()
+        # reports.to_violin()
+        # reports.to_latex()\n
+    """
+    with open('report.py', 'w') as f:
         f.write(textwrap.dedent(rows))
 
 
@@ -209,6 +225,7 @@ def export_default_config():
 def export_demo(alg_name: str):
     export_alg_template(alg_name)
     export_launch_module()
+    export_report_module()
     export_launcher_config(algs=[alg_name, 'BO'], mode='update')
     export_reporter_config(algs=([alg_name, 'BO'], ), probs=('tetci2019_10d', 'arxiv2017_10d'), mode='update')
     export_algorithm_config(algs=(alg_name, 'BO'), mode='update')
