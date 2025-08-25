@@ -28,7 +28,47 @@ __all__ = [
 ]
 
 
+def save_module(text, filename: Path):
+    filename = filename.with_suffix('.py')
+    if filename.exists():
+        print(f"{colored('Skipped', 'yellow')} existing file {filename}")
+        return
+    with open(filename.with_suffix('.py'), 'w') as f:
+        f.write(textwrap.dedent(text))
+    print(f"{colored('Created', 'green')} {filename}")
+
+
+def save_config(name: str, data, mode: Literal['new', 'update'] = 'new'):
+    if mode == 'new':
+        number = 1
+        path = Path(f'config_{name}{number}.yaml')
+        while True:
+            if not path.exists():
+                break
+            number += 1
+            path = Path(f'config_{name}{number}.yaml')
+        if data:
+            save_yaml({name: data}, path)
+            return Path(f'config_{name}{number}.yaml')
+    else:
+        try:
+            old = load_yaml('config.yaml')
+        except FileNotFoundError:
+            old = {}
+        if data:
+            old.update({name: data})
+        key_order = ['launcher', 'reporter', 'algorithms', 'problems']
+        old = {k: old[k] for k in key_order if k in old}
+        save_yaml(old, 'config.yaml')
+        return Path('config.yaml')
+
+
 def export_launch_module():
+    """
+    Export a default launch module template to 'run.py' file.
+
+    The generated module includes basic launcher setup and execution code.
+    """
     rows = """
     from pyfmto.experiments import Launcher
 
@@ -42,6 +82,12 @@ def export_launch_module():
 
 
 def export_report_module():
+    """
+    Export a default report module template to 'report.py' file.
+
+    The generated module includes basic reports setup with curve plotting enabled
+    and other report formats commented out.
+    """
     rows = """
     from pyfmto.experiments import Reports
 
@@ -58,6 +104,17 @@ def export_report_module():
 
 
 def export_alg_template(name: str):
+    """
+    Export algorithm template files for client and server components.
+
+    Creates a new algorithm directory with client and server implementation
+    templates, including basic structure and placeholder methods.
+
+    Parameters
+    ----------
+    name : str
+        Name of the algorithm to create template for.
+    """
     alg_dir = Path(f'algorithms/{name.upper()}')
     alg_dir.mkdir(parents=True, exist_ok=True)
     clt_name = f"{name.title()}Client"
@@ -111,16 +168,6 @@ def export_alg_template(name: str):
     save_module(init_rows, alg_dir / '__init__')
 
 
-def save_module(text, filename: Path):
-    filename = filename.with_suffix('.py')
-    if filename.exists():
-        print(f"{colored('Skipped', 'yellow')} existing file {filename}")
-        return
-    with open(filename.with_suffix('.py'), 'w') as f:
-        f.write(textwrap.dedent(text))
-    print(f"{colored('Created', 'green')} {filename}")
-
-
 def export_launcher_config(
         results: str = 'out/results',
         repeat: int = 1,
@@ -131,6 +178,36 @@ def export_launcher_config(
         probs: Union[tuple[str, ...], list[str]] = ('tetci2019', 'arxiv2017'),
         mode: Literal['new', 'update'] = 'new',
 ):
+    """
+    Export launcher configuration to YAML file.
+
+    Creates or updates launcher configuration with experiment settings
+    including results path, repetition count, algorithms and problems.
+
+    Parameters
+    ----------
+    results : str, optional
+        Path to store results (default is 'out/results')
+    repeat : int, optional
+        Number of repetitions for experiments (default is 1)
+    save : bool, optional
+        Whether to save results (default is True)
+    seed : int, optional
+        Random seed for experiments (default is 42)
+    backup : bool, optional
+        Whether to backup previous results (default is True)
+    algs : Union[tuple[str, ...], list[str]], optional
+        List of algorithm names to include (default is ('BO', 'FMTBO'))
+    probs : Union[tuple[str, ...], list[str]], optional
+        List of problem names to include (default is ('tetci2019', 'arxiv2017'))
+    mode : Literal['new', 'update'], optional
+        Export mode, either 'new' or 'update' (default is 'new')
+
+    Returns
+    -------
+    Path
+        Path to the created or updated configuration file.
+    """
     data = LauncherConfig(
         results=results,
         repeat=repeat,
@@ -149,6 +226,28 @@ def export_reporter_config(
         probs: tuple[str, ...] = ('tetci2019', 'arxiv2017'),
         mode: Literal['new', 'update'] = 'new',
 ):
+    """
+    Export reporter configuration to YAML file.
+
+    Creates or updates reporter configuration with results path,
+    algorithms and problems for generating reports.
+
+    Parameters
+    ----------
+    results : str, optional
+        Path to results data (default is 'out/results')
+    algs : tuple[list[str], ...], optional
+        Nested list of algorithm names for comparison (default is (['BO', 'FMTBO'], ))
+    probs : tuple[str, ...], optional
+        List of problem names to include in reports (default is ('tetci2019', 'arxiv2017'))
+    mode : Literal['new', 'update'], optional
+        Export mode, either 'new' or 'update' (default is 'new')
+
+    Returns
+    -------
+    Path
+        Path to the created or updated configuration file.
+    """
     data = ReporterConfig(
         results=results,
         algorithms=list(algs),
@@ -161,6 +260,25 @@ def export_algorithm_config(
         algs: tuple[str, ...] = ('BO', 'FMTBO'),
         mode: Literal['new', 'update'] = 'new'
 ):
+    """
+    Export algorithm parameters configuration to YAML file.
+
+    Creates or updates algorithm configuration with parameter settings
+    for specified algorithms.
+
+    Parameters
+    ----------
+    algs : tuple[str, ...], optional
+        List of algorithm names to configure (default is ('BO', 'FMTBO'))
+    mode : Literal['new', 'update'], optional
+        Export mode, either 'new' or 'update' (default is 'new')
+
+    Returns
+    -------
+    Path
+        Path to the created or updated configuration file.
+    """
+
     all_algorithms = {}
     for name in algs:
         try:
@@ -175,6 +293,24 @@ def export_problem_config(
         probs: tuple[str, ...] = ('arxiv2017', 'tetci2019'),
         mode: Literal['new', 'update'] = 'new'
 ):
+    """
+    Export problem configuration to YAML file.
+
+    Creates or updates problem configuration with dimension, seed
+    and other problem-specific settings.
+
+    Parameters
+    ----------
+    probs : tuple[str, ...], optional
+        List of problem names to configure (default is ('arxiv2017', 'tetci2019'))
+    mode : Literal['new', 'update'], optional
+        Export mode, either 'new' or 'update' (default is 'new')
+
+    Returns
+    -------
+    Path
+        Path to the created or updated configuration file.
+    """
     all_problems = {}
     for name in probs:
         try:
@@ -190,32 +326,13 @@ def export_problem_config(
     return save_config('problems', all_problems, mode)
 
 
-def save_config(name: str, data, mode: Literal['new', 'update'] = 'new'):
-    if mode == 'new':
-        number = 1
-        path = Path(f'config_{name}{number}.yaml')
-        while True:
-            if not path.exists():
-                break
-            number += 1
-            path = Path(f'config_{name}{number}.yaml')
-        if data:
-            save_yaml({name: data}, path)
-            return Path(f'config_{name}{number}.yaml')
-    else:
-        try:
-            old = load_yaml('config.yaml')
-        except FileNotFoundError:
-            old = {}
-        if data:
-            old.update({name: data})
-        key_order = ['launcher', 'reporter', 'algorithms', 'problems']
-        old = {k: old[k] for k in key_order if k in old}
-        save_yaml(old, 'config.yaml')
-        return Path('config.yaml')
-
-
 def export_default_config():
+    """
+    Export all default configurations.
+
+    Exports launcher, reporter, algorithm and problem configurations
+    with default settings in update mode.
+    """
     export_launcher_config(mode='update')
     export_reporter_config(mode='update')
     export_algorithm_config(mode='update')
@@ -223,6 +340,17 @@ def export_default_config():
 
 
 def export_demo(alg_name: str):
+    """
+    Export a complete demo setup for a new algorithm.
+
+    Creates algorithm template, launch and report modules, and updates
+    all configurations to include the new algorithm along with default 'BO'.
+
+    Parameters
+    ----------
+    alg_name : str
+        Name of the new algorithm to create demo for.
+    """
     export_alg_template(alg_name)
     export_launch_module()
     export_report_module()
