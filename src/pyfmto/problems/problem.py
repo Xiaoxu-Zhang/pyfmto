@@ -572,7 +572,7 @@ class SingleTaskProblem(ABC):
         if self.is_known_optimal:
             return self.inverse_transform_x(self._x_global)
         else:
-            raise ValueError("global optimum solution is unknown.")
+            return self._x_global
 
     @property
     def is_known_optimal(self):
@@ -580,7 +580,10 @@ class SingleTaskProblem(ABC):
 
     @property
     def y_global(self):
-        return self.evaluate(self.x_global).squeeze()
+        if self.is_known_optimal:
+            return self.evaluate(self.x_global).squeeze()
+        else:
+            return np.array([])
 
     @property
     def shift(self):

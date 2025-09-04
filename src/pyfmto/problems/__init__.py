@@ -32,7 +32,7 @@ _lowercase_map = {name.lower(): name for name in PROBLEMS}
 
 
 def load_problem(name, **kwargs) -> MultiTaskProblem:
-    no_space = name.replace('_', '')
+    no_space = name.replace('_', '').lower()
     if name in PROBLEMS:
         return PROBLEMS[name](**kwargs)
     elif no_space in _lowercase_map:
