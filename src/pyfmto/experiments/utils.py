@@ -479,7 +479,7 @@ class ReporterUtils:
         )
 
         x_global = statis.x_global
-        if x_global is not None:
+        if x_global.size > 0:
             for dim in range(n_dims):
                 ax.plot(dim, x_global[dim], 'r*', markersize=8, markeredgecolor='w', linewidth=0.5)
 
