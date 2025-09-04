@@ -109,8 +109,8 @@ class TestProblemBase(unittest.TestCase):
 
         prob.set_x_global(None)
         self.assertFalse(prob.is_known_optimal)
-        with self.assertRaises(ValueError):
-            _ = prob.y_global
+        self.assertEqual(prob.x_global.size, 0)
+        self.assertEqual(prob.y_global.size, 0)
 
         prob.set_x_global(np.arange(5))
         self.assertTrue(np.all(prob.x_global == np.arange(5)))
