@@ -544,6 +544,9 @@ class SingleTaskProblem(ABC):
     def transform_x(self, x):
         return self._transformer.transform_x(x)
 
+    def clip_x(self, x):
+        return np.clip(x, self.lb, self.ub)
+
     def inverse_transform_x(self, x):
         return self._transformer.inverse_transform_x(x)
 
