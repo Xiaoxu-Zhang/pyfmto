@@ -160,6 +160,11 @@ class TestProblemBase(unittest.TestCase):
         err: ndarray = x_in_src_bound - x_in_src_bound_denormalized
         self.assertTrue(np.all(err < 1e-10), msg=f"{err < 1e-10}")
 
+    def test_clip(self):
+        prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1)
+        x = [-1.5, 0., .5, 1.2, 1.1]
+        self.assertTrue(np.all(prob.clip_x(x) == np.array([-1., 0., .5, 1., 1.])))
+
     def test_uniform_solution(self):
         n_points = 50
         # We don't test np_value=1 which is equal to no partition,
