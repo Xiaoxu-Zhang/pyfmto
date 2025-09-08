@@ -518,8 +518,7 @@ class SingleTaskProblem(ABC):
             Normalized points
         """
         points = FunctionInputs(x=points, dim=self.dim).x
-        if not np.all(self.lb <= points) or not np.all(points <= self.ub):
-            points = np.clip(points, self.lb, self.ub)
+        points = self.clip_x(points)
         return (points - self.lb) / (self.ub - self.lb)
 
     def denormalize_x(self, points):
@@ -537,9 +536,16 @@ class SingleTaskProblem(ABC):
             Denormalized points
         """
         points = FunctionInputs(x=points, dim=self.dim).x
-        if not np.all(0 <= points) or not np.all(points <= 1):
-            points = np.clip(points, 0, 1)
+        points = np.clip(points, 0, 1)
         return points * (self.ub - self.lb) + self.lb
+
+    def normalize_y(self, y):
+        y = np.clip(y, self.solutions.y_min, self.solutions.y_max)
+        return (y - self.solutions.y_min) / (self.solutions.y_max - self.solutions.y_min)
+
+    def denormalize_y(self, y):
+        y = np.clip(y, 0, 1)
+        return y * (self.solutions.y_max - self.solutions.y_min) + self.solutions.y_min
 
     def transform_x(self, x):
         return self._transformer.transform_x(x)

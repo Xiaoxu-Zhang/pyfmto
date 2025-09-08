@@ -160,6 +160,24 @@ class TestProblemBase(unittest.TestCase):
         err: ndarray = x_in_src_bound - x_in_src_bound_denormalized
         self.assertTrue(np.all(err < 1e-10), msg=f"{err < 1e-10}")
 
+    def test_y_norm_denorm_methods(self):
+        prob = SimpleProblem(dim=5, obj=1, lb=-1, ub=1)
+        prob.init_solutions()
+        y_test = np.random.uniform(
+            low=prob.solutions.y_min-abs(prob.solutions.y_min),
+            high=prob.solutions.y_max+abs(prob.solutions.y_max),
+            size=(100, 1)
+        )
+        self.assertTrue(np.any(y_test < prob.solutions.y_min))
+        self.assertTrue(np.any(y_test > prob.solutions.y_max))
+        y_norm = prob.normalize_y(y_test)
+        self.assertTrue(np.all(y_norm <= 1.0))
+        self.assertTrue(np.all(y_norm >= 0.0))
+        y_norm = np.random.uniform(low=0.0, high=1.0, size=(100, 1))
+        y_denorm = prob.denormalize_y(y_norm)
+        self.assertTrue(np.all(y_denorm >= prob.solutions.y_min))
+        self.assertTrue(np.all(y_denorm <= prob.solutions.y_max))
+
     def test_clip(self):
         prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1)
         x = [-1.5, 0., .5, 1.2, 1.1]
