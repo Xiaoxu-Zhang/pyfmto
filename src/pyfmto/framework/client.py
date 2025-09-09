@@ -8,7 +8,7 @@ from collections import defaultdict
 from numpy import ndarray
 from requests.exceptions import ConnectionError  # type: ignore
 from tqdm import tqdm
-from typing import final, Optional, Any
+from typing import final, Any
 from yaml import safe_load
 
 from .packages import ClientPackage, ServerPackage, Actions
@@ -153,7 +153,7 @@ class Client(ABC):
 
     def request_server(self, package: ClientPackage,
                        repeat: int = 10, interval: float = 1.,
-                       msg=None) -> Optional[ServerPackage]:
+                       msg=None) -> ServerPackage:
         """
         Send a request to the server and wait for a response that satisfies a given condition.
 
@@ -189,38 +189,37 @@ class Client(ABC):
         if not isinstance(package, ClientPackage):
             raise ValueError("package should be ClientPackage")
         repeat_max = max(1, repeat)
-        curr_repeat = 1
-        conn_retry = 0
-        server_pkg: Optional[ServerPackage] = None
-        while curr_repeat <= repeat_max:
+        request_repeat = 1
+        failed_retry = 0
+        while request_repeat <= repeat_max:
             if msg:
-                logger.debug(f"{self.name} [Request retry {curr_repeat}/{repeat_max}] {msg}")
+                logger.debug(f"{self.name} [Request retry {request_repeat}/{repeat_max}] {msg}")
             data = pickle.dumps(package)
             try:
                 res = requests.post(f"{self._url}/alg-comm", data=data,
                                     headers={"Content-Type": "application/x-pickle"})
-                if res.status_code == 200:
-                    server_pkg = self.deserialize_pickle(res.content)
-                    if self.check_pkg(server_pkg):
-                        break
+                pkg = self.deserialize_pickle(res.content)
+                if pkg is not None and self.check_pkg(pkg):
+                    return pkg
+                else:
+                    time.sleep(interval)
+                    request_repeat += 1
+                    break
             except ConnectionError:
                 time.sleep(interval)
-                conn_retry += 1
-                logger.error(f"{self.name} Connection refused {conn_retry} times.")
-                if conn_retry >= self._conn_retry:
-                    raise ConnectionError(f"{self.name} Connection failed {conn_retry} times.")
-                continue
-            curr_repeat += 1
-            time.sleep(interval)
-        return server_pkg
+                failed_retry += 1
+                logger.error(f"{self.name} Connection failed {failed_retry} times.")
+                if failed_retry >= self._conn_retry:
+                    raise ConnectionError(f"{self.name} Connection failed {failed_retry} times.")
+        return ServerPackage('empty', None)
 
-    def check_pkg(self, x) -> bool:
+    def check_pkg(self, pkg: ServerPackage) -> bool:
         """
         Determine whether the response is acceptable by check the specific data within it.
 
         Parameters
         ----------
-        x : Any
+        pkg :
             The response received from the server.
 
         Returns
@@ -236,7 +235,7 @@ class Client(ABC):
         Subclasses can override this method to implement custom validation logic. Refer
         to the `EXAMPLE` algorithm for a detailed implementation.
         """
-        return x is not None
+        return True
 
     def send_quit(self):
         quit_pkg = ClientPackage(self.id, Actions.QUIT)

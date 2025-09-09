@@ -54,7 +54,7 @@ class OnlineClient(Client):
         # Setting the request interval to 0.1 seconds to
         # speed up the process when requesting an offline server
         res = self.request_server(package=pkg, repeat=2, interval=0.1, msg=msg)
-        if res:
+        if res.data:
             assert res.data == 'server data', f"res.data is {res.data} != 'server data'"
 
     @record_runtime('Optimizing')  # cover the custom record name
