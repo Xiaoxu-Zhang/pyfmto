@@ -171,10 +171,9 @@ class Client(ABC):
 
         Returns
         -------
-        Any
-            The response from the server if an acceptable response is received within
-            the specified number of attempts.
-            Returns None if no acceptable response is received.
+        ServerPackage
+            Return ServerPackage object, if all request attempts failure, return an empty
+            ServerPackage, ServerPackage(desc='empty', data=None)
 
         Notes
         -----
@@ -196,21 +195,24 @@ class Client(ABC):
                 logger.debug(f"{self.name} [Request retry {request_repeat}/{repeat_max}] {msg}")
             data = pickle.dumps(package)
             try:
-                res = requests.post(f"{self._url}/alg-comm", data=data,
-                                    headers={"Content-Type": "application/x-pickle"})
-                pkg = self.deserialize_pickle(res.content)
-                if pkg is not None and self.check_pkg(pkg):
-                    return pkg
-                else:
-                    time.sleep(interval)
-                    request_repeat += 1
-                    break
+                resp = requests.post(
+                    url=f"{self._url}/alg-comm",
+                    data=data,
+                    headers={"Content-Type": "application/x-pickle"}
+                )
             except ConnectionError:
                 time.sleep(interval)
                 failed_retry += 1
                 logger.error(f"{self.name} Connection failed {failed_retry} times.")
                 if failed_retry >= self._conn_retry:
                     raise ConnectionError(f"{self.name} Connection failed {failed_retry} times.")
+                continue
+            pkg = self.deserialize_pickle(resp.content)
+            if pkg is not None and self.check_pkg(pkg):
+                return pkg
+            else:
+                time.sleep(interval)
+                request_repeat += 1
         return ServerPackage('empty', None)
 
     def check_pkg(self, pkg: ServerPackage) -> bool:
