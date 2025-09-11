@@ -9,9 +9,9 @@ from collections import defaultdict
 from fastapi import FastAPI, Response, Depends, Request
 from setproctitle import setproctitle
 from tabulate import tabulate
-from typing import final, Optional
+from typing import final, Any
 
-from .packages import ServerPackage, ClientPackage, Actions
+from .packages import ClientPackage, Actions
 from pyfmto.utilities import logger, parse_yaml
 from ..utilities.tools import update_kwargs
 
@@ -111,8 +111,6 @@ class Server(ABC):
                 logger.error(traceback.format_exc())
                 self.shutdown(traceback.format_exc())
                 server_pkg = None
-            if not isinstance(server_pkg, ServerPackage):
-                self.shutdown(f"handle_request return unexpected type {type(server_pkg)}")
             return Response(content=pickle.dumps(server_pkg), media_type="application/x-pickle")
 
     def _log_server_info(self):
@@ -126,18 +124,18 @@ class Server(ABC):
             self._updated_server_info = False
 
     @final
-    def _handle_request(self, data: ClientPackage) -> Optional[ServerPackage]:
+    def _handle_request(self, data: ClientPackage):
         if data.action == Actions.REGISTER:
             self._add_client(data.cid)
-            return ServerPackage(desc='register', data='join success')
+            return 'join success'
         elif data.action == Actions.QUIT:
             self._del_client(data.cid)
-            return ServerPackage(desc='quit', data='quit success')
+            return 'quit success'
         else:
             return self.handle_request(data)
 
     @abstractmethod
-    def handle_request(self, client_data: ClientPackage) -> Optional[ServerPackage]:
+    def handle_request(self, client_data: ClientPackage) -> Any:
         ...  # pragma: no cover
 
     @abstractmethod
