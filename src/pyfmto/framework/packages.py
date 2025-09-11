@@ -35,10 +35,18 @@ class SyncDataManager:
         self._result[cid][version] = data
 
     def lts_src_ver(self, cid: int) -> int:
-        return max(self._source.get(cid, {-1: None}).keys())
+        try:
+            data = self._source[cid]
+            return max(data.keys())
+        except (ValueError, KeyError):
+            return -1
 
     def lts_res_ver(self, cid: int) -> int:
-        return max(self._result.get(cid, {-1: None}).keys())
+        try:
+            data = self._result[cid]
+            return max(data.keys())
+        except (ValueError, KeyError):
+            return -1
 
     def get_src(self, cid: int, version: int):
         try:
@@ -54,10 +62,9 @@ class SyncDataManager:
 
     @property
     def available_src_ver(self) -> int:
-        vers = [max(data.keys()) for data in self._source.values()]
-        if vers:
-            return min(vers)
-        else:
+        try:
+            return min([max(data.keys()) for data in self._source.values()])
+        except ValueError:
             return -1
 
     @property
