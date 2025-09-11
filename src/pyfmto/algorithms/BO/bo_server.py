@@ -1,5 +1,5 @@
-from pyfmto.framework import Server, ClientPackage, ServerPackage
-from .bo_utils import Actions
+from pyfmto.framework import Server
+from .bo_utils import Actions, ClientPackage
 
 
 class BoServer(Server):
@@ -10,22 +10,20 @@ class BoServer(Server):
         self.ver_ok = -1
         self.set_agg_interval(0.1)
 
-    def handle_request(self, client_data: ClientPackage) -> ServerPackage:
-        if client_data.action == Actions.PUSH_UPDATE:
-            return self.handle_push(client_data)
-        elif client_data.action == Actions.PULL_UPDATE:
-            return self.handle_pull(client_data)
+    def handle_request(self, pkg: ClientPackage):
+        if pkg.action == Actions.PUSH_UPDATE:
+            return self.handle_push(pkg)
+        elif pkg.action == Actions.PULL_UPDATE:
+            return self.handle_pull()
         else:
-            raise RuntimeError(f"Unknown action: {client_data.action}")
+            raise RuntimeError(f"Unknown action: {pkg.action}")
 
-    def handle_push(self, client_data: ClientPackage) -> ServerPackage:
-        self.versions[client_data.cid] = client_data.data
-        pkg = ServerPackage('response', 'ok')
-        return pkg
+    def handle_push(self, pkg: ClientPackage):
+        self.versions[pkg.cid] = pkg.data
+        return 'save success'
 
-    def handle_pull(self, client_data: ClientPackage) -> ServerPackage:
-        pkg = ServerPackage('response', self.ver_ok)
-        return pkg
+    def handle_pull(self):
+        return self.ver_ok
 
     def aggregate(self):
         vers = list(self.versions.values())
