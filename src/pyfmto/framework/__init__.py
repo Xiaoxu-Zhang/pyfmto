@@ -16,7 +16,6 @@ __all__ = [
     'DataArchive',
     'SyncDataManager',
     'ClientPackage',
-    'ServerPackage',
     'record_runtime',
     'export_demo',
     'export_alg_template',
