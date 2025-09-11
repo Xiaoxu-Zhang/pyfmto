@@ -4,7 +4,7 @@ from typing import Union, Literal
 
 from .client import Client, record_runtime
 from .server import Server
-from .packages import ClientPackage, ServerPackage, DataArchive
+from .packages import ClientPackage, ServerPackage, SyncDataManager, DataArchive
 from pyfmto.problems import load_problem
 from pyfmto.algorithms import get_alg_kwargs
 from pyfmto.utilities import colored, save_yaml, load_yaml
@@ -14,6 +14,7 @@ __all__ = [
     'Client',
     'Server',
     'DataArchive',
+    'SyncDataManager',
     'ClientPackage',
     'ServerPackage',
     'record_runtime',
