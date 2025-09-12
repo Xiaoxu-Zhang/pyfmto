@@ -35,35 +35,33 @@ class SyncDataManager:
 
     @validate_call
     def lts_src_ver(self, cid: int) -> int:
-        try:
-            data = self._source[cid]
-            return max(data.keys())
-        except (ValueError, KeyError):
-            return -1
+        data = self._source.get(cid, {-1: None})
+        return max(data.keys())
 
     @validate_call
     def lts_res_ver(self, cid: int) -> int:
-        try:
-            data = self._result[cid]
-            return max(data.keys())
-        except (ValueError, KeyError):
-            return -1
+        data = self._result.get(cid, {-1: None})
+        return max(data.keys())
 
     @validate_call
     def get_src(self, cid: int, version: int):
-        try:
-            return self._source[cid][version]
-        except KeyError:
-            logger.debug(f"cid={cid} version={version} not found in source")
+        if cid not in self._source:
+            logger.debug(f"cid={cid} not found in source")
             return None
+        data = self._source[cid].get(version)
+        if data is None:
+            logger.debug(f"cid={cid} version={version} not found in source")
+        return data
 
     @validate_call
     def get_res(self, cid: int, version: int):
-        try:
-            return self._result[cid][version]
-        except KeyError:
-            logger.debug(f"cid={cid} version={version} not found in result")
+        if cid not in self._result:
+            logger.debug(f"cid={cid} not found in result")
             return None
+        data = self._result[cid].get(version)
+        if data is None:
+            logger.debug(f"cid={cid} version={version} not found in result")
+        return data
 
     @property
     def available_src_ver(self) -> int:
