@@ -4,7 +4,7 @@ from typing import Union, Literal
 
 from .client import Client, record_runtime
 from .server import Server
-from .packages import ClientPackage, ServerPackage, SyncDataManager, DataArchive
+from .packages import ClientPackage, SyncDataManager, DataArchive
 from pyfmto.problems import load_problem
 from pyfmto.algorithms import get_alg_kwargs
 from pyfmto.utilities import colored, save_yaml, load_yaml
@@ -124,7 +124,7 @@ def export_alg_template(name: str):
     clt_rows = f"""
         import time
         import numpy as np
-        from pyfmto.framework import Client, record_runtime, ClientPackage, ServerPackage
+        from pyfmto.framework import Client, record_runtime, ClientPackage
         from pyfmto.utilities import logger\n\n
         class {clt_name}(Client):
             \"\"\"
@@ -142,7 +142,7 @@ def export_alg_template(name: str):
     """
 
     srv_rows = f"""
-        from pyfmto.framework import Server, ClientPackage, ServerPackage
+        from pyfmto.framework import Server, ClientPackage
         from pyfmto.utilities import logger\n\n
         class {srv_name}(Server):
             \"\"\"
@@ -152,7 +152,7 @@ def export_alg_template(name: str):
                 super().__init__()
                 kwargs = self.update_kwargs(kwargs)
                 self.beta = kwargs['beta']
-            def handle_request(self, client_data: ClientPackage) -> ServerPackage:
+            def handle_request(self, client_data: ClientPackage):
                 pass
             def aggregate(self):
                 pass
