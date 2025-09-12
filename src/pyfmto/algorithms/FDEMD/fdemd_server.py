@@ -1,13 +1,15 @@
 import numpy as np
-from collections import defaultdict
+from objprint import objprint
 
-from pyDOE import lhs
 from scipy.spatial.distance import cdist
-from typing import Callable
-from pyfmto.framework import Server, ClientPackage, ServerPackage
+from typing import Callable, Any
+from pyfmto.framework import Server, SyncDataManager
 from pyfmto.utilities import logger
 
-from .fdemd_utils import RadialBasisFunctionNetwork as RBFNetwork, AggData, Actions, init_samples
+from .fdemd_utils import (
+    RadialBasisFunctionNetwork as RBFNetwork,
+    Actions, ClientPackage, init_samples
+)
 
 
 class FdemdServer(Server):
@@ -34,18 +36,17 @@ class FdemdServer(Server):
         # initialize in self._router_pull_init
         self.dim = None
         self.obj = None
-        self.x_lb = None
-        self.x_ub = None
+        self.lb = None
+        self.ub = None
         self.model = None
         self.d_aux_size = None
         self.kernel_size = None
 
         self.d_aux = None
-        self.clients_data = defaultdict(list)
-        self.agg_res = []
+        self.clients_data = SyncDataManager()
 
-    def handle_request(self, client_data: ClientPackage) -> ServerPackage:
-        action_map: dict[Actions, Callable[[ClientPackage], ServerPackage]] = {
+    def handle_request(self, client_data: ClientPackage):
+        action_map: dict[Actions, Callable[[ClientPackage], Any]] = {
             Actions.PUSH_INIT: self._push_init,
             Actions.PULL_INIT: self._pull_init,
             Actions.PUSH_UPDATE: self._push_update,
@@ -57,61 +58,66 @@ class FdemdServer(Server):
             return action(client_data)
         else:
             logger.error(f"Unknown client requested action: {client_data.action}")
-            return ServerPackage('status', {'status': 'error'})
+            raise ValueError(f"Unknown requested action: {client_data.action}")
 
-    def _push_init(self, client_data: ClientPackage) -> ServerPackage:
+    def _push_init(self, pkg: ClientPackage):
         # for the same init logic with original implementation, init using cid==1 data
-        if client_data.cid==1 and self.model is None:
-            self.dim = client_data.data['dim']
-            self.obj = client_data.data['obj']
+        if pkg.cid == 1 and self.model is None:
+            self.dim = pkg.dim
+            self.obj = pkg.obj
             kernel_size = 2*self.dim + 1
             weight = np.random.randn(kernel_size, self.obj)
             bias = np.random.randn(1, self.obj)
             self.model = RBFNetwork(dim=self.dim, obj=self.obj, kernel_size=kernel_size, **self.model_args)
             self.model.sync_manuel(weight=weight, bias=bias)
-            self.d_aux_size = client_data.data['init_size']
+            self.d_aux_size = pkg.init_size
             logger.info(f"D aux size is {self.d_aux_size}")
             self.kernel_size = kernel_size
-            self.x_lb = client_data.data['lb']
-            self.x_ub = client_data.data['ub']
-        return ServerPackage('status', {'status': 'success'})
+            self.lb = pkg.lb
+            self.ub = pkg.ub
+            logger.debug(f'Client package is \n{objprint(pkg)}')
+        return 'init success'
 
-    def _pull_init(self, client_data: ClientPackage) -> ServerPackage:
-        if self.model is None:
-            return ServerPackage('init', None)
-        else:
-            return ServerPackage('init', self.model.params)
+    def _pull_init(self, pkg: ClientPackage):
+        return None if self.model is None else self.model.params
 
-    def _push_update(self, client_data: ClientPackage) -> ServerPackage:
-        cid = client_data.cid
-        self.clients_data[cid].append(client_data.data)
-        return ServerPackage('success', {'status': 'success'})
+    def _push_update(self, pkg: ClientPackage):
+        self.clients_data.update_src(pkg.cid, pkg.version, pkg)
+        return 'success'
 
-    def _pull_update(self, client_data: ClientPackage) -> ServerPackage:
-        if self.agg_res:
-            return ServerPackage('update', self.agg_res[-1])
-        return ServerPackage('update', None)
+    def _pull_update(self, pkg: ClientPackage):
+        return self.clients_data.get_res(0, pkg.version)
 
     def aggregate(self):
-        curr_ver = len(self.agg_res)
-        ids = self.sorted_ids
-        vers = np.asarray([len(self.clients_data[cid]) for cid in ids])
-        if np.all(vers > curr_ver) and self.d_aux_size is not None:
-            self.d_aux = init_samples(self.dim, self.x_lb, self.x_ub, self.d_aux_size)
-            self._distill(ids, curr_ver)
-            self.agg_res.append(AggData(version=curr_ver+1, src_num=len(ids), agg_res=self.model.params))
+        ver = self.clients_data.available_src_ver
+        if self.should_agg:
+            logger.debug(f"Aggregating version {ver}")
+            self.d_aux = init_samples(self.dim, self.lb, self.ub, self.d_aux_size)
+            self._distill(ver)
+            self.clients_data.update_res(0, version=ver, data=self.model.params)
 
-    def _distill(self, client_ids, src_index):
+    @property
+    def should_agg(self):
+        n_src = self.clients_data.num_clients
+        n_clt = self.num_clients
+        src_ver = self.clients_data.available_src_ver
+        res_ver = self.clients_data.lts_res_ver(0)
+        a = src_ver > res_ver
+        b = n_src == n_clt
+        c = self.d_aux_size is not None
+        return a and b and c
+
+    def _distill(self, version):
         all_centers = []
         all_weights = []
         all_biases = []
         all_std = []
-
-        for cid in client_ids:
-            all_centers.append(self.clients_data[cid][src_index].get('_centers'))
-            all_weights.append(self.clients_data[cid][src_index].get('_weight'))
-            all_biases.append(self.clients_data[cid][src_index].get('_bias'))
-            all_std.append(self.clients_data[cid][src_index].get('_std'))
+        for cid in self.sorted_ids:
+            pkg: ClientPackage = self.clients_data.get_src(cid, version)
+            all_centers.append(pkg.network.get('_centers'))
+            all_weights.append(pkg.network.get('_weight'))
+            all_biases.append(pkg.network.get('_bias'))
+            all_std.append(pkg.network.get('_std'))
         all_centers = np.asarray(all_centers)
         all_weights = np.asarray(all_weights)
         all_biases = np.asarray(all_biases)
@@ -127,11 +133,10 @@ class FdemdServer(Server):
         sum_squared_diff_biases = np.sum(np.square(all_biases - mean_biases), axis=0)
         sum_squared_diff_std = np.sum(np.square(all_std - mean_std), axis=0)
 
-        num_clients = len(client_ids)
-        variance_centers = sum_squared_diff_centers / num_clients
-        variance_weights = sum_squared_diff_weights / num_clients
-        variance_biases = sum_squared_diff_biases / num_clients
-        variance_std = sum_squared_diff_std / num_clients
+        variance_centers = sum_squared_diff_centers / self.num_clients
+        variance_weights = sum_squared_diff_weights / self.num_clients
+        variance_biases = sum_squared_diff_biases / self.num_clients
+        variance_std = sum_squared_diff_std / self.num_clients
 
         f_sudo = self._ensemble_predict(variance_centers, variance_std, variance_weights, variance_biases,
                                         mean_centers, mean_weights, mean_biases, mean_std)

@@ -7,6 +7,30 @@ from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from tabulate import tabulate
 from pyfmto.utilities import logger
+from pyfmto.framework import ClientPackage as Pkg
+
+
+class ClientPackage(Pkg):
+    def __init__(
+            self,
+            cid: int,
+            action: Enum,
+            version: int = None,
+            dim: int = None,
+            obj: int = None,
+            init_size: int = None,
+            lb: np.ndarray = None,
+            ub: np.ndarray = None,
+            network: dict = None,
+    ):
+        super().__init__(cid, action)
+        self.version = version
+        self.dim = dim
+        self.obj = obj
+        self.init_size = init_size
+        self.lb = lb
+        self.ub = ub
+        self.network = network
 
 
 def power(mat1, mat2):
@@ -16,6 +40,7 @@ def power(mat1, mat2):
     # To solve the problem: Numpy does not seem to
     # allow fractional powers of negative numbers
     return np.sign(mat1) * np.power(np.abs(mat1), mat2)
+
 
 def init_samples(dim, lb, ub, samples):
     return lhs(dim, samples=samples) * (ub - lb) + lb
