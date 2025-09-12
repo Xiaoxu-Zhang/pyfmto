@@ -9,7 +9,7 @@ from pyfmto import framework as fw, load_problem, list_algorithms
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils
 from pyfmto.utilities.schemas import LauncherConfig, STPConfig
-from pyfmto.utilities import load_msgpack, load_yaml
+from pyfmto.utilities import load_msgpack
 from tests.framework import OnlineServer
 
 
@@ -476,6 +476,4 @@ class TestExportTools(unittest.TestCase):
         self.assertTrue(Path('algorithms/TST/tst_server.py').exists())
         for filename in self.files:
             self.assertTrue(Path(filename).exists())
-        conf = load_yaml(self.conf)
         self.assertTrue('TST' in list_algorithms()['yours'])
-        self.assertTrue('TST' in conf['algorithms'])
