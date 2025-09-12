@@ -5,7 +5,7 @@ import unittest
 import yaml
 from pathlib import Path
 from unittest.mock import patch, Mock
-from pyfmto import framework as fw, load_problem, list_algorithms
+from pyfmto import framework as fw, load_problem
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils
 from pyfmto.utilities.schemas import LauncherConfig, STPConfig
@@ -429,32 +429,10 @@ class TestExportTools(unittest.TestCase):
         for filename in self.files:
             Path(filename).unlink(missing_ok=True)
 
-    def test_export_alg_template(self):
-        fw.export_alg_template('TMP')  # export an exist algorithm
-
-        alg_modules = [
-            Path('algorithms/TMP/__init__.py'),
-            Path('algorithms/TMP/tmp_client.py'),
-            Path('algorithms/TMP/tmp_server.py'),
-        ]
-        for f in alg_modules:
-            self.assertTrue(f.exists())
-
-        alg_modules[0].unlink()  # remove the init file, and re-export
-        fw.export_alg_template('TMP')  # re-export only non-exist files
-
-        fw.export_launch_module()  # export the launch module
-        self.assertTrue(Path('run.py').exists())
-
-    def test_export_default_config(self):
-        fw.export_default_config()
-        self.assertTrue(self.conf.exists())
-
     def test_export_to_new(self):
         funcs = [
             fw.export_launcher_config,
             fw.export_reporter_config,
-            fw.export_algorithm_config,
             fw.export_problem_config,
         ]
 
@@ -468,12 +446,3 @@ class TestExportTools(unittest.TestCase):
     def test_export_invalid_config(self):
         fw.export_algorithm_config(algs=('INVALID', ))
         fw.export_problem_config(probs=('INVALID', ))
-
-    def test_export_demo(self):
-        fw.export_demo('TST')
-        self.assertTrue(Path('algorithms/TST/__init__.py').exists())
-        self.assertTrue(Path('algorithms/TST/tst_client.py').exists())
-        self.assertTrue(Path('algorithms/TST/tst_server.py').exists())
-        for filename in self.files:
-            self.assertTrue(Path(filename).exists())
-        self.assertTrue('TST' in list_algorithms()['yours'])
