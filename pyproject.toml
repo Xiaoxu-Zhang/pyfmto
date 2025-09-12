@@ -73,19 +73,18 @@ filterwarnings = [
 [tool.coverage.run]
 data_file = "coverage/.coverage"
 source = ["pyfmto"]
-omit = ["*/pyfmto/algorithms/*"]
 
 [tool.coverage.html]
 directory = "coverage/html"
 
 [tool.mypy]
 files = ["src/"]
-exclude = ["src/pyfmto/algorithms/", "src/pyfmto/problems/benchmarks/"]
+exclude = ["src/pyfmto/problems/benchmarks/"]
 follow_imports = "skip"
 ignore_missing_imports = true
 check_untyped_defs = true
 
 [tool.flake8]
-exclude = ["src/pyfmto/algorithms/", "*temp*"]
+exclude = ["*temp*"]
 max-line-length = 120
 count = true

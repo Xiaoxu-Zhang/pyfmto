@@ -29,7 +29,6 @@ clean:
 	rm -rf __pycache__
 	rm -rf tests/__pycache__
 	rm -rf src/pyfmto/__pycache__
-	rm -rf src/pyfmto/algorithms/__pycache__
 	rm -rf src/pyfmto/experiments/__pycache__
 	rm -rf src/pyfmto/framework/__pycache__
 	rm -rf src/pyfmto/problems/__pycache__
