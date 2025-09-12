@@ -5,13 +5,12 @@ from pathlib import Path
 from setproctitle import setproctitle
 from typing import Any
 
-from pyfmto.algorithms import load_algorithm, get_alg_kwargs
 from pyfmto.problems import load_problem, Solution
 from pyfmto.utilities.schemas import LauncherConfig
 from pyfmto.utilities import (
     logger, reset_log, show_in_table, clear_console,
     backup_log_to, load_yaml, save_yaml)
-from .utils import LauncherUtils, RunSolutions
+from .utils import LauncherUtils, RunSolutions, load_algorithm, get_alg_kwargs
 
 __all__ = ['Launcher']
 
