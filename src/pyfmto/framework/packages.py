@@ -20,12 +20,6 @@ class ClientPackage:
         self.action = action
 
 
-class ServerPackage:
-    def __init__(self, desc: str, data=None):
-        self.desc = desc
-        self.data = data
-
-
 class SyncDataManager:
     def __init__(self):
         self._source: dict[int, dict[int, Any]] = defaultdict(dict)
@@ -68,10 +62,7 @@ class SyncDataManager:
         try:
             return self._result[cid][version]
         except KeyError:
-            if cid not in self._result:
-                logger.debug(f"Client id '0' not in source data")
-            else:
-                logger.debug(f"Client id '{cid}' source data version={version} not found")
+            logger.debug(f"cid={cid} version={version} not found in result")
             return None
 
     @property
