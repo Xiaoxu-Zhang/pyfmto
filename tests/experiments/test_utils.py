@@ -6,10 +6,12 @@ import yaml
 from pathlib import Path
 from unittest.mock import patch, Mock
 from pyfmto import framework as fw, load_problem
+from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
-from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils
+from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils, list_algorithms, load_algorithm
 from pyfmto.utilities.schemas import LauncherConfig, STPConfig
 from pyfmto.utilities import load_msgpack
+from tests.experiments import export_alg_template
 from tests.framework import OnlineServer
 
 
@@ -446,3 +448,30 @@ class TestExportTools(unittest.TestCase):
     def test_export_invalid_config(self):
         fw.export_algorithm_config(algs=('INVALID', ))
         fw.export_problem_config(probs=('INVALID', ))
+
+
+class TestOtherUtils(unittest.TestCase):
+
+    def setUp(self):
+        self.alg_dir = Path('algorithms')
+        self.alg_dir.mkdir(parents=True, exist_ok=True)
+        export_alg_template('ALG1')
+        export_alg_template('ALG2')
+        empty = self.alg_dir / 'INVALID'
+        empty.mkdir()
+
+    def tearDown(self):
+        shutil.rmtree(self.alg_dir, ignore_errors=True)
+
+    def test_list_algorithms(self):
+        list_algorithms(print_it=True)
+
+    def test_load_algorithm(self):
+        res = load_algorithm('ALG1')
+        self.assertEqual(res.name, 'ALG1')
+        self.assertTrue(issubclass(res.client, Client))
+        self.assertTrue(issubclass(res.server, Server))
+
+    def test_load_invalid_algorithm(self):
+        with self.assertRaises(RuntimeError):
+            load_algorithm('INVALID')

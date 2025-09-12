@@ -537,7 +537,6 @@ class ReporterUtils:
 
 class Algorithm:
     name: str
-    is_builtin: bool
     client: Type[Client]
     server: Type[Server]
 
