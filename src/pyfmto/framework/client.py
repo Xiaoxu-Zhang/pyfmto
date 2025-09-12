@@ -1,4 +1,3 @@
-import _pickle
 import pickle
 import requests  # type: ignore
 import time
@@ -147,10 +146,7 @@ class Client(ABC):
 
     @staticmethod
     def deserialize_pickle(package: Any):
-        try:
-            return pickle.loads(package) if package is not None else None
-        except _pickle.UnpicklingError:
-            logger.error(f"package is {package}")
+        return pickle.loads(package) if package is not None else None
 
     def request_server(self, package: ClientPackage,
                        repeat: int = 10, interval: float = 1.,
@@ -189,7 +185,7 @@ class Client(ABC):
             raise ValueError("package should be ClientPackage")
         repeat_max = max(1, repeat)
         request_repeat = 1
-        failed_retry = 0
+        failed_retry = 1
         while request_repeat <= repeat_max:
             if msg:
                 logger.debug(f"{self.name} [Request retry {request_repeat}/{repeat_max}] {msg}")
@@ -204,7 +200,7 @@ class Client(ABC):
                 time.sleep(interval)
                 failed_retry += 1
                 logger.error(f"{self.name} Connection failed {failed_retry} times.")
-                if failed_retry >= self._conn_retry:
+                if failed_retry > self._conn_retry:
                     raise ConnectionError(f"{self.name} Connection failed {failed_retry} times.")
                 continue
             pkg = self.deserialize_pickle(resp.content)
@@ -213,7 +209,7 @@ class Client(ABC):
             else:
                 time.sleep(interval)
                 request_repeat += 1
-        return None
+        raise ConnectionError(f"{self.name} Requested repeat failed for {repeat_max} times")
 
     def check_pkg(self, pkg) -> bool:
         """
