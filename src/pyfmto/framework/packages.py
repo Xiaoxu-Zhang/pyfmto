@@ -2,7 +2,11 @@ from collections import defaultdict
 from enum import Enum, auto
 from typing import Optional, Any
 
-__all__ = ['Actions', 'ClientPackage', 'ServerPackage', 'DataArchive', 'SyncDataManager']
+__all__ = ['Actions', 'ClientPackage', 'DataArchive', 'SyncDataManager']
+
+from pydantic import validate_call
+
+from pyfmto.utilities import logger
 
 
 class Actions(Enum):
@@ -11,10 +15,9 @@ class Actions(Enum):
 
 
 class ClientPackage:
-    def __init__(self, cid: Optional[int], action: Any, data: Any = None):
+    def __init__(self, cid: Optional[int], action: Any):
         self.cid = cid
         self.action = action
-        self.data = data
 
 
 class ServerPackage:
@@ -28,12 +31,15 @@ class SyncDataManager:
         self._source: dict[int, dict[int, Any]] = defaultdict(dict)
         self._result: dict[int, dict[int, Any]] = defaultdict(dict)
 
+    @validate_call
     def update_src(self, cid: int, version: int, data: Any):
         self._source[cid][version] = data
 
+    @validate_call
     def update_res(self, cid: int, version: int, data: Any):
         self._result[cid][version] = data
 
+    @validate_call
     def lts_src_ver(self, cid: int) -> int:
         try:
             data = self._source[cid]
@@ -41,6 +47,7 @@ class SyncDataManager:
         except (ValueError, KeyError):
             return -1
 
+    @validate_call
     def lts_res_ver(self, cid: int) -> int:
         try:
             data = self._result[cid]
@@ -48,16 +55,26 @@ class SyncDataManager:
         except (ValueError, KeyError):
             return -1
 
+    @validate_call
     def get_src(self, cid: int, version: int):
         try:
             return self._source[cid][version]
         except KeyError:
+            if cid not in self._source:
+                logger.debug(f"Client id '0' not in source data")
+            else:
+                logger.debug(f"Client id '{cid}' source data version={version} not found")
             return None
 
+    @validate_call
     def get_res(self, cid: int, version: int):
         try:
             return self._result[cid][version]
         except KeyError:
+            if cid not in self._result:
+                logger.debug(f"Client id '0' not in source data")
+            else:
+                logger.debug(f"Client id '{cid}' source data version={version} not found")
             return None
 
     @property
