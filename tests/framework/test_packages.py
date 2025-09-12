@@ -76,8 +76,14 @@ class TestSyncDataManager(unittest.TestCase):
         self.sync_manager.update_res(1, 201, "newer_result")
         self.assertEqual(self.sync_manager.lts_res_ver(1), 201)
 
-    def test_lts_src_raise(self):
-        pass
+    def test_get_no_side_effects(self):
+        self.assertEqual(self.sync_manager.num_clients, 0)
+        self.assertIsNone(self.sync_manager.get_src(1, 100))
+        self.assertIsNone(self.sync_manager.get_res(1, 200))
+        self.assertFalse(1 in self.sync_manager._source)
+        self.assertFalse(1 in self.sync_manager._result)
+        self.assertEqual(self.sync_manager.num_clients, 0)
+        self.assertEqual(self.sync_manager.available_src_ver, -1)
 
     def test_get_src(self):
         self.sync_manager.update_src(1, 100, "test_data")
