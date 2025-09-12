@@ -1,8 +1,11 @@
 import numpy as np
 from numpy import ndarray
-from pyfmto.framework import Client, ClientPackage, ServerPackage, record_runtime
+from pyfmto.framework import Client, record_runtime
 
-from .fdemd_utils import GeneticAlgorithm, RadialBasisFunctionNetwork as RBFNetwork, AggData, Actions
+from .fdemd_utils import (
+    RadialBasisFunctionNetwork as RBFNetwork,
+    GeneticAlgorithm, Actions, ClientPackage)
+from ...utilities import logger
 
 ga_op = GeneticAlgorithm()
 
@@ -32,7 +35,7 @@ class FdemdClient(Client):
         self.client_model = RBFNetwork(dim=self.dim, obj=self.obj, kernel_size=2 * self.dim + 1, **model_args)
         self.server_model = RBFNetwork(dim=self.dim, obj=self.obj, kernel_size=2 * self.dim + 1)
 
-        self.prev_version = 0
+        self.version = 1
 
     def optimize(self):
         if not self.initialized:
@@ -41,6 +44,7 @@ class FdemdClient(Client):
             self._optimizing()
 
     def _initializing(self):
+        logger.debug(f"Client {self.id} initializing")
         self.push_init_data()
         self.pull_init_model()
 
@@ -48,7 +52,7 @@ class FdemdClient(Client):
         init_data = {'init_size': self.solutions.fe_init,
                      'dim': self.dim, 'obj': self.obj,
                      'lb': self.lb, 'ub': self.ub}
-        pkg = ClientPackage(cid=self.id, action=Actions.PUSH_INIT, data=init_data)
+        pkg = ClientPackage(cid=self.id, action=Actions.PUSH_INIT, **init_data)
         self.request_server(pkg)
 
     def pull_init_model(self):
@@ -57,10 +61,11 @@ class FdemdClient(Client):
         # so centers and std are not needed
         pkg = ClientPackage(cid=self.id, action=Actions.PULL_INIT)
         res = self.request_server(pkg, repeat=100)
-        self.client_model.sync_auto(res.data)
+        self.client_model.sync_auto(res)
 
     @record_runtime('Total')
     def _optimizing(self):
+        logger.debug(f"Client {self.id} optimizing")
         self.client_model.train(self.x, self.y)
         self.push_client_model()
         self.pull_server_model()
@@ -70,10 +75,16 @@ class FdemdClient(Client):
         self.client_model.sync_auto(self.server_model.params)
         self.record_round_info('FE', self.solutions.size)
         self.record_round_info('Best', f"{self.solutions.y_min:.2f}")
+        self.version += 1
 
     @record_runtime('Push')
     def push_client_model(self):
-        pkg = ClientPackage(cid=self.id, action=Actions.PUSH_UPDATE, data=self.client_model.params)
+        pkg = ClientPackage(
+            cid=self.id,
+            action=Actions.PUSH_UPDATE,
+            version=self.version,
+            network=self.client_model.params
+        )
         self.request_server(pkg)
 
     @record_runtime('Pull')
@@ -81,22 +92,9 @@ class FdemdClient(Client):
         # this pull operation is for the optimization rounds
         # the pulled model is for prediction and reinitialize the local model
         # the prediction is based on all 4 params of the global model
-        pkg = ClientPackage(cid=self.id, action=Actions.PULL_UPDATE)
+        pkg = ClientPackage(cid=self.id, version=self.version, action=Actions.PULL_UPDATE)
         res = self.request_server(pkg, repeat=100)
-        server_model: AggData = res.data
-        self.server_model.sync_auto(server_model.agg_res)
-        self.prev_version = server_model.version
-
-    def check_pkg(self, x: ServerPackage) -> bool:
-        if x is not None:
-            if x.data is None:
-                return False
-            elif isinstance(x.data, AggData):
-                return x.data.version > self.prev_version
-            else:
-                return True
-        else:
-            return False
+        self.server_model.sync_auto(res)
 
     @record_runtime('Find')
     def _find_next_x(self):

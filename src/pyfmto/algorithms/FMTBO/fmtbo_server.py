@@ -1,10 +1,9 @@
 import numpy as np
-from collections import defaultdict
-from typing import Callable
-from pyfmto.framework import Server, ClientPackage, ServerPackage, DataArchive
+from typing import Callable, Any
+from pyfmto.framework import Server, SyncDataManager
 from pyfmto.utilities import logger
 
-from .fmtbo_utils import AggData, init_samples, Actions
+from .fmtbo_utils import init_samples, Actions, ClientPackage
 
 
 class FmtboServer(Server):
@@ -16,8 +15,8 @@ class FmtboServer(Server):
         super().__init__()
         kwargs = self.update_kwargs(kwargs)
         self.client_bounds = []
-        self.clients_data = defaultdict(DataArchive)
-
+        self.clients_data = SyncDataManager()
+        self.done_vers: set[int] = {-1}
         self.d_share_size = kwargs['d_share_size']
         self.agg_proportion = kwargs['agg_proportion']
         self.d_share = None
@@ -33,101 +32,85 @@ class FmtboServer(Server):
         self.d_share = init_samples(lb=x_lb, ub=x_ub, n_samples=self.d_share_size, dim=self.dim)
         logger.debug(f'd_share initialized, shape = {self.d_share.shape}')
 
-
     @staticmethod
     def _set_bounds(prev_lb: np.ndarray, prev_ub: np.ndarray, new_lb: np.ndarray, new_ub: np.ndarray):
         lb = new_lb if prev_lb is None else np.minimum(prev_lb, new_lb)
         ub = new_ub if prev_ub is None else np.maximum(prev_ub, new_ub)
         return lb, ub
 
-    def handle_request(self, client_data: ClientPackage) -> ServerPackage:
-        action_map: dict[Actions, Callable[[ClientPackage], ServerPackage]] = {
+    def handle_request(self, pkg: ClientPackage):
+        action_map: dict[Actions, Callable[[ClientPackage], Any]] = {
             Actions.PUSH_INIT: self._return_save_status,
             Actions.PUSH_UPDATE: self._return_save_status,
             Actions.PULL_INIT: self._return_init_data,
             Actions.PULL_UPDATE: self._return_latest_update,
         }
 
-        action = action_map.get(client_data.action)
+        action = action_map.get(pkg.action)
         if action:
-            return action(client_data)
-        return ServerPackage('Unknown Action', data={'status': 'error'})
+            return action(pkg)
+        raise ValueError(f"Unknown action: {pkg.action}")
 
-    def _return_save_status(self, client_data: ClientPackage) -> ServerPackage:
-        if client_data.action == Actions.PUSH_INIT:
-            self.dim = client_data.data['dim']
-            self.client_bounds.append(client_data.data['bound'])
+    def _return_save_status(self, pkg: ClientPackage):
+        if pkg.action == Actions.PUSH_INIT:
+            self.dim = pkg.data['dim']
+            self.client_bounds.append(pkg.data['bound'])
             self.create_d_share()
         else:
-            self.clients_data[client_data.cid].add_src(client_data.data)
-        return ServerPackage('SaveStatus', data={'status': 'ok'})
+            self.clients_data.update_src(pkg.cid, pkg.version, pkg)
+        return 'success'
 
-    def _return_init_data(self, client_data: ClientPackage) -> ServerPackage:
+    def _return_init_data(self, pkg: ClientPackage):
         if self.d_share is None:
-            return ServerPackage('InitData', data=None)
-        return ServerPackage('InitData', data={'d_share':self.d_share, 'theta': 5})
+            return None
+        return {'d_share': self.d_share, 'theta': 5}
 
-    def _return_latest_update(self, client_data: ClientPackage) -> ServerPackage:
-        lts_upd: AggData = self.clients_data[client_data.cid].get_latest_res()
-        return ServerPackage('LatestUpdate', data=lts_upd)
+    def _return_latest_update(self, pkg: ClientPackage):
+        res = self.clients_data.get_res(pkg.cid, pkg.version)
+        return res
 
     def aggregate(self):
-        for client_id in self.sorted_ids:
-            src_num = np.sum(self.agg_src_versions > self.latest_res_version(client_id))
-            if src_num == self.num_clients:
-                index = self.clients_data[client_id].num_res
-                ls_mat = self._cal_ls_mat_by_rank(index)
-                for cid, ls_array in enumerate(ls_mat):
-                    selected_updates = self._select_updates_for_merge(ls_array)
-                    src_num = len(selected_updates)
-                    res = self._fedavg(selected_updates, index)
-                    ver = self.clients_data[cid+1].num_res + 1
-                    self.clients_data[cid+1].add_res(AggData(ver, src_num, res))
-                    logger.debug(f"Aggregated client {cid} ver {ver} result, shape={res.shape}")
+        if self.should_agg:
+            ver = self.clients_data.available_src_ver
+            ls_mat = self._cal_ls_mat_by_rank(ver)
+            self.done_vers.add(ver)
+            logger.debug(f"ls_mat shape {ls_mat.shape}\n done vers {self.done_vers}")
+            for cid, ls_array in zip(self.sorted_ids, ls_mat):
+                selected_ids = self._select_updates_for_merge(ls_array)
+                res = self._fedavg(selected_ids, ver)
+                self.clients_data.update_res(cid, ver, res)
+                logger.debug(f"Aggregated client {cid} ver {ver} result, shape={res.shape}")
 
-    def _cal_ls_mat_by_rank(self, index):
+    @property
+    def should_agg(self) -> bool:
+        a = self.clients_data.num_clients == self.num_clients
+        b = self.clients_data.available_src_ver not in self.done_vers
+        return a and b
+
+    def _cal_ls_mat_by_rank(self, version):
         ls_mat = np.zeros((self.num_clients, self.num_clients))
-        for cid in self.clients_data.keys():
-            for _cid in self.clients_data.keys():
+        for cid in self.sorted_ids:
+            for _cid in self.sorted_ids:
                 if cid == _cid:
                     continue
-                try:
-                    update = self.clients_data[cid].src_data[index]
-                    _update = self.clients_data[_cid].src_data[index]
-                except IndexError:
-                    print(f"Client id list {list(self.clients_data.keys())}")
-                    print(f"Client {cid} source num: {self.clients_data[cid].num_src}")
-                    print(f"Client {_cid} source num: {self.clients_data[_cid].num_src}")
-                    continue
-                rank, _rank = update['rank'], _update['rank']
+                update: ClientPackage = self.clients_data.get_src(cid, version)
+                _update: ClientPackage = self.clients_data.get_src(_cid, version)
+                rank, _rank = update.data['rank'], _update.data['rank']
                 for r1, _r1 in zip(rank, _rank):
                     ls_mat[cid-1, _cid-1] += np.sum((r1 < rank) ^ (_r1 < _rank))
         return ls_mat
 
     def _select_updates_for_merge(self, ls_array):
-        clients_number = int(len(ls_array) * self.agg_proportion)
-        cid_list_of_sorted_array = np.argsort(ls_array)
-        selected_cid = cid_list_of_sorted_array[0:clients_number]
-        selected_updates = [self.clients_data[cid+1] for cid in selected_cid]
-        return selected_updates
+        clients_number = int(self.num_clients * self.agg_proportion)
+        cid_list_of_sorted_array = np.argsort(ls_array) + 1 # cid start from 1
+        return cid_list_of_sorted_array[0:clients_number]
 
-    @staticmethod
-    def _fedavg(selected_updates: list[DataArchive], index):
+    def _fedavg(self, selected_ids, version):
         total_samples = 0
         gp_params = 0
-        for update in selected_updates:
-            update_data = update.src_data[index]
-            total_samples += update_data['size']
-            gp_params += update_data['size'] * update_data['global']
+        for cid in selected_ids:
+            update_data: ClientPackage = self.clients_data.get_src(cid, version)
+            total_samples += update_data.data['size']
+            gp_params += update_data.data['size'] * update_data.data['global']
         gp_params /= total_samples
         return gp_params
-
-    @property
-    def agg_src_versions(self):
-        src_versions = []
-        for src_data in self.clients_data.values():
-            src_versions.append(src_data.num_src)
-        return np.array(src_versions)
-
-    def latest_res_version(self, client_id):
-        return self.clients_data[client_id].num_res

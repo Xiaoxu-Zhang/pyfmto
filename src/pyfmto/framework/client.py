@@ -11,7 +11,7 @@ from tqdm import tqdm
 from typing import final, Any
 from yaml import safe_load
 
-from .packages import ClientPackage, ServerPackage, Actions
+from .packages import ClientPackage, Actions
 from pyfmto.problems import SingleTaskProblem
 from pyfmto.utilities import logger, update_kwargs, titled_tabulate, tabulate_formats as tf
 
@@ -140,12 +140,9 @@ class Client(ABC):
         ...  # pragma: no cover
 
     def __register_id(self):
-        while True:
-            pkg = ClientPackage(self.id, Actions.REGISTER)
-            res = self.request_server(pkg)
-            if res is not None:
-                logger.debug(f"{self.name} registered")
-                break
+        pkg = ClientPackage(self.id, Actions.REGISTER)
+        self.request_server(pkg)
+        logger.debug(f"{self.name} registered")
 
     @staticmethod
     def deserialize_pickle(package: Any):
@@ -153,7 +150,7 @@ class Client(ABC):
 
     def request_server(self, package: ClientPackage,
                        repeat: int = 10, interval: float = 1.,
-                       msg=None) -> ServerPackage:
+                       msg=None) -> Any:
         """
         Send a request to the server and wait for a response that satisfies a given condition.
 
@@ -171,9 +168,8 @@ class Client(ABC):
 
         Returns
         -------
-        ServerPackage
-            Return ServerPackage object, if all request attempts failure, return an empty
-            ServerPackage, ServerPackage(desc='empty', data=None)
+        Any
+            Return Any, if all request attempts failure, return None
 
         Notes
         -----
@@ -189,7 +185,7 @@ class Client(ABC):
             raise ValueError("package should be ClientPackage")
         repeat_max = max(1, repeat)
         request_repeat = 1
-        failed_retry = 0
+        failed_retry = 1
         while request_repeat <= repeat_max:
             if msg:
                 logger.debug(f"{self.name} [Request retry {request_repeat}/{repeat_max}] {msg}")
@@ -204,7 +200,7 @@ class Client(ABC):
                 time.sleep(interval)
                 failed_retry += 1
                 logger.error(f"{self.name} Connection failed {failed_retry} times.")
-                if failed_retry >= self._conn_retry:
+                if failed_retry > self._conn_retry:
                     raise ConnectionError(f"{self.name} Connection failed {failed_retry} times.")
                 continue
             pkg = self.deserialize_pickle(resp.content)
@@ -213,9 +209,9 @@ class Client(ABC):
             else:
                 time.sleep(interval)
                 request_repeat += 1
-        return ServerPackage('empty', None)
+        raise ConnectionError(f"{self.name} Requested repeat failed for {repeat_max} times")
 
-    def check_pkg(self, pkg: ServerPackage) -> bool:
+    def check_pkg(self, pkg) -> bool:
         """
         Determine whether the response is acceptable by check the specific data within it.
 

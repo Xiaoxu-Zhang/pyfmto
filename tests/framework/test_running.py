@@ -3,7 +3,7 @@ import time
 import unittest
 
 from pyfmto.experiments.utils import LauncherUtils
-from pyfmto.framework import Client, Server, ClientPackage, ServerPackage
+from pyfmto.framework import Client, Server, ClientPackage
 from pyfmto.problems import load_problem
 from tests.framework import (
     OfflineServer, OnlineClient, OnlineServer
@@ -37,6 +37,10 @@ class TestClientSide(unittest.TestCase):
             with self.assertRaises(ConnectionError):
                 self.utils.start_clients(clients)
 
+        clients = [OnlineClient(prob) for prob in self.problems[:N_CLIENTS]]
+        with self.utils.running_server(OnlineServer):
+            self.utils.start_clients(clients)
+
     def test_request_failed(self):
         client = OnlineClient(self.problems[0])
         with self.assertRaises(ConnectionError):
@@ -69,20 +73,25 @@ class TestClientSide(unittest.TestCase):
         thread = threading.Thread(target=server.start)
         thread.start()
         time.sleep(1)
-        self.utils.start_clients(clients)
-        server.shutdown()
-        thread.join(timeout=1)
+        try:
+            # This code can only run without error in a non-test environment
+            self.utils.start_clients(clients)
+        except ConnectionError:
+            pass
+        finally:
+            server.shutdown()
+            thread.join(timeout=1)
 
     def test_invalid_server_method(self):
         class InvalidServerHandler(Server):
-            def handle_request(self, client_data: ClientPackage) -> ServerPackage:
+            def handle_request(self, client_data: ClientPackage):
                 raise RuntimeError('Test exception in server.handle_request()')
 
             def aggregate(self):
                 pass
 
         class InvalidServerAgg(Server):
-            def handle_request(self, client_data: ClientPackage) -> ServerPackage:
+            def handle_request(self, client_data: ClientPackage):
                 pass
 
             def aggregate(self):

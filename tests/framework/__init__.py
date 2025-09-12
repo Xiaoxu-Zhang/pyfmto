@@ -1,7 +1,6 @@
-import time
 from datetime import date
 
-from pyfmto.framework import Server, ClientPackage, ServerPackage, Client, record_runtime
+from pyfmto.framework import Server, ClientPackage, Client, record_runtime
 from pyfmto.problems import SingleTaskProblem
 
 
@@ -12,7 +11,7 @@ class OfflineServer(Server):
         self.alpha = 0.1
         self.beta = 0.2
 
-    def handle_request(self, client_data: ClientPackage) -> ServerPackage:
+    def handle_request(self, client_data: ClientPackage):
         pass
 
     def aggregate(self):
@@ -22,13 +21,13 @@ class OfflineServer(Server):
 class OnlineServer(Server):
     def __init__(self):
         super().__init__()
-        self.set_agg_interval(0.5)
+        self.set_agg_interval(0.1)
         self.update_server_info('time init', date.ctime(date.today()))
         self.update_server_info('time init', date.ctime(date.today()))
         self.update_server_info('num clients', str(self.num_clients))
 
-    def handle_request(self, client_data: ClientPackage) -> ServerPackage:
-        return ServerPackage('response', 'server data')
+    def handle_request(self, client_data: ClientPackage):
+        return 'server data'
 
     def aggregate(self):
         self.update_server_info('time stamp', date.ctime(date.today()))
@@ -42,20 +41,20 @@ class OnlineClient(Client):
         super().__init__(problem)
 
     def optimize(self):
-        time.sleep(0.5)
         self.push()
         self.optimizing()
 
     @record_runtime()  # cover the decorator and round info logging method
     def push(self):
         msg = "request failed"  # set a message to cover the message logging case
-        pkg = ClientPackage(cid=self.id, action='test', data='client data')  # create a request package
+        pkg = ClientPackage(cid=self.id, action='test')  # create a request package
 
         # Setting the request interval to 0.1 seconds to
         # speed up the process when requesting an offline server
-        res = self.request_server(package=pkg, repeat=2, interval=0.1, msg=msg)
-        if res.data:
-            assert res.data == 'server data', f"res.data is {res.data} != 'server data'"
+        res = self.request_server(package=pkg, repeat=3, interval=0.1, msg=msg)
+        if res:
+            assert res == 'server data', f"res == {res} != 'server data'"
+            self.record_round_info('data', res)
 
     @record_runtime('Optimizing')  # cover the custom record name
     def optimizing(self):

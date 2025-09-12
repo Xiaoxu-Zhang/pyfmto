@@ -2,8 +2,8 @@ import numpy as np
 from smt.surrogate_models import GPX
 from scipy.stats import norm
 
-from pyfmto.framework import Client, record_runtime, ClientPackage, ServerPackage
-from .bo_utils import ThompsonSampling, Actions
+from pyfmto.framework import Client, record_runtime
+from .bo_utils import ThompsonSampling, Actions, ClientPackage
 
 
 class BoClient(Client):
@@ -53,14 +53,13 @@ class BoClient(Client):
         pkg = ClientPackage(self.id, Actions.PULL_UPDATE, self.sync_ver)
         self.request_server(pkg, repeat=100)
 
-    def check_pkg(self, x: ServerPackage) -> bool:
-        if x is None:
+    def check_pkg(self, pkg) -> bool:
+        if pkg is None:
             return False
-
-        if isinstance(x.data, str):
+        if isinstance(pkg, str):
             return True
         else:
-            return x.data >= self.sync_ver
+            return pkg >= self.sync_ver
 
     @record_runtime("Fit")
     def fit(self):

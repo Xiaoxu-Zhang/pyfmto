@@ -2,7 +2,11 @@ from collections import defaultdict
 from enum import Enum, auto
 from typing import Optional, Any
 
-__all__ = ['Actions', 'ClientPackage', 'ServerPackage', 'DataArchive', 'SyncDataManager']
+__all__ = ['Actions', 'ClientPackage', 'DataArchive', 'SyncDataManager']
+
+from pydantic import validate_call
+
+from pyfmto.utilities import logger
 
 
 class Actions(Enum):
@@ -11,16 +15,9 @@ class Actions(Enum):
 
 
 class ClientPackage:
-    def __init__(self, cid: Optional[int], action: Any, data: Any = None):
+    def __init__(self, cid: Optional[int], action: Any):
         self.cid = cid
         self.action = action
-        self.data = data
-
-
-class ServerPackage:
-    def __init__(self, desc: str, data=None):
-        self.desc = desc
-        self.data = data
 
 
 class SyncDataManager:
@@ -28,36 +25,49 @@ class SyncDataManager:
         self._source: dict[int, dict[int, Any]] = defaultdict(dict)
         self._result: dict[int, dict[int, Any]] = defaultdict(dict)
 
+    @validate_call
     def update_src(self, cid: int, version: int, data: Any):
         self._source[cid][version] = data
 
+    @validate_call
     def update_res(self, cid: int, version: int, data: Any):
         self._result[cid][version] = data
 
+    @validate_call
     def lts_src_ver(self, cid: int) -> int:
-        return max(self._source.get(cid, {-1: None}).keys())
+        data = self._source.get(cid, {-1: None})
+        return max(data.keys())
 
+    @validate_call
     def lts_res_ver(self, cid: int) -> int:
-        return max(self._result.get(cid, {-1: None}).keys())
+        data = self._result.get(cid, {-1: None})
+        return max(data.keys())
 
+    @validate_call
     def get_src(self, cid: int, version: int):
-        try:
-            return self._source[cid][version]
-        except KeyError:
+        if cid not in self._source:
+            logger.debug(f"cid={cid} not found in source")
             return None
+        data = self._source[cid].get(version)
+        if data is None:
+            logger.debug(f"cid={cid} version={version} not found in source")
+        return data
 
+    @validate_call
     def get_res(self, cid: int, version: int):
-        try:
-            return self._result[cid][version]
-        except KeyError:
+        if cid not in self._result:
+            logger.debug(f"cid={cid} not found in result")
             return None
+        data = self._result[cid].get(version)
+        if data is None:
+            logger.debug(f"cid={cid} version={version} not found in result")
+        return data
 
     @property
     def available_src_ver(self) -> int:
-        vers = [max(data.keys()) for data in self._source.values()]
-        if vers:
-            return min(vers)
-        else:
+        try:
+            return min([max(data.keys()) for data in self._source.values()])
+        except ValueError:
             return -1
 
     @property

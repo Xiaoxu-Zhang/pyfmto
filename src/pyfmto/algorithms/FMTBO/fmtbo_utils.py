@@ -1,6 +1,20 @@
 import numpy as np
 from enum import Enum, auto
 from pyDOE import lhs
+from pyfmto.framework import ClientPackage as Pkg
+
+
+class ClientPackage(Pkg):
+    def __init__(
+            self,
+            cid: int,
+            action: Enum,
+            version: int = None,
+            data: dict = None,
+    ):
+        super().__init__(cid, action)
+        self.version = version
+        self.data = data
 
 
 def power(mat1, mat2):
@@ -100,6 +114,7 @@ class GeneticAlgorithm:
         detaq[position2] = 1 - power(tmp2, 1 / (dis_m + 1))
         pop_mutation = pop_crossover + detaq * (self.x_ub - self.x_lb)
         return pop_mutation
+
 
 def init_samples(dim, lb, ub, n_samples):
     return lhs(dim, samples=n_samples) * (ub - lb) + lb

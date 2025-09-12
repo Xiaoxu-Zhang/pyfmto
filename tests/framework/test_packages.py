@@ -4,7 +4,6 @@ import unittest
 from pyfmto.framework.packages import (
     Actions,
     ClientPackage,
-    ServerPackage,
     DataArchive,
     SyncDataManager
 )
@@ -19,26 +18,14 @@ class TestPackagesForCoverage(unittest.TestCase):
         self.assertEqual(Actions.QUIT.name, 'QUIT')
 
     def test_client_package_init(self):
-        pkg = ClientPackage(cid=1, action=Actions.REGISTER, data={"key": "value"})
+        pkg = ClientPackage(cid=1, action=Actions.REGISTER)
         self.assertEqual(pkg.cid, 1)
         self.assertEqual(pkg.action, Actions.REGISTER)
-        self.assertEqual(pkg.data, {"key": "value"})
 
     def test_client_package_no_data(self):
         pkg = ClientPackage(cid=None, action=Actions.QUIT)
         self.assertIsNone(pkg.cid)
         self.assertEqual(pkg.action, Actions.QUIT)
-        self.assertIsNone(pkg.data)
-
-    def test_server_package(self):
-        pkg = ServerPackage(desc="Test description", data=[1, 2, 3])
-        self.assertEqual(pkg.desc, "Test description")
-        self.assertEqual(pkg.data, [1, 2, 3])
-
-    def test_server_package_no_data(self):
-        pkg = ServerPackage(desc="Empty data")
-        self.assertEqual(pkg.desc, "Empty data")
-        self.assertIsNone(pkg.data)
 
     def test_data_archive_initial_state(self):
         archive = DataArchive()
@@ -89,15 +76,26 @@ class TestSyncDataManager(unittest.TestCase):
         self.sync_manager.update_res(1, 201, "newer_result")
         self.assertEqual(self.sync_manager.lts_res_ver(1), 201)
 
+    def test_get_no_side_effects(self):
+        self.assertEqual(self.sync_manager.num_clients, 0)
+        self.assertIsNone(self.sync_manager.get_src(1, 100))
+        self.assertIsNone(self.sync_manager.get_res(1, 200))
+        self.assertFalse(1 in self.sync_manager._source)
+        self.assertFalse(1 in self.sync_manager._result)
+        self.assertEqual(self.sync_manager.num_clients, 0)
+        self.assertEqual(self.sync_manager.available_src_ver, -1)
+
     def test_get_src(self):
         self.sync_manager.update_src(1, 100, "test_data")
         self.assertEqual(self.sync_manager.get_src(1, 100), "test_data")
         self.assertIsNone(self.sync_manager.get_src(2, 100))
+        self.assertIsNone(self.sync_manager.get_src(1, 101))
 
     def test_get_res(self):
         self.sync_manager.update_res(1, 200, "result_data")
         self.assertEqual(self.sync_manager.get_res(1, 200), "result_data")
         self.assertIsNone(self.sync_manager.get_res(2, 200))
+        self.assertIsNone(self.sync_manager.get_res(1, 201))
 
     def test_available_src_ver(self):
         self.assertEqual(self.sync_manager.available_src_ver, -1)

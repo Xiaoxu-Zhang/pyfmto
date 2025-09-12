@@ -1,7 +1,16 @@
+from typing import Any
+
 import numpy as np
 from enum import Enum, auto
 from pyDOE import lhs
 from scipy.optimize import minimize
+from pyfmto.framework import ClientPackage as Pkg
+
+
+class ClientPackage(Pkg):
+    def __init__(self, cid: int, action: Enum, data: Any = None):
+        super().__init__(cid, action)
+        self.data = data
 
 
 class Actions(Enum):
