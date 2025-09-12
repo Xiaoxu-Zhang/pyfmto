@@ -5,9 +5,9 @@ from pydacefit.dace import DACE
 from pydacefit.regr import regr_constant
 from scipy.stats import norm
 from typing import Union
-from pyfmto.framework import Client, ClientPackage, ServerPackage, record_runtime
+from pyfmto.framework import Client, record_runtime
 
-from .fmtbo_utils import GeneticAlgorithm, AggData, Actions
+from .fmtbo_utils import GeneticAlgorithm, Actions, ClientPackage
 
 rng = np.random.default_rng()
 
@@ -34,7 +34,7 @@ class FmtboClient(Client):
                                              pop_size=self.fe_init,
                                              max_gen=kwargs['max_gen'])
 
-        self.prev_ver = 0
+        self.version = 1
 
     @property
     def global_model_params(self):
@@ -58,9 +58,9 @@ class FmtboClient(Client):
             data={'dim': self.dim, 'bound': (self.lb, self.ub)})
         self.request_server(package=pkg)
         pkg = ClientPackage(cid=self.id, action=Actions.PULL_INIT, data=None)
-        server_pkg: ServerPackage = self.request_server(package=pkg)
-        self.d_share = server_pkg.data['d_share']
-        self.global_gp_params = server_pkg.data['theta']
+        resp = self.request_server(package=pkg)
+        self.d_share = resp['d_share']
+        self.global_gp_params = resp['theta']
         self._init_gp_model('global', self.global_gp_params)
         self._init_gp_model('local', 5)
         self.local_gp_model.fit(self.solutions.x, self.solutions.y)
@@ -74,37 +74,26 @@ class FmtboClient(Client):
         x_next = self._find_next_x()
         y_next = self.problem.evaluate(x_next)
         self.solutions.append(x_next.reshape(-1, self.dim), y_next.reshape(-1, self.obj))
+        self.version += 1
 
     @record_runtime(name='Push')
     def push(self):
         data = {'rank': self._cal_x_s_share_rank(),
                 'size': self._local_data_size,
                 'global': self.global_model_params}
-        pkg = ClientPackage(cid=self.id, action=Actions.PUSH_UPDATE, data=data)
+        pkg = ClientPackage(cid=self.id, action=Actions.PUSH_UPDATE, version=self.version, data=data)
         self.request_server(package=pkg, msg="Push update")
 
     @record_runtime(name='Pull')
     def pull(self):
-        pkg = ClientPackage(cid=self.id, action=Actions.PULL_UPDATE, data=None)
-        self.record_round_info('DataVer', f"ver {self.prev_ver}")
+        pkg = ClientPackage(cid=self.id, action=Actions.PULL_UPDATE, version=self.version)
+        self.record_round_info('DataVer', f"ver {self.version}")
         res = self.request_server(
             package=pkg,
             repeat=100,
             interval=1,
-            msg=f"Pull update, require Ver{self.prev_ver+1}")
-        self.prev_ver = res.data.version
-        self.global_gp_params = res.data.agg_res
-
-    def check_pkg(self, x) -> bool:
-        if x:
-            if x.data is None:
-                return False
-            elif isinstance(x.data, AggData):
-                return x.data.version > self.prev_ver
-            else:
-                return True
-        else:
-            return False
+            msg=f"Pull update, require Ver{self.version}")
+        self.global_gp_params = res
 
     def _synchronize_gp_params(self, theta:Union[int, float, np.ndarray]):
         self._init_gp_model('global', theta)
@@ -133,7 +122,7 @@ class FmtboClient(Client):
         if self.solutions.size != 0:
             if x_new is None:
                 x_next_best = self.problem.random_uniform_x(1)
-            elif np.any(np.all(self.solutions.x - x_new == 0, axis=1)):
+            elif x_new in self.solutions.x:
                 x_next_best = self.problem.random_uniform_x(1)
         return x_next_best
 
