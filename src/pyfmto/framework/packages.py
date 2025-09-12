@@ -60,10 +60,7 @@ class SyncDataManager:
         try:
             return self._source[cid][version]
         except KeyError:
-            if cid not in self._source:
-                logger.debug(f"Client id '0' not in source data")
-            else:
-                logger.debug(f"Client id '{cid}' source data version={version} not found")
+            logger.debug(f"cid={cid} version={version} not found in source")
             return None
 
     @validate_call
