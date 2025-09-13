@@ -142,6 +142,7 @@ class TestLauncherConfig(unittest.TestCase):
             repeat=3,
             seed=123,
             backup=True,
+            loglevel='DEBUG',
             save=True,
             algorithms=['alg1', 'alg2'],
             problems=['prob1', 'prob2']
@@ -149,6 +150,7 @@ class TestLauncherConfig(unittest.TestCase):
         self.assertEqual(config.results, 'out/results')
         self.assertEqual(config.repeat, 3)
         self.assertEqual(config.seed, 123)
+        self.assertEqual(config.loglevel, 'DEBUG')
         self.assertTrue(config.backup)
         self.assertTrue(config.save)
         self.assertEqual(config.algorithms, ['alg1', 'alg2'])
@@ -156,6 +158,7 @@ class TestLauncherConfig(unittest.TestCase):
 
     def test_defaults(self):
         config = LauncherConfig(algorithms=['alg1'], problems=['prob1'])
+        self.assertEqual(config.loglevel, 'INFO')
         self.assertEqual(config.results, 'out/results')
         self.assertEqual(config.repeat, 1)
         self.assertEqual(config.seed, 42)
@@ -175,10 +178,12 @@ class TestLauncherConfig(unittest.TestCase):
         invalid_seed = {'seed': -1, 'algorithms': ['alg1'], 'problems': ['prob1']}
         empty_algorithms = {'algorithms': [], 'problems': ['prob1']}
         empty_problems = {'algorithms': ['alg1'], 'problems': []}
+        invalid_loglevel = {'loglevel': 'invalid', 'algorithms': ['alg1'], 'problems': ['prob1']}
         self.assertRaises(ValidationError, LauncherConfig, **invalid_repeat)
         self.assertRaises(ValidationError, LauncherConfig, **invalid_seed)
         self.assertRaises(ValidationError, LauncherConfig, **empty_algorithms)
         self.assertRaises(ValidationError, LauncherConfig, **empty_problems)
+        self.assertRaises(ValidationError, LauncherConfig, **invalid_loglevel)
 
 
 class TestReporterConfig(unittest.TestCase):
