@@ -135,7 +135,7 @@ class Server(ABC):
             return self.handle_request(data)
 
     @abstractmethod
-    def handle_request(self, client_data: ClientPackage) -> Any:
+    def handle_request(self, pkg: ClientPackage) -> Any:
         ...  # pragma: no cover
 
     @abstractmethod

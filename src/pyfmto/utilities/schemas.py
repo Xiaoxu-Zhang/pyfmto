@@ -150,6 +150,7 @@ class LauncherConfig(BaseModel):
     seed: int = 42
     backup: bool = True
     save: bool = True
+    loglevel: str = 'INFO'
     algorithms: list[str]
     problems: list[str]
 
@@ -158,6 +159,13 @@ class LauncherConfig(BaseModel):
         if not isinstance(v, (str, type(None))):
             raise TypeError(f'results must be a string or None, got {type(v)} instead')
         return v if v is not None else 'out/results'
+
+    @field_validator('loglevel')
+    def loglevel_must_be_valid(cls, v):
+        valid_values = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if v not in valid_values:
+            raise ValueError(f'loglevel must be one of {valid_values}, got {v} instead')
+        return v
 
     @field_validator('repeat', 'seed')
     def integer_must_be_positive(cls, v):
