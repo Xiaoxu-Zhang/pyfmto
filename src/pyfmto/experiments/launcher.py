@@ -22,6 +22,7 @@ class Launcher:
         LauncherUtils.kill_server()
         all_conf = load_yaml(conf_file)
         launcher_conf = LauncherConfig(**all_conf.get('launcher'))
+        logger.setLevel(launcher_conf.loglevel)
         self.combinations = LauncherUtils.gen_exp_combinations(
             launcher_conf=launcher_conf,
             alg_conf=all_conf.get('algorithms', {}),
