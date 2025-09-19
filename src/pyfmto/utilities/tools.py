@@ -248,7 +248,7 @@ def _log_diff(name, defaults: dict, updates: dict):
         tablefmt="rounded_grid",
         colalign=("left", "center", "center", "center")
     )
-    logger.info(table)
+    logger.debug(table)
 
 
 def clear_console():
