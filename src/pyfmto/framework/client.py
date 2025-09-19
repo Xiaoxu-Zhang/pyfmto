@@ -197,11 +197,11 @@ class Client(ABC):
                     headers={"Content-Type": "application/x-pickle"}
                 )
             except ConnectionError:
+                logger.error(f"{self.name} Connection failed {failed_retry} times.")
                 time.sleep(interval)
                 failed_retry += 1
-                logger.error(f"{self.name} Connection failed {failed_retry} times.")
                 if failed_retry > self._conn_retry:
-                    raise ConnectionError(f"{self.name} Connection failed {failed_retry} times.")
+                    raise ConnectionError(f"{self.name} Connection failed {self._conn_retry} times.")
                 continue
             pkg = self.deserialize_pickle(resp.content)
             if pkg is not None and self.check_pkg(pkg):
