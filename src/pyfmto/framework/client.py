@@ -13,7 +13,7 @@ from yaml import safe_load
 
 from .packages import ClientPackage, Actions
 from pyfmto.problems import SingleTaskProblem
-from pyfmto.utilities import logger, update_kwargs, titled_tabulate, tabulate_formats as tf
+from pyfmto.utilities import logger, update_kwargs, titled_tabulate, tabulate_formats as tf, colored
 
 __all__ = [
     'Client',
@@ -73,7 +73,7 @@ class Client(ABC):
         self._url = f"http://{ip}:{port}"
         self._conn_retry = conn_retry
 
-    def __logging_params(self):
+    def __logging_start_info(self):
         param_dict = defaultdict(list)
         param_dict['TaskName'].append(self.problem.name)
         param_dict['Dim'].append(str(self.problem.dim))
@@ -82,22 +82,16 @@ class Client(ABC):
         param_dict['IniFE'].append(str(self.problem.fe_init))
         param_dict['MaxFE'].append(str(self.problem.fe_max))
         tab = titled_tabulate(
-            f"{self.name} Params", '=',
+            f"{self.name} Init information", '=',
             param_dict, headers='keys', tablefmt=tf.rounded_grid
         )
-        logger.info(tab)
+        logger.debug(tab)
 
-    def __logging_round_info(self, only_latest: bool):
-        if only_latest:
-            data = {}
-            for k, v in self._round_info.items():
-                data[k] = v[-1:]
-        else:
-            data = self._round_info
+    def __logging_rounds_info(self):
         if self._round_info:
             tab = titled_tabulate(
                 f"{self.name} {self.problem.name}({self.dim}D)",
-                '=', data, headers='keys', tablefmt=tf.rounded_grid
+                '=', self._round_info, headers='keys', tablefmt=tf.rounded_grid
             )
             logger.info(tab)
 
@@ -109,7 +103,7 @@ class Client(ABC):
         try:
             logger.info(f"{self.name} started")
             self.__register_id()
-            self.__logging_params()
+            self.__logging_start_info()
 
             pbar = tqdm(
                 total=self.fe_max,
@@ -120,17 +114,16 @@ class Client(ABC):
             while self.problem.fe_available > 0:
                 self.optimize()
                 pbar.update(self.solutions.num_updated)
-                self.__logging_round_info(only_latest=True)
 
-            self.__logging_round_info(only_latest=False)
+            self.__logging_rounds_info()
             self.send_quit()
-            logger.info(f"{self.name} exit with available FE = {self.problem.fe_available}")
+            logger.debug(f"{self.name} exit with available FE = {self.problem.fe_available}")
         except Exception:
             self.send_quit()
             if self.id == 1:
-                print(f"Traceback of {self.name}")
-                traceback.print_exc()
                 logger.error(traceback.format_exc())
+                print(f"Error occurred while in {colored('self.optimize()', 'red')}, "
+                      f"see {colored('out/logs/pyfmto.log', 'green')} for detail.")
             logger.info(f"{self.name} exit with available FE = {self.problem.fe_available}")
             raise
         return self.id, self.solutions
