@@ -179,8 +179,8 @@ class LauncherUtils:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        logger.debug("Server started.")
-        time.sleep(1)
+        logger.info("Server started.")
+        time.sleep(3)
         try:
             yield process
         finally:
@@ -422,11 +422,9 @@ class ReporterUtils:
         ax.plot(x_indices, avg, label=alg, color=color)
         ax.fill_between(x_indices, se_upper, se_lower, alpha=alpha, color=color)
         if size_plot > size_optimization:
-            optimization_start_at = size_plot - size_optimization
+            return size_plot - size_optimization
         else:
-            optimization_start_at = 0
-        if optimization_start_at > 0:
-            ax.axvline(x=optimization_start_at, color='gray', linestyle='--', label='Start index')
+            return 0
 
     @staticmethod
     def get_np_name(np_per_dim: int):

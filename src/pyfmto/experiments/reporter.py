@@ -77,14 +77,19 @@ class Reporter:
             for c_name in client_names:
                 plt.figure(figsize=_figsize, **_quality)
                 for alg, color in zip(algorithms, colors):
-                    self._utils.plotting(plt, statistics, alg, c_name, showing_size, on_log_scale, alpha, color)
+                    start_idx = self._utils.plotting(
+                        plt, statistics, alg, c_name, showing_size, on_log_scale, alpha, color
+                    )
                     plt.title(c_name)
                     plt.xlabel('Iteration')
                     plt.ylabel('Fitness')
+                if start_idx > 0:
+                    plt.axvline(x=start_idx, color='gray', linestyle='--')
                 plt.legend()
                 plt.tight_layout()
                 plt.savefig(file_dir / f'{c_name}{suffix}')
                 plt.close()
+
             if merge:
                 self._utils.merge_images_in(file_dir, clear)
 
@@ -190,9 +195,14 @@ class Reporter:
                                         environment='table',
                                         caption=f"Table generated for {problem}, {np_per_dim} partitions",
                                         label=f"tab:{problem}_{np_per_dim}",
+                                        position_float='centering',
+                                        hrules=True,
                                         position='htbp')
 
-        with open(file_dir.with_suffix('.tex'), 'w') as f:
+        latex_code = latex_code.replace('background-colorgray', 'cellcolor{gray!30}')
+        latex_code = latex_code.replace('≈', r'$\approx$')
+        latex_code = latex_code.replace('_', r'\_')
+        with open(file_dir.with_suffix('.txt'), 'w') as f:
             f.write(latex_code)
 
     def to_violin(
