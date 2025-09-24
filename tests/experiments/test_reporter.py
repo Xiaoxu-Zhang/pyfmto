@@ -51,6 +51,15 @@ class TestValidReporting(unittest.TestCase):
     def test_show_combinations(self):
         self.reports.show_combinations()
 
+    def test_no_data(self):
+        export_reporter_config(algs=(['ALG3', 'ALG4'], ), probs=tuple(self.probs), mode='update')
+        rep = Reports()
+        rep.to_curve()
+        rep.to_latex()
+        rep.to_violin()
+        rep.to_console()
+        rep.to_excel()
+
     def gen_fake_data(self):
         for alg in self.algs:
             for prob in self.probs:
