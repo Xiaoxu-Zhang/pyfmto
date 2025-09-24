@@ -76,14 +76,12 @@ class Launcher:
             return
         kwargs: dict[str, Any] = {}
         default_kwargs = get_alg_kwargs(self._alg)
+        kwargs.update(client=default_kwargs.get('client', {}))
+        kwargs.update(server=default_kwargs.get('server', {}))
         if self._clt_kwargs:
-            kwargs.update(client=self._clt_kwargs)
-        else:
-            kwargs.update(client=default_kwargs.get('client', {}))
+            kwargs['client'].update(self._clt_kwargs)
         if self._srv_kwargs:
-            kwargs.update(server=self._srv_kwargs)
-        else:
-            kwargs.update(server=default_kwargs.get('server', {}))
+            kwargs['server'].update(self._srv_kwargs)
         fdir = self._res_dir.parents[1]
         fdir.mkdir(parents=True, exist_ok=True)
         save_yaml(kwargs, fdir / "arguments.yaml")

@@ -9,7 +9,7 @@ import time
 from collections import defaultdict
 from pathlib import Path
 from pydantic import validate_call, Field
-from pyfmto.utilities import logger, reset_log, SeabornPalettes, load_yaml
+from pyfmto.utilities import SeabornPalettes, load_yaml, colored
 from tabulate import tabulate
 from tqdm import tqdm
 from typing import Optional, Literal, Annotated, Any
@@ -35,7 +35,6 @@ class Reporter:
         self._cache = defaultdict(dict)
         self._comb = initialize_comb
         self._utils = ReporterUtils
-        reset_log()
 
     def init_data(self):
         for comb in self._comb:
@@ -59,7 +58,7 @@ class Reporter:
             on_log_scale: bool
     ):
         # Prepare the data
-        statistics = self._get_statistics(algorithms, problem, np_per_dim)
+        statistics = self._get_statistics(algorithms, problem, np_per_dim, 1)
         algorithms = list(statistics.keys())  # Get the list of available algorithms
         client_names = list(list(statistics.values())[0].keys())
         file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
@@ -149,7 +148,7 @@ class Reporter:
             np_per_dim: int,
             pvalue: float
     ):
-        statistics = self._get_statistics(algorithms, problem, np_per_dim)
+        statistics = self._get_statistics(algorithms, problem, np_per_dim, 2)
         clients_name = list(list(statistics.values())[0].keys())
         str_table, float_table = self._tabling(statistics, clients_name, pvalue)
         global_index_mat, solo_index_mat = self._utils.get_optimality_index_mat(float_table)
@@ -216,7 +215,7 @@ class Reporter:
             merge: bool,
             clear: bool
     ):
-        statistics = self._get_statistics(algorithms, problem, np_per_dim)
+        statistics = self._get_statistics(algorithms, problem, np_per_dim, 1)
         _suffix = '.png' if merge else suffix
         file_dir = self._get_output_dir(algorithms[-1], problem, np_per_dim)
         file_dir = file_dir.parent / f"{file_dir.name} violin"
@@ -238,7 +237,7 @@ class Reporter:
             *,
             pvalue: float
     ):
-        statistics = self._get_statistics(algorithms, problem, np_per_dim)
+        statistics = self._get_statistics(algorithms, problem, np_per_dim, 2)
         keys = list(list(statistics.values())[0].keys())
         str_table, _ = self._tabling(statistics, keys, pvalue)
 
@@ -281,7 +280,7 @@ class Reporter:
         file_name = filedir / f"{np_name}"
         return file_name
 
-    def _get_statistics(self, algorithms, problem, np_per_dim) -> T_Statistics:
+    def _get_statistics(self, algorithms, problem, np_per_dim, n_algs_res) -> T_Statistics:
         statistics: T_Statistics = {}
         for alg in algorithms:
             res = self._cache.get(f"{alg}_{problem}_{np_per_dim}")
@@ -297,6 +296,10 @@ class Reporter:
                 curr_data.y_global = v['y_global']
                 statis[k] = curr_data
             statistics[alg] = statis
+        if len(statistics) < n_algs_res:
+            algs = ','.join(statistics.keys())
+            raise ValueError(f"No enough algorithms({algs}) to compare on "
+                             f"problem({problem}) with np_per_dim({np_per_dim})")
         return statistics
 
     def _merge_one_algorithm(self, alg_name: str, problem: str, np_per_dim: int) -> bool:
@@ -321,7 +324,7 @@ class Reporter:
                 for f_name in os.listdir(res_dir) if f_name.endswith('.msgpack')
             ]
             return result_list
-        logger.warning(f"{res_dir} does not exist")
+        print(f"Result file not found in {colored(str(res_dir), 'red')}")
 
     def _check_attributes(self, path_list: list[Path], runs_list: list[RunSolutions]):
         str_p_list = [str(os.path.join(*p.parts[-4:])) for p in path_list]
@@ -450,20 +453,27 @@ class Reports:
         on_log_scale : bool, optional
             If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
         """
+        need_new_line = True
         for comb in tqdm(self.combinations, desc='Saving', unit='Img', ncols=100):
-            self.analyzer.to_curve(
-                *comb,
-                figsize=figsize,
-                alpha=alpha,
-                palette=palette,
-                suffix=suffix,
-                styles=styles,
-                showing_size=showing_size,
-                quality=quality,
-                merge=merge,
-                clear=clear,
-                on_log_scale=on_log_scale,
-            )
+            try:
+                self.analyzer.to_curve(
+                    *comb,
+                    figsize=figsize,
+                    alpha=alpha,
+                    palette=palette,
+                    suffix=suffix,
+                    styles=styles,
+                    showing_size=showing_size,
+                    quality=quality,
+                    merge=merge,
+                    clear=clear,
+                    on_log_scale=on_log_scale,
+                )
+            except Exception as e:
+                if need_new_line:
+                    print('\n')
+                    need_new_line = False
+                print(e)
 
     @validate_call
     def to_excel(
@@ -491,11 +501,14 @@ class Reports:
              - ``type-font-[bold|italic|underline]`` ---Font types (multiple can be applied, supported types are in [])
         """
         for comb in self.combinations:
-            self.analyzer.to_excel(
-                *comb,
-                pvalue=pvalue,
-                styles=styles,
-            )
+            try:
+                self.analyzer.to_excel(
+                    *comb,
+                    pvalue=pvalue,
+                    styles=styles,
+                )
+            except Exception as e:
+                print(e)
 
     @validate_call
     def to_latex(
@@ -511,7 +524,10 @@ class Reports:
             T-test threshold parameter to determine statistical significance. Default is 0.05.
         """
         for comb in self.combinations:
-            self.analyzer.to_latex(*comb, pvalue=pvalue)
+            try:
+                self.analyzer.to_latex(*comb, pvalue=pvalue)
+            except Exception as e:
+                print(e)
 
     @validate_call
     def to_console(
@@ -527,7 +543,10 @@ class Reports:
             T-test threshold for determining statistical significance. Default is 0.05.
         """
         for comb in self.combinations:
-            self.analyzer.to_console(*comb, pvalue=pvalue)
+            try:
+                self.analyzer.to_console(*comb, pvalue=pvalue)
+            except Exception as e:
+                print(e)
 
     @validate_call
     def to_violin(
@@ -554,10 +573,13 @@ class Reports:
             None
         """
         for comb in self.combinations:
-            self.analyzer.to_violin(
-                *comb,
-                suffix=suffix,
-                figsize=figsize,
-                merge=merge,
-                clear=clear,
-            )
+            try:
+                self.analyzer.to_violin(
+                    *comb,
+                    suffix=suffix,
+                    figsize=figsize,
+                    merge=merge,
+                    clear=clear,
+                )
+            except Exception as e:
+                print(e)
