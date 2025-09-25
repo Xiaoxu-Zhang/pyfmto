@@ -11,6 +11,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from collections import defaultdict, namedtuple
 from contextlib import contextmanager
 from PIL import Image
 from matplotlib import pyplot as plt
@@ -22,8 +23,10 @@ from typing import Optional, Union, Type
 
 from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
-from pyfmto.utilities import logger, save_msgpack, titled_tabulate, load_msgpack, parse_yaml
+from pyfmto.utilities import logger, save_msgpack, titled_tabulate, load_msgpack, parse_yaml, colored
 from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
+
+StatisData = namedtuple("StatisData", ['mean', 'std', 'se', 'opt'])
 
 
 class RunSolutions:
@@ -35,29 +38,22 @@ class RunSolutions:
     def update(self, cid: int, solution: Solution):
         self._solutions[cid] = copy.deepcopy(solution.to_dict())
 
-    def get_solutions(self, cid: int) -> Solution:
-        """
-        Retrieve solutions for the specified client IDs.
-
-        Parameters
-        ----------
-        cid : Union[int, list[int], tuple[int]]
-            A single client ID (int) or a list/tuple of client IDs.
-
-        Returns
-        -------
-        Solution
-            - A `Solution` object if a single client ID is provided.
-            - A dictionary of `Solution` objects if a list or tuple of client IDs is provided.
-        """
-        try:
-            return Solution(self._solutions[cid])
-        except KeyError:
-            raise KeyError(f"Client {cid} not found in results")
-
     @property
     def solutions(self) -> list[Solution]:
         return [Solution(self._solutions[cid]) for cid in self.sorted_ids]
+
+    def __getitem__(self, item):
+        try:
+            return Solution(self._solutions[item])
+        except KeyError:
+            raise KeyError(f"Client id '{item}' not found in results")
+
+    def __iter__(self):
+        for cid in self.sorted_ids:
+            yield cid, Solution(self._solutions[cid])
+
+    def __len__(self):
+        return len(self._solutions)
 
     def to_msgpack(self, filename: Union[str, Path] = 'results.msgpack'):
         if self.num_clients == 0:
@@ -79,51 +75,135 @@ class RunSolutions:
         return sorted(map(int, self._solutions.keys()))
 
 
-class Statistics:
-    def __init__(self,
-                 mean_orig: np.ndarray, mean_log: np.ndarray,
-                 std_orig: np.ndarray, std_log: np.ndarray,
-                 se_orig: np.ndarray, se_log: np.ndarray,
-                 opt_orig: np.ndarray, opt_log: np.ndarray):
-        """
-        Initialize the Statistics class instance with statistical measures for both original and logarithmic scales.
+class ClientStatis:
+    fe_init: int
+    fe_max: int
+    lb: np.ndarray
+    ub: np.ndarray
+    x_init: np.ndarray
+    y_init: np.ndarray
+    x_optimized: np.ndarray
+    y_optimized: np.ndarray
+    y_dec_mat: np.ndarray
+    y_inc_mat: np.ndarray
+    x_global: np.ndarray
+    y_global: np.ndarray
+    y_mean: np.ndarray
 
-        Parameters
-        ----------
-        mean_orig : ndarray
-            Mean values of multiple runs in the original scale.
-        mean_log : ndarray
-            Mean values of multiple runs in the logarithmic scale.
-        std_orig : ndarray
-            Standard deviations of multiple runs in the original scale.
-        std_log : ndarray
-            Standard deviations of multiple runs in the logarithmic scale.
-        se_orig : ndarray
-            Standard errors of multiple runs in the original scale.
-        se_log : ndarray
-            Standard errors of multiple runs in the logarithmic scale.
-        opt_orig : ndarray
-            Optimal values of multiple runs in the original scale.
-        opt_log : ndarray
-            Optimal values of multiple runs in the logarithmic scale.
-        """
-        self.mean_orig = mean_orig
-        self.mean_log = mean_log
-        self.std_orig = std_orig
-        self.std_log = std_log
-        self.se_orig = se_orig
-        self.se_log = se_log
-        self.opt_orig = opt_orig
-        self.opt_log = opt_log
-        self.fe_init = 0
-        self.fe_max = 0
-        self.x = np.array([])
-        self.x_global = np.array([])
-        self.y_global = np.array([])
+    def __init__(self, solutions: list[Solution]):
+        self.n_data = len(solutions)
+        self._preprocessing(solutions)
+
+    def _preprocessing(self, solutions):
+        x = []
+        y_dec = []
+        y_inc = []
+        x_init = []
+        y_init = []
+        x_optimized = []
+        y_optimized = []
+        for solution in solutions:
+            x.append(solution.x)
+            y_dec.append(solution.y_homo_decrease)
+            y_inc.append(solution.y_homo_increase)
+            x_init.append(solution.x_init)
+            y_init.append(solution.y_init)
+            x_optimized.append(solution.x_optimized)
+            y_optimized.append(solution.y_optimized)
+        self.x_init = np.vstack(x_init)
+        self.y_init = np.vstack(y_init)
+        self.x_optimized = np.vstack(x_optimized)
+        self.y_optimized = np.vstack(y_optimized)
+        self.y_dec_mat = np.array(y_dec)
+        self.y_inc_mat = np.array(y_inc)
+        self.y_dec_mat[self.y_dec_mat < 1e-20] = 1e-20
+        self.y_inc_mat[self.y_inc_mat < 1e-20] = 1e-20
+        self.x_global = solutions[0].x_global
+        self.y_global = solutions[0].y_global
+        self.fe_init = solutions[0].fe_init
+        self.fe_max = solutions[0].fe_max
+        self.lb = solutions[0].lb
+        self.ub = solutions[0].ub
+
+    @staticmethod
+    def _cal_statis(y_mat: np.ndarray):
+        rows = y_mat.shape[0]
+        mean = np.mean(y_mat, axis=0)
+        std = np.std(y_mat, ddof=1, axis=0)
+        se = std / np.sqrt(rows)
+        opt = y_mat[:, -1]
+        return StatisData(mean, std, se, opt)
 
     @property
     def is_known_optimal(self):
         return self.x_global.size > 0
+
+    @property
+    def x(self):
+        return
+
+    @property
+    def y_dec_statis(self) -> StatisData:
+        return self._cal_statis(self.y_dec_mat)
+
+    @property
+    def y_inc_statis(self) -> StatisData:
+        return self._cal_statis(self.y_inc_mat)
+
+    @property
+    def y_dec_log_statis(self) -> StatisData:
+        return self._cal_statis(np.log10(self.y_dec_mat))
+
+    @property
+    def y_inc_log_statis(self) -> StatisData:
+        return self._cal_statis(np.log10(self.y_inc_mat))
+
+
+class MergedResults:
+
+    def __init__(self, file_dir: Path):
+        self._file_dir = file_dir
+        self._original: list[RunSolutions] = []
+        self._organized: dict[int, list[Solution]] = defaultdict(list)
+        self._load_original()
+        self._organizing()
+        self._analysed: dict[str, ClientStatis] = {
+            f"Client {cid:>02d}": ClientStatis(solutions)
+            for cid, solutions in self._organized.items()
+        }
+
+    def _organizing(self):
+        for run_data in self._original:
+            for cid, solution in run_data:
+                self._organized[cid].append(solution)
+
+    def _load_original(self):
+        if self._file_dir.exists():
+            runs_filename = [
+                self._file_dir / f_name
+                for f_name in os.listdir(self._file_dir) if f_name.endswith('.msgpack')
+            ]
+            self._original = ReporterUtils.load_runs_data(runs_filename)
+        else:
+            print(f"Result file not found in {colored(str(self._file_dir), 'red')}")
+
+    def __getitem__(self, item) -> ClientStatis:
+        return self._analysed[item]
+
+    def __iter__(self):
+        for item in self._analysed:
+            yield item, self._analysed[item]
+
+    def items(self) -> list[tuple[str, ClientStatis]]:
+        return list(self._analysed.items())
+
+    @property
+    def is_empty(self):
+        return len(self._original) == 0
+
+    @property
+    def sorted_ids(self):
+        return sorted(self._analysed.keys())
 
 
 class LauncherUtils:
@@ -266,83 +346,6 @@ class ReporterUtils:
             raise ValueError(f"\n{tab}")
 
     @staticmethod
-    def get_runs_data(cid: int, runs_data: list[RunSolutions]):
-        runs_x_data = []
-        runs_y_data = []
-        tmp = runs_data[0].get_solutions(cid)
-        fe_init = tmp.fe_init
-        fe_max = tmp.size
-        x_global = tmp.x_global
-        y_global = tmp.y_global
-        for run_res in runs_data:
-            solution = run_res.get_solutions(cid)
-            runs_x_data.append(solution.x)
-            runs_y_data.append(solution.y_homo_decrease)
-        res = {
-            'runs_x': runs_x_data,
-            'runs_y': runs_y_data,
-            'fe_init': fe_init,
-            'fe_max': fe_max,
-            'x_global': x_global,
-            'y_global': y_global
-        }
-        return res
-
-    @staticmethod
-    def calculate_statistics(data: Union[list, np.ndarray]) -> Statistics:
-        """
-        Calculate statistical measures for the given data, including mean, standard deviation,
-        and standard error for both the original and logarithmic scales.
-
-        Parameters
-        ----------
-        data : Union[list, ndarray]
-            A list or 2D NumPy array where each row represents a run and each column represents
-            a fitness value of a problem.
-
-        Returns
-        -------
-        Statistics
-            An instance of the `Statistics` class, refer to `Statistics` for more information.
-
-        References
-        ----------
-        - Paper: Streiner, D. L. (1996). Maintaining Standards: Differences between the Standard
-          Deviation and Standard Error, and When to Use Each. The Canadian Journal of
-          Psychiatry, 498–502. https://doi.org/10.1177/070674379604100805
-
-        - Doc of ``np.std``: In statistics, ... of the population. The use of :math:`N-1` in the
-          denominator is often called "Bessel's correction" because ..., but less than it would
-          have been without the correction. For this quantity, use ``ddof=1``.
-        """
-        data_orig = np.array(data) if isinstance(data, list) else data
-        num_runs = data_orig.shape[0]
-        data_orig[data_orig < 1e-20] = 1e-20
-        data_log = np.log10(data_orig)
-
-        mean_orig = np.mean(data_orig, axis=0)
-        mean_log = np.mean(data_log, axis=0)
-        std_orig = np.std(data_orig, ddof=1, axis=0)
-        std_log = np.std(data_log, ddof=1, axis=0)
-        se_orig = std_orig / np.sqrt(num_runs)
-        se_log = std_log / np.sqrt(num_runs)
-        opt_orig = data_orig[:, -1]
-        opt_log = data_log[:, -1]
-
-        sta = Statistics(
-            mean_orig=mean_orig,
-            mean_log=mean_log,
-            std_orig=std_orig,
-            std_log=std_log,
-            se_orig=se_orig,
-            se_log=se_log,
-            opt_orig=opt_orig,
-            opt_log=opt_log
-        )
-
-        return sta
-
-    @staticmethod
     def find_grid_shape(size):
         """
         Determine the shape of a grid (a, b) for a given size such that:
@@ -381,11 +384,11 @@ class ReporterUtils:
         prob_items = []
         for name, args in LauncherUtils.combine_args({name: prob_conf.get(name, {}) for name in problems}):
             src_prob = args.get('src_problem')
-            np_per_dim = args.get('np_per_dim', 1)
+            npd_name = ReporterUtils.get_np_name(args.get('np_per_dim', 1))
             if src_prob:
-                prob_items.append((f"{name.upper()}-{src_prob}", np_per_dim))
+                prob_items.append((f"{name.upper()}-{src_prob}", npd_name))
             else:
-                prob_items.append((name.upper(), np_per_dim))
+                prob_items.append((name.upper(), npd_name))
         analysis_comb = [(alg, *prob_item) for alg, prob_item in product(algorithms, prob_items)]
         initialize_comb = [(alg, *prob_item) for alg, prob_item in product(sum(algorithms, []), prob_items)]
         analyses = {
@@ -408,18 +411,18 @@ class ReporterUtils:
         return suffix
 
     @staticmethod
-    def plotting(ax, statistics: dict[str, dict[str, Statistics]], alg, key, showing_size, in_log_scale, alpha, color):
-        c_data = statistics[alg][key]
+    def plotting(ax, statistics: MergedResults, alg_name, c_name, showing_size, in_log_scale, alpha, color):
+        c_data = statistics[c_name]
         fe_init = c_data.fe_init
         fe_max = c_data.fe_max
         size_optimization = fe_max - fe_init
         size_plot = fe_max if showing_size == -1 else showing_size
         x_indices: np.ndarray = np.arange(size_plot) + 1
-        avg = c_data.mean_log[-size_plot:] if in_log_scale else c_data.mean_orig[-size_plot:]
-        se = c_data.se_log[-size_plot:] if in_log_scale else c_data.se_orig[-size_plot:]
+        avg = c_data.y_dec_log_statis.mean[-size_plot:] if in_log_scale else c_data.y_dec_statis.mean[-size_plot:]
+        se = c_data.y_dec_log_statis.se[-size_plot:] if in_log_scale else c_data.y_dec_statis.se[-size_plot:]
         se_upper = list(map(lambda x: x[0] - x[1], zip(avg, se)))
         se_lower = list(map(lambda x: x[0] + x[1], zip(avg, se)))
-        ax.plot(x_indices, avg, label=alg, color=color)
+        ax.plot(x_indices, avg, label=alg_name, color=color)
         ax.fill_between(x_indices, se_upper, se_lower, alpha=alpha, color=color)
         if size_plot > size_optimization:
             return size_plot - size_optimization
@@ -465,25 +468,27 @@ class ReporterUtils:
         return global_index_mat, solo_index_mat
 
     @staticmethod
-    def plot_violin(statis: Statistics, figsize, filename: Path, title: str):
-        samples = statis.x
-        n_dims = samples.shape[1]
-        df = pd.DataFrame(samples, columns=[f'x{i + 1}' for i in range(n_dims)])
-        df_melted = df.melt(var_name='Dimension', value_name='Value')
+    def plot_violin(statis: ClientStatis, figsize, filename: Path, title: str):
+        n_dims = statis.x_init.shape[1]
+        df_init = pd.DataFrame(statis.x_init, columns=[f'x{i + 1}' for i in range(n_dims)])
+        df_optimized = pd.DataFrame(statis.x_optimized, columns=[f'x{i + 1}' for i in range(n_dims)])
+        df_init['Type'] = 'ByInit'
+        df_optimized['Type'] = 'ByAlg'
+        df_combined = pd.concat([df_init, df_optimized], ignore_index=True)
+        df_melted = df_combined.melt(id_vars=['Type'], var_name='Dimension', value_name='Value')
         plt.figure(figsize=figsize)
         ax = seaborn.violinplot(
             data=df_melted,
             x='Dimension',
             y='Value',
-            hue='Dimension',
+            hue='Type',
+            split=True,
             inner='quartile'
         )
-
         x_global = statis.x_global
         if x_global.size > 0:
             for dim in range(n_dims):
                 ax.plot(dim, x_global[dim], 'r*', markersize=8, markeredgecolor='w', linewidth=0.5)
-
         plt.title(title)
         plt.xlabel('Dimension Index')
         plt.ylabel('Value')
