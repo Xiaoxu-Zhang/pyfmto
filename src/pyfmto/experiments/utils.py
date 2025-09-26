@@ -197,7 +197,7 @@ class MergedResults:
         return len(self._original) == 0
 
     @property
-    def sorted_keys(self):
+    def sorted_names(self):
         return sorted(self._analysed.keys())
 
 
@@ -472,7 +472,7 @@ class ReporterUtils:
         return StatisData(mean, std, se, opt)
 
     @staticmethod
-    def plot_violin(statis: ClientDataStatis, figsize, filename: Path, title: str, **kwargs):
+    def plot_violin(statis: ClientDataStatis, figsize, filename: Path, title: str, dpi: float):
         n_dims = statis.x_init.shape[1]
         df_init = pd.DataFrame(statis.x_init, columns=[f'x{i + 1}' for i in range(n_dims)])
         df_optimized = pd.DataFrame(statis.x_alg, columns=[f'x{i + 1}' for i in range(n_dims)])
@@ -481,7 +481,7 @@ class ReporterUtils:
         df_optimized[hue] = 'Alg'
         df_combined = pd.concat([df_init, df_optimized], ignore_index=True)
         df_melted = df_combined.melt(id_vars=[hue], var_name='Dimension', value_name='Value')
-        plt.figure(figsize=figsize)
+        plt.figure(figsize=figsize, dpi=dpi)
         ax = seaborn.violinplot(
             data=df_melted,
             x='Dimension',
