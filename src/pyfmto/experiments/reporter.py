@@ -322,12 +322,11 @@ class Reporter:
     def __init__(self, results, initialize_comb):
         self._root = Path(results)
         self._cache: dict[str, MergedResults] = {}
-        self._comb: list[tuple[str, str, int]] = initialize_comb
         self._generators = {}  # Registry of report generators
-        self.load_data()
+        self.load_data(initialize_comb)
 
-    def load_data(self):
-        for comb in self._comb:
+    def load_data(self, combinations):
+        for comb in combinations:
             cache_key = '/'.join(comb)
             if cache_key in self._cache:
                 continue
@@ -353,7 +352,7 @@ class Reporter:
             merged_res = self._cache.get(cache_key)
             if merged_res:
                 data[algorithm] = merged_res
-        filedir = self._get_output_dir(algorithms, problem, npd_name)
+        filedir = self._get_output_dir(list(data.keys()), problem, npd_name)
         return MetaData(data, problem, npd_name, filedir)
 
     def _get_output_dir(self, algorithms: list[str], problem: str, npd_name: str) -> Path:
