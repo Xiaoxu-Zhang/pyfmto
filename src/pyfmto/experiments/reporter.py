@@ -323,17 +323,17 @@ class Reporter:
         self._root = Path(results)
         self._cache: dict[str, MergedResults] = {}
         self._generators = {}  # Registry of report generators
-        self.load_data(initialize_comb)
+        self._load_data(initialize_comb)
 
-    def load_data(self, combinations):
+    def _load_data(self, combinations):
         for comb in combinations:
-            cache_key = '/'.join(comb)
-            if cache_key in self._cache:
+            subdir = '/'.join(comb)
+            if subdir in self._cache:
                 continue
             else:
-                mgd_res = MergedResults(self._root / cache_key)
+                mgd_res = MergedResults(self._root / subdir)
                 if not mgd_res.is_empty:
-                    self._cache[cache_key] = mgd_res
+                    self._cache[subdir] = mgd_res
 
     def register_generator(self, name: str, generator: ReportGenerator):
         self._generators[name] = generator
