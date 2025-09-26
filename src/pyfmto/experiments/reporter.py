@@ -174,7 +174,7 @@ class TableGenerator(ReportGenerator, ABC):
         solo_counter = np.sum(solo_index_mat, axis=0).reshape(1, -1)
 
         df = pd.DataFrame(str_table, index=None)
-        columns = data.clt_names
+        columns = data.alg_names
         columns.insert(0, "Clients")
 
         global_counter_df = pd.DataFrame(global_counter, columns=columns, index=None)
@@ -339,12 +339,12 @@ class Reporter:
     def register_generator(self, name: str, generator: ReportGenerator):
         self._generators[name] = generator
 
-    def generate_report(self, generator_name: str, *args, **kwargs):
+    def generate_report(self, generator_name: str, algorithms: list[str], problem: str, npd_name: str, **kwargs):
         generator: ReportGenerator = self._generators.get(generator_name)
         if not generator:
             raise ValueError(f"No generator registered for {generator_name}")
-        data = self._prepare_data(*args[:3])
-        return generator.generate(data, *args, **kwargs)
+        data = self._prepare_data(algorithms, problem, npd_name)
+        return generator.generate(data, **kwargs)
 
     def _prepare_data(self, algorithms: list[str], problem: str, npd_name: str) -> MetaData:
         data: dict[str, MergedResults] = {}
@@ -357,7 +357,7 @@ class Reporter:
         return MetaData(data, problem, npd_name, filedir)
 
     def _get_output_dir(self, algorithms: list[str], problem: str, npd_name: str) -> Path:
-        filedir = self._root / f"{time.strftime('%Y-%m-%d')}" / f"{algorithms[0]}" / f"{problem}"
+        filedir = self._root / f"{time.strftime('%Y-%m-%d')}" / f"{algorithms[-1]}" / f"{problem}"
         filedir.mkdir(parents=True, exist_ok=True)
         file_name = filedir / f"{npd_name}"
         return file_name
