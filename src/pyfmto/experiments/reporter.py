@@ -1,4 +1,3 @@
-import copy
 import traceback
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,6 +22,45 @@ T_Levels10 = Annotated[int, Field(ge=1, le=10)]
 __all__ = ['Reports']
 
 
+class MetaData:
+
+    def __init__(
+            self,
+            data: dict[str, MergedResults],
+            problem: str,
+            npd_name: str,
+            filedir: Path):
+        self._data = data
+        self.problem = problem
+        self.npd_name = npd_name
+        self.filedir = filedir
+
+    def __len__(self):
+        return len(self._data)
+
+    def __getitem__(self, item):
+        return self._data[item]
+
+    def items(self):
+        return self._data.items()
+
+    @property
+    def clt_names(self):
+        return list(self._data.values())[0].sorted_names
+
+    @property
+    def clt_num(self):
+        return len(self.clt_names)
+
+    @property
+    def alg_num(self):
+        return len(self._data)
+
+    @property
+    def alg_names(self):
+        return list(self._data.keys())
+
+
 class ReportGenerator(ABC):
 
     def __init__(self, data_size_req: int):
@@ -30,7 +68,7 @@ class ReportGenerator(ABC):
         self.utils = ReporterUtils
 
     @final
-    def _check_data(self, data: dict):
+    def _check_data(self, data: MetaData):
         if len(data) > self.data_size_req:
             return True
         else:
@@ -42,7 +80,7 @@ class ReportGenerator(ABC):
         pass
 
     @final
-    def generate(self, data: dict[str, MergedResults], *args, **kwargs):
+    def generate(self, data: MetaData, *args, **kwargs):
         self._check_data(data)
         self._generate(data, *args, **kwargs)
 
@@ -54,15 +92,11 @@ class CurveGenerator(ReportGenerator):
 
     def _generate(
             self,
-            data: dict[str, MergedResults],
-            algorithms: list[str],
-            problem: str,
-            npd_name: str,
+            data: MetaData,
             *,
             figsize: tuple[float, float, float],
             alpha: float,
             palette: SeabornPalettes,
-            filedir: Path,
             suffix: str,
             styles: tuple[str, ...],
             showing_size: Optional[int],
@@ -73,18 +107,17 @@ class CurveGenerator(ReportGenerator):
     ):
         # Prepare the data
         w, h, s = figsize
-        c_names = list(data.values())[0].sorted_names
         _figsize = w * s, h * s
         _quality = {'dpi': 100 * quality}
         _suffix = self.utils.check_suffix(suffix, merge)
         log_tag = ' log' if on_log_scale else ''
         # Plot the data
-        colors = seaborn.color_palette(str(palette), len(algorithms) - 1).as_hex()
+        colors = seaborn.color_palette(str(palette), data.alg_num - 1).as_hex()
         colors.append("#ff0000")
         with plt.style.context(styles):
-            filedir = filedir.parent / f"{filedir.name} curve{log_tag}"
+            filedir = data.filedir.parent / f"{data.filedir.name} curve{log_tag}"
             filedir.mkdir(parents=True, exist_ok=True)
-            for c_name in c_names:
+            for c_name in data.clt_names:
                 plt.figure(figsize=_figsize, **_quality)
                 for (alg_name, merged_data), color in zip(data.items(), colors):
                     start_idx = self.utils.plotting(
@@ -111,27 +144,23 @@ class ViolinGenerator(ReportGenerator):
 
     def _generate(
             self,
-            data: dict[str, MergedResults],
-            algorithms: list[str],
-            problem: str,
-            npd_name: str,
+            data: MetaData,
             *,
-            filedir: Path,
             suffix: str,
             figsize: tuple[float, float, float],
             quality: int,
             merge: bool,
             clear: bool
     ):
-        filedir = filedir.parent / f"{filedir.name} violin"
+        filedir = data.filedir.parent / f"{data.filedir.name} violin"
         filedir.mkdir(parents=True, exist_ok=True)
         w, h, s = figsize
         _suffix = self.utils.check_suffix(suffix, merge)
         _figsize = w * s, h * s
         _quality = 100. * quality
-        alg_res: MergedResults = data[algorithms[-1]]
+        alg_res: MergedResults = data[data.alg_names[-1]]
         for clt_name, sta in alg_res.items():
-            title = f"{clt_name} of {algorithms[-1]} on {problem}"
+            title = f"{clt_name} of {data.alg_names[-1]} on {data.problem}"
             self.utils.plot_violin(sta, _figsize, filedir / f"{clt_name}{_suffix}", title=title, dpi=_quality)
         if merge:
             self.utils.merge_images_in(filedir, clear)
@@ -141,18 +170,17 @@ class TableGenerator(ReportGenerator, ABC):
 
     def _get_table_data(
             self,
-            data: dict[str, MergedResults],
+            data: MetaData,
             pvalue: float
     ):
-        c_names = list(data.values())[0].sorted_names
-        str_table, float_table = self._tabling(data, c_names, pvalue)
+        str_table, float_table = self._tabling(data, pvalue)
         global_index_mat, solo_index_mat = self.utils.get_optimality_index_mat(float_table)
 
         global_counter = np.sum(global_index_mat, axis=0).reshape(1, -1)
         solo_counter = np.sum(solo_index_mat, axis=0).reshape(1, -1)
 
         df = pd.DataFrame(str_table, index=None)
-        columns = copy.deepcopy(list(data.keys()))
+        columns = data.clt_names
         columns.insert(0, "Clients")
 
         global_counter_df = pd.DataFrame(global_counter, columns=columns, index=None)
@@ -166,19 +194,17 @@ class TableGenerator(ReportGenerator, ABC):
 
     def _tabling(
             self,
-            data: dict[str, MergedResults],
-            c_names: list[str],
+            data: MetaData,
             pvalue: float
     ):
-        algorithms = list(data.keys())
-        obj_alg = algorithms[-1]
+        obj_alg = data.alg_names[-1]
         obj_alg_merged = data[obj_alg]
-        str_table = {"Clients": c_names}
+        str_table = {"Clients": data.clt_names}
         float_table = {}
-        for alg in algorithms[:-1]:
+        for alg in data.alg_names[:-1]:
             str_res = []
             float_res = []
-            for c_name in c_names:
+            for c_name in data.clt_names:
                 c_data = data[alg].get_statis(c_name)
                 c_data_obj = obj_alg_merged.get_statis(c_name)
                 opt_list1 = c_data.y_dec_statis.opt
@@ -190,7 +216,7 @@ class TableGenerator(ReportGenerator, ABC):
                 float_res.append(mean1)
             str_table.update({alg: str_res})
             float_table.update({alg: float_res})
-        obj_alg_runs_opt = [obj_alg_merged.get_statis(c_name).y_dec_statis.opt for c_name in c_names]
+        obj_alg_runs_opt = [obj_alg_merged.get_statis(c_name).y_dec_statis.opt for c_name in data.clt_names]
         obj_alg_opt_runs_mean = np.mean(obj_alg_runs_opt, axis=1)
         str_res = [f"{mean:.2e}" for mean in obj_alg_opt_runs_mean]
         str_table.update({obj_alg: str_res})
@@ -205,12 +231,8 @@ class ExcelGenerator(TableGenerator):
 
     def _generate(
             self,
-            data: dict[str, MergedResults],
-            algorithms: list[str],
-            problem: str,
-            npd_name: str,
+            data: MetaData,
             *,
-            filedir: Path,
             pvalue: float,
             styles: tuple[str, ...]
     ):
@@ -249,7 +271,7 @@ class ExcelGenerator(TableGenerator):
         global_styled_df = global_df.style.map(highlight_cells, **kwargs1)
         solo_styled_df = solo_df.style.map(highlight_cells, **kwargs2)
 
-        with pd.ExcelWriter(filedir.with_suffix('.xlsx'), engine='openpyxl') as writer:
+        with pd.ExcelWriter(data.filedir.with_suffix('.xlsx'), engine='openpyxl') as writer:
             global_styled_df.to_excel(writer, index=False, sheet_name='Global')
             solo_styled_df.to_excel(writer, index=False, sheet_name='Solo')
 
@@ -261,19 +283,15 @@ class ConsoleGenerator(TableGenerator):
 
     def _generate(
             self,
-            data: dict[str, MergedResults],
-            algorithms: list[str],
-            problem: str,
-            npd_name: str,
+            data: MetaData,
             *,
             pvalue: float,
             **kwargs
     ):
-        c_names = list(data.values())[0].sorted_names
-        str_table, _ = self._tabling(data, c_names, pvalue)
+        str_table, _ = self._tabling(data, pvalue)
         pd.set_option('display.colheader_justify', 'center')
         df = pd.DataFrame(str_table)
-        print(f"Total {len(c_names)} clients")
+        print(f"Total {data.clt_num} clients")
         print(df.to_string(index=False))
 
 
@@ -284,12 +302,8 @@ class LatexGenerator(TableGenerator):
 
     def _generate(
             self,
-            data: dict[str, MergedResults],
-            algorithms: list[str],
-            problem: str,
-            npd_name: str,
+            data: MetaData,
             *,
-            filedir: Path,
             pvalue: float
     ):
         tab_data = self._get_table_data(data, pvalue)
@@ -306,8 +320,8 @@ class LatexGenerator(TableGenerator):
         styled_df = data_df.style.apply(highlight_cells, axis=None)
         latex_code = styled_df.to_latex(column_format='c' * len(data_df.columns),
                                         environment='table',
-                                        caption=f"Table generated for {problem}, {npd_name}",
-                                        label=f"tab:{problem}_{npd_name}",
+                                        caption=f"Table generated for {data.problem}, {data.npd_name}",
+                                        label=f"tab:{data.problem}_{data.npd_name}",
                                         position_float='centering',
                                         hrules=True,
                                         position='htbp')
@@ -315,7 +329,7 @@ class LatexGenerator(TableGenerator):
         latex_code = latex_code.replace('background-colorgray', 'cellcolor{gray!30}')
         latex_code = latex_code.replace('≈', r'$\approx$')
         latex_code = latex_code.replace('_', r'\_')
-        with open(filedir.with_suffix('.txt'), 'w') as f:
+        with open(data.filedir.with_suffix('.txt'), 'w') as f:
             f.write(latex_code)
 
 
@@ -344,18 +358,18 @@ class Reporter:
         generator: ReportGenerator = self._generators.get(generator_name)
         if not generator:
             raise ValueError(f"No generator registered for {generator_name}")
-        kwargs['filedir'] = self._get_output_dir(*args[:3])
         data = self._prepare_data(*args[:3])
         return generator.generate(data, *args, **kwargs)
 
-    def _prepare_data(self, algorithms: list[str], problem: str, npd_name: str) -> dict[str, MergedResults]:
-        res: dict[str, MergedResults] = {}
+    def _prepare_data(self, algorithms: list[str], problem: str, npd_name: str) -> MetaData:
+        data: dict[str, MergedResults] = {}
         for algorithm in algorithms:
             cache_key = f"{algorithm}/{problem}/{npd_name}"
             merged_res = self._cache.get(cache_key)
             if merged_res:
-                res[algorithm] = merged_res
-        return res
+                data[algorithm] = merged_res
+        filedir = self._get_output_dir(algorithms, problem, npd_name)
+        return MetaData(data, problem, npd_name, filedir)
 
     def _get_output_dir(self, algorithms: list[str], problem: str, npd_name: str) -> Path:
         filedir = self._root / f"{time.strftime('%Y-%m-%d')}" / f"{algorithms[0]}" / f"{problem}"
