@@ -113,11 +113,11 @@ class Solution:
         return self._y[:self.fe_init]
 
     @property
-    def x_optimized(self) -> ndarray:
+    def x_alg(self) -> ndarray:
         return self._x[self.fe_init:]
 
     @property
-    def y_optimized(self) -> ndarray:
+    def y_alg(self) -> ndarray:
         return self._y[self.fe_init:]
 
     @property
