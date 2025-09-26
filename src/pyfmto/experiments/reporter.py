@@ -10,11 +10,11 @@ import seaborn
 import time
 from pathlib import Path
 from pydantic import validate_call, Field
-from pyfmto.utilities import SeabornPalettes, load_yaml, logger
+from pyfmto.utilities import SeabornPalettes, load_yaml, logger, colored
 from tabulate import tabulate
 from tqdm import tqdm
 from typing import Optional, Literal, Annotated
-from .utils import RunSolutions, ReporterUtils, MergedResults, ClientStatis
+from .utils import RunSolutions, ReporterUtils, MergedResults
 from pyfmto.utilities.tools import clear_console
 
 _ = scienceplots.stylesheets  # This is to suppress the 'unused import' warning
@@ -61,11 +61,12 @@ class Reporter:
             on_log_scale: bool
     ):
         # Prepare the data
-        statis, clients_name = self._get_statistics(algorithms, problem, npd_name, 1)
+        statis, c_names = self._get_statistics(algorithms, problem, npd_name, 1)
         file_dir = self._get_output_dir(algorithms[-1], problem, npd_name)
         w, h, s = figsize
         _figsize = w * s, h * s
         _quality = {'dpi': 100 * quality}
+        _suffix = self._check_suffix(suffix, merge)
         log_tag = ' log' if on_log_scale else ''
         # Plot the data
         colors = seaborn.color_palette(str(palette), len(algorithms) - 1).as_hex()
@@ -73,7 +74,7 @@ class Reporter:
         with plt.style.context(styles):
             file_dir = file_dir.parent / f"{file_dir.name} curve{log_tag}"
             file_dir.mkdir(parents=True, exist_ok=True)
-            for c_name in clients_name:
+            for c_name in c_names:
                 plt.figure(figsize=_figsize, **_quality)
                 for (alg_name, merged_data), color in zip(statis.items(), colors):
                     start_idx = self._utils.plotting(
@@ -86,7 +87,7 @@ class Reporter:
                     plt.axvline(x=start_idx, color='gray', linestyle='--')
                 plt.legend()
                 plt.tight_layout()
-                plt.savefig(file_dir / f'{c_name}{suffix}')
+                plt.savefig(file_dir / f'{c_name}{_suffix}')
                 plt.close()
 
             if merge:
@@ -148,8 +149,8 @@ class Reporter:
             npd_name: str,
             pvalue: float
     ):
-        statistics, clients_name = self._get_statistics(algorithms, problem, npd_name, 2)
-        str_table, float_table = self._tabling(statistics, clients_name, pvalue)
+        statistics, c_names = self._get_statistics(algorithms, problem, npd_name, 2)
+        str_table, float_table = self._tabling(statistics, c_names, pvalue)
         global_index_mat, solo_index_mat = self._utils.get_optimality_index_mat(float_table)
 
         global_counter = np.sum(global_index_mat, axis=0).reshape(1, -1)
@@ -211,20 +212,22 @@ class Reporter:
             *,
             suffix: str,
             figsize: tuple[float, float, float],
+            quality: int,
             merge: bool,
             clear: bool
     ):
         statistics, _ = self._get_statistics(algorithms, problem, npd_name, 1)
-        _suffix = '.png' if merge else suffix
         file_dir = self._get_output_dir(algorithms[-1], problem, npd_name)
         file_dir = file_dir.parent / f"{file_dir.name} violin"
         file_dir.mkdir(parents=True, exist_ok=True)
         w, h, s = figsize
+        _suffix = self._check_suffix(suffix, merge)
         _figsize = w * s, h * s
+        _quality = 100. * quality
         alg_res: MergedResults = statistics[algorithms[-1]]
         for clt_name, sta in alg_res.items():
             title = f"{clt_name} of {algorithms[-1]} on {problem}"
-            self._utils.plot_violin(sta, _figsize, file_dir / f"{clt_name}{_suffix}", title=title)
+            self._utils.plot_violin(sta, _figsize, file_dir / f"{clt_name}{_suffix}", title=title, dpi=_quality)
         if merge:
             self._utils.merge_images_in(file_dir, clear)
 
@@ -236,14 +239,14 @@ class Reporter:
             *,
             pvalue: float
     ):
-        statistics, clients_name = self._get_statistics(algorithms, problem, npd_name, 2)
-        str_table, _ = self._tabling(statistics, clients_name, pvalue)
+        statistics, c_names = self._get_statistics(algorithms, problem, npd_name, 2)
+        str_table, _ = self._tabling(statistics, c_names, pvalue)
         pd.set_option('display.colheader_justify', 'center')
         df = pd.DataFrame(str_table)
-        print(f"Total {len(clients_name)} clients")
+        print(f"Total {len(c_names)} clients")
         print(df.to_string(index=False))
 
-    def _tabling(self, statistics: dict[str: MergedResults], clients_name: list[str], pvalue: float):
+    def _tabling(self, statistics: dict[str, MergedResults], clients_name: list[str], pvalue: float):
         algorithms = list(statistics.keys())
         obj_alg = algorithms[-1]
         obj_alg_merged = statistics[obj_alg]
@@ -253,8 +256,8 @@ class Reporter:
             str_res = []
             float_res = []
             for c_name in clients_name:
-                c_data: ClientStatis = statistics[alg][c_name]
-                c_data_obj: ClientStatis = obj_alg_merged[c_name]
+                c_data = statistics[alg].get_statis(c_name)
+                c_data_obj = obj_alg_merged.get_statis(c_name)
                 opt_list1 = c_data.y_dec_statis.opt
                 opt_list2 = c_data_obj.y_dec_statis.opt
                 mean1 = np.mean(opt_list1)
@@ -264,7 +267,7 @@ class Reporter:
                 float_res.append(mean1)
             str_table.update({alg: str_res})
             float_table.update({alg: float_res})
-        obj_alg_runs_opt = [obj_alg_merged[c_name].y_dec_statis.opt for c_name in clients_name]
+        obj_alg_runs_opt = [obj_alg_merged.get_statis(c_name).y_dec_statis.opt for c_name in clients_name]
         obj_alg_opt_runs_mean = np.mean(obj_alg_runs_opt, axis=1)
         str_res = [f"{mean:.2e}" for mean in obj_alg_opt_runs_mean]
         str_table.update({obj_alg: str_res})
@@ -279,17 +282,17 @@ class Reporter:
 
     def _get_statistics(self, algorithms, problem, npd_name, n_algs_req) -> tuple[dict[str, MergedResults], list[str]]:
         statis: dict[str, MergedResults] = {}
-        ids: list[str] = []
+        c_names: list[str] = []
         for alg in algorithms:
             res: MergedResults = self._cache.get(f"{alg}/{problem}/{npd_name}")
             if res is not None:
                 statis[alg] = res
-                ids = res.sorted_ids
+                c_names = res.sorted_names
         if len(statis) < n_algs_req:
             algs = ','.join(statis.keys())
             raise ValueError(f"No enough algorithms({algs}) to compare on "
                              f"problem({problem}) with npd({npd_name})")
-        return statis, ids
+        return statis, c_names
 
     def _check_attributes(self, path_list: list[Path], runs_list: list[RunSolutions]):
         str_p_list = [str(os.path.join(*p.parts[-4:])) for p in path_list]
@@ -311,6 +314,15 @@ class Reporter:
             size_of_clients.append(curr_c_size)
         self._utils.check_rows(size_of_clients, col_title, str_p_list, msg="Solution size are not match")
         return ids_list[0]
+
+    @staticmethod
+    def _check_suffix(suffix: str, merge: bool):
+        if merge and suffix not in ['.png', '.jpg']:
+            print(f"Only support suffix {colored('.png or .jpg', 'green')} "
+                  f"when {colored('merge is True', 'green')}, defaulted to '.png'")
+            return '.png'
+        else:
+            return suffix
 
 
 class Reports:
@@ -512,6 +524,7 @@ class Reports:
             self,
             suffix: T_Suffix = '.png',
             figsize: tuple[float, float, float] = (5., 3., 1.),
+            quality: T_Levels10 = 3,
             merge: bool = True,
             clear: bool = True
     ) -> None:
@@ -522,6 +535,8 @@ class Reports:
             image suffix, such as png, pdf, svg
         figsize: tuple
             Controlling the (width, height, scale). the figsize is calculated by (width*scale, height*scale)
+        quality : Optional[int], optional
+            Image quality parameter, affecting the quality of scalar images. Valid values are integers from 1 to 9
         merge: bool
             if true, merge all separate images into a single image, and the suffix will be fixed to PNG
         clear: bool
@@ -539,6 +554,7 @@ class Reports:
                     figsize=figsize,
                     merge=merge,
                     clear=clear,
+                    quality=quality,
                 )
             except Exception as e:
                 logger.error(traceback.format_exc())
