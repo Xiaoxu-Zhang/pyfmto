@@ -82,8 +82,8 @@ class ClientStatis:
     ub: np.ndarray
     x_init: np.ndarray
     y_init: np.ndarray
-    x_optimized: np.ndarray
-    y_optimized: np.ndarray
+    x_alg: np.ndarray
+    y_alg: np.ndarray
     y_dec_mat: np.ndarray
     y_inc_mat: np.ndarray
     x_global: np.ndarray
@@ -100,20 +100,20 @@ class ClientStatis:
         y_inc = []
         x_init = []
         y_init = []
-        x_optimized = []
-        y_optimized = []
+        x_alg = []
+        y_alg = []
         for solution in solutions:
             x.append(solution.x)
             y_dec.append(solution.y_homo_decrease)
             y_inc.append(solution.y_homo_increase)
             x_init.append(solution.x_init)
             y_init.append(solution.y_init)
-            x_optimized.append(solution.x_optimized)
-            y_optimized.append(solution.y_optimized)
+            x_alg.append(solution.x_alg)
+            y_alg.append(solution.y_alg)
         self.x_init = np.vstack(x_init)
         self.y_init = np.vstack(y_init)
-        self.x_optimized = np.vstack(x_optimized)
-        self.y_optimized = np.vstack(y_optimized)
+        self.x_alg = np.vstack(x_alg)
+        self.y_alg = np.vstack(y_alg)
         self.y_dec_mat = np.array(y_dec)
         self.y_inc_mat = np.array(y_inc)
         self.y_dec_mat[self.y_dec_mat < 1e-20] = 1e-20
@@ -468,22 +468,25 @@ class ReporterUtils:
         return global_index_mat, solo_index_mat
 
     @staticmethod
-    def plot_violin(statis: ClientStatis, figsize, filename: Path, title: str):
+    def plot_violin(statis: ClientStatis, figsize, filename: Path, title: str, **kwargs):
         n_dims = statis.x_init.shape[1]
         df_init = pd.DataFrame(statis.x_init, columns=[f'x{i + 1}' for i in range(n_dims)])
-        df_optimized = pd.DataFrame(statis.x_optimized, columns=[f'x{i + 1}' for i in range(n_dims)])
-        df_init['Type'] = 'ByInit'
-        df_optimized['Type'] = 'ByAlg'
+        df_optimized = pd.DataFrame(statis.x_alg, columns=[f'x{i + 1}' for i in range(n_dims)])
+        hue = 'X From'
+        df_init[hue] = 'Init'
+        df_optimized[hue] = 'Alg'
         df_combined = pd.concat([df_init, df_optimized], ignore_index=True)
-        df_melted = df_combined.melt(id_vars=['Type'], var_name='Dimension', value_name='Value')
+        df_melted = df_combined.melt(id_vars=[hue], var_name='Dimension', value_name='Value')
         plt.figure(figsize=figsize)
         ax = seaborn.violinplot(
             data=df_melted,
             x='Dimension',
             y='Value',
-            hue='Type',
+            hue=hue,
+            palette=['#ff7f50', '#2d98da'],
             split=True,
-            inner='quartile'
+            inner='quartile',
+            linewidth=0.5
         )
         x_global = statis.x_global
         if x_global.size > 0:
