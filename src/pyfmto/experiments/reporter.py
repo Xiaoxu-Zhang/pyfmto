@@ -87,9 +87,6 @@ class ReportGenerator(ABC):
 
 class CurveGenerator(ReportGenerator):
 
-    def __init__(self):
-        super().__init__(2)
-
     def _generate(
             self,
             data: MetaData,
@@ -138,9 +135,6 @@ class CurveGenerator(ReportGenerator):
 
 
 class ViolinGenerator(ReportGenerator):
-
-    def __init__(self):
-        super().__init__(1)
 
     def _generate(
             self,
@@ -226,9 +220,6 @@ class TableGenerator(ReportGenerator, ABC):
 
 class ExcelGenerator(TableGenerator):
 
-    def __init__(self):
-        super().__init__(2)
-
     def _generate(
             self,
             data: MetaData,
@@ -278,9 +269,6 @@ class ExcelGenerator(TableGenerator):
 
 class ConsoleGenerator(TableGenerator):
 
-    def __init__(self):
-        super().__init__(2)
-
     def _generate(
             self,
             data: MetaData,
@@ -296,9 +284,6 @@ class ConsoleGenerator(TableGenerator):
 
 
 class LatexGenerator(TableGenerator):
-
-    def __init__(self):
-        super().__init__(2)
 
     def _generate(
             self,
@@ -385,11 +370,11 @@ class Reports:
         self.combinations = settings.pop('analysis_comb')
         self.reporter = Reporter(**settings)
 
-        self.reporter.register_generator('to_curve', CurveGenerator())
-        self.reporter.register_generator('to_excel', ExcelGenerator())
-        self.reporter.register_generator('to_violin', ViolinGenerator())
-        self.reporter.register_generator('to_console', ConsoleGenerator())
-        self.reporter.register_generator('to_latex', LatexGenerator())
+        self.reporter.register_generator('to_curve', CurveGenerator(data_size_req=2))
+        self.reporter.register_generator('to_excel', ExcelGenerator(data_size_req=2))
+        self.reporter.register_generator('to_violin', ViolinGenerator(data_size_req=1))
+        self.reporter.register_generator('to_console', ConsoleGenerator(data_size_req=2))
+        self.reporter.register_generator('to_latex', LatexGenerator(data_size_req=2))
 
     @validate_call
     def to_curve(
