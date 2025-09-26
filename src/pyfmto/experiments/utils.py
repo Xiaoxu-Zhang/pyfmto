@@ -28,6 +28,18 @@ from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
 
 StatisData = namedtuple("StatisData", ['mean', 'std', 'se', 'opt'])
 
+__all__ = [
+    "RunSolutions",
+    "ClientDataStatis",
+    "MergedResults",
+    "LauncherUtils",
+    "ReporterUtils",
+    "Algorithm",
+    "load_algorithm",
+    "list_algorithms",
+    "get_alg_kwargs"
+]
+
 
 class RunSolutions:
     def __init__(self, run_solutions: Optional[dict] = None):
@@ -75,7 +87,7 @@ class RunSolutions:
         return sorted(map(int, self._solutions.keys()))
 
 
-class ClientStatis:
+class ClientDataStatis:
     fe_init: int
     fe_max: int
     lb: np.ndarray
@@ -125,38 +137,25 @@ class ClientStatis:
         self.lb = solutions[0].lb
         self.ub = solutions[0].ub
 
-    @staticmethod
-    def _cal_statis(y_mat: np.ndarray):
-        rows = y_mat.shape[0]
-        mean = np.mean(y_mat, axis=0)
-        std = np.std(y_mat, ddof=1, axis=0)
-        se = std / np.sqrt(rows)
-        opt = y_mat[:, -1]
-        return StatisData(mean, std, se, opt)
-
     @property
     def is_known_optimal(self):
         return self.x_global.size > 0
 
     @property
-    def x(self):
-        return
-
-    @property
     def y_dec_statis(self) -> StatisData:
-        return self._cal_statis(self.y_dec_mat)
+        return ReporterUtils.get_mat_statis(self.y_dec_mat)
 
     @property
     def y_inc_statis(self) -> StatisData:
-        return self._cal_statis(self.y_inc_mat)
+        return ReporterUtils.get_mat_statis(self.y_inc_mat)
 
     @property
     def y_dec_log_statis(self) -> StatisData:
-        return self._cal_statis(np.log10(self.y_dec_mat))
+        return ReporterUtils.get_mat_statis(np.log10(self.y_dec_mat))
 
     @property
     def y_inc_log_statis(self) -> StatisData:
-        return self._cal_statis(np.log10(self.y_inc_mat))
+        return ReporterUtils.get_mat_statis(np.log10(self.y_inc_mat))
 
 
 class MergedResults:
@@ -167,8 +166,8 @@ class MergedResults:
         self._organized: dict[int, list[Solution]] = defaultdict(list)
         self._load_original()
         self._organizing()
-        self._analysed: dict[str, ClientStatis] = {
-            f"Client {cid:>02d}": ClientStatis(solutions)
+        self._analysed: dict[str, ClientDataStatis] = {
+            f"Client {cid:>02d}": ClientDataStatis(solutions)
             for cid, solutions in self._organized.items()
         }
 
@@ -187,14 +186,10 @@ class MergedResults:
         else:
             print(f"Result file not found in {colored(str(self._file_dir), 'red')}")
 
-    def __getitem__(self, item) -> ClientStatis:
-        return self._analysed[item]
+    def get_statis(self, c_name) -> ClientDataStatis:
+        return self._analysed[c_name]
 
-    def __iter__(self):
-        for item in self._analysed:
-            yield item, self._analysed[item]
-
-    def items(self) -> list[tuple[str, ClientStatis]]:
+    def items(self) -> list[tuple[str, ClientDataStatis]]:
         return list(self._analysed.items())
 
     @property
@@ -202,7 +197,7 @@ class MergedResults:
         return len(self._original) == 0
 
     @property
-    def sorted_ids(self):
+    def sorted_keys(self):
         return sorted(self._analysed.keys())
 
 
@@ -411,8 +406,8 @@ class ReporterUtils:
         return suffix
 
     @staticmethod
-    def plotting(ax, statistics: MergedResults, alg_name, c_name, showing_size, in_log_scale, alpha, color):
-        c_data = statistics[c_name]
+    def plotting(ax, merged_results: MergedResults, alg_name, c_name, showing_size, in_log_scale, alpha, color):
+        c_data = merged_results.get_statis(c_name)
         fe_init = c_data.fe_init
         fe_max = c_data.fe_max
         size_optimization = fe_max - fe_init
@@ -468,7 +463,16 @@ class ReporterUtils:
         return global_index_mat, solo_index_mat
 
     @staticmethod
-    def plot_violin(statis: ClientStatis, figsize, filename: Path, title: str, **kwargs):
+    def get_mat_statis(y_mat: np.ndarray):
+        rows = y_mat.shape[0]
+        mean = np.mean(y_mat, axis=0)
+        std = np.std(y_mat, ddof=1, axis=0)
+        se = std / np.sqrt(rows)
+        opt = y_mat[:, -1]
+        return StatisData(mean, std, se, opt)
+
+    @staticmethod
+    def plot_violin(statis: ClientDataStatis, figsize, filename: Path, title: str, **kwargs):
         n_dims = statis.x_init.shape[1]
         df_init = pd.DataFrame(statis.x_init, columns=[f'x{i + 1}' for i in range(n_dims)])
         df_optimized = pd.DataFrame(statis.x_alg, columns=[f'x{i + 1}' for i in range(n_dims)])
