@@ -585,7 +585,7 @@ class ReporterUtils:
 
     @staticmethod
     def check_suffix(suffix: str, merge: bool):
-        if merge and suffix not in ['.png', '.jpg']:
+        if merge and (suffix not in ['.png', '.jpg']):
             print(f"Only support suffix {colored('.png or .jpg', 'green')} "
                   f"when {colored('merge is True', 'green')}, defaulted to '.png'")
             return '.png'
