@@ -101,7 +101,7 @@ class TestClientDataStatis(unittest.TestCase):
         self.assertEqual(cds.x_init.shape[0], cds.fe_init * 10)
         self.assertEqual(cds.y_init.shape[0], cds.fe_init * 10)
         self.assertEqual(cds.x_alg.shape[0], (cds.fe_max - cds.fe_init) * 10)
-        self.assertFalse(cds.is_known_optimal)
+        self.assertTrue(cds.is_known_optimal)
         sub_test_cases = [cds.y_dec_statis, cds.y_inc_statis, cds.y_dec_log_statis, cds.y_inc_log_statis]
         sub_test_names = ['y_dec_statis', 'y_inc_statis', 'y_dec_log_statis', 'y_inc_log_statis']
         for statis, name in zip(sub_test_cases, sub_test_names):
