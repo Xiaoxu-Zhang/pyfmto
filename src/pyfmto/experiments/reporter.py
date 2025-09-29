@@ -12,7 +12,7 @@ from pyfmto.utilities import SeabornPalettes, load_yaml, logger
 from tqdm import tqdm
 from typing import Optional, Literal, Annotated, final
 
-from .utils import ReporterUtils, MergedResults
+from .utils import ReporterUtils, MergedResults, MetaData
 
 _ = scienceplots.stylesheets  # This is to suppress the 'unused import' warning
 T_Suffix = Literal['.png', '.jpg', '.eps', '.svg', '.pdf']
@@ -20,45 +20,6 @@ T_Fraction = Annotated[float, Field(ge=0., le=1.)]
 T_Levels10 = Annotated[int, Field(ge=1, le=10)]
 
 __all__ = ['Reports']
-
-
-class MetaData:
-
-    def __init__(
-            self,
-            data: dict[str, MergedResults],
-            problem: str,
-            npd_name: str,
-            filedir: Path):
-        self._data = data
-        self.problem = problem
-        self.npd_name = npd_name
-        self.filedir = filedir
-
-    def __len__(self):
-        return len(self._data)
-
-    def __getitem__(self, item):
-        return self._data[item]
-
-    def items(self):
-        return self._data.items()
-
-    @property
-    def clt_names(self):
-        return list(self._data.values())[0].sorted_names
-
-    @property
-    def clt_num(self):
-        return len(self.clt_names)
-
-    @property
-    def alg_num(self):
-        return len(self._data)
-
-    @property
-    def alg_names(self):
-        return list(self._data.keys())
 
 
 class ReportGenerator(ABC):
@@ -69,7 +30,7 @@ class ReportGenerator(ABC):
 
     @final
     def _check_data(self, data: MetaData):
-        if len(data) > self.data_size_req:
+        if len(data) >= self.data_size_req:
             return True
         else:
             print(f"Not enough data for {self.__class__.__name__}")
@@ -322,28 +283,25 @@ class Reporter:
     def __init__(self, results, initialize_comb):
         self._root = Path(results)
         self._cache: dict[str, MergedResults] = {}
-        self._generators = {}  # Registry of report generators
+        self._generators: dict[str, ReportGenerator] = {}  # Registry of report generators
         self._load_data(initialize_comb)
 
     def _load_data(self, combinations):
         for comb in combinations:
             subdir = '/'.join(comb)
-            if subdir in self._cache:
-                continue
-            else:
-                mgd_res = MergedResults(self._root / subdir)
-                if not mgd_res.is_empty:
-                    self._cache[subdir] = mgd_res
+            if subdir not in self._cache:
+                runs_data = ReporterUtils.load_runs_data(self._root / subdir)
+                if runs_data:
+                    self._cache[subdir] = MergedResults(runs_data)
 
     def register_generator(self, name: str, generator: ReportGenerator):
         self._generators[name] = generator
 
     def generate_report(self, generator_name: str, algorithms: list[str], problem: str, npd_name: str, **kwargs):
-        generator: ReportGenerator = self._generators.get(generator_name)
-        if not generator:
+        if not generator_name not in self._generators:
             raise ValueError(f"No generator registered for {generator_name}")
         data = self._prepare_data(algorithms, problem, npd_name)
-        return generator.generate(data, **kwargs)
+        return self._generators[generator_name].generate(data, **kwargs)
 
     def _prepare_data(self, algorithms: list[str], problem: str, npd_name: str) -> MetaData:
         data: dict[str, MergedResults] = {}
@@ -378,6 +336,7 @@ class Reports:
     @validate_call
     def to_curve(
             self,
+            *,
             figsize: tuple[float, float, float] = (3., 2.3, 1.),
             alpha: T_Fraction = .2,
             palette: SeabornPalettes = SeabornPalettes.bright,
@@ -446,6 +405,7 @@ class Reports:
     @validate_call
     def to_excel(
             self,
+            *,
             pvalue: T_Fraction = 0.05,
             styles: tuple[str, ...] = ('color-bg-grey', 'style-font-bold', 'style-font-underline')
     ) -> None:
@@ -483,6 +443,7 @@ class Reports:
     @validate_call
     def to_latex(
             self,
+            *,
             pvalue: T_Fraction = 0.05
     ) -> None:
         """
@@ -503,6 +464,7 @@ class Reports:
     @validate_call
     def to_console(
             self,
+            *,
             pvalue: float = 0.05,
     ) -> None:
         """
@@ -523,6 +485,7 @@ class Reports:
     @validate_call
     def to_violin(
             self,
+            *,
             suffix: T_Suffix = '.png',
             figsize: tuple[float, float, float] = (5., 3., 1.),
             quality: T_Levels10 = 3,
