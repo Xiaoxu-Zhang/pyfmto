@@ -1,5 +1,45 @@
+import numpy as np
 import textwrap
 from pathlib import Path
+
+from pyfmto.experiments import RunSolutions
+from pyfmto.experiments.utils import MergedResults, MetaData
+from pyfmto.problems import Solution
+from pyfmto.utilities.schemas import STPConfig
+
+
+class ExpDataGenerator:
+    def __init__(self, dim: int, lb: float, ub: float):
+        self.dim = dim
+        self.lb, self.ub = lb, ub
+        self.conf = STPConfig(dim=dim, obj=1, lb=lb, ub=ub)
+
+    def gen_solutions(self, n_solutions: int) -> list[Solution]:
+        res = [self.gen_solution() for _ in range(n_solutions)]
+        return res
+
+    def gen_solution(self):
+        sol = Solution(self.conf)
+        x = np.random.uniform(self.lb, self.ub, size=(sol.fe_max, self.dim))
+        y = np.random.uniform(self.lb, self.ub, size=(sol.fe_max, 1))
+        sol.append(x, y)
+        return sol
+
+    def gen_run_data(self, n_tasks: int) -> RunSolutions:
+        run_data = RunSolutions()
+        for tid in range(n_tasks):
+            run_data.update(tid+1, self.gen_solution())
+        return run_data
+
+    def gen_runs_data(self, n_tasks: int, n_runs: int) -> list[RunSolutions]:
+        return [self.gen_run_data(n_tasks) for _ in range(n_runs)]
+
+    def gen_merged_data(self, n_tasks: int, n_runs: int):
+        return MergedResults(self.gen_runs_data(n_tasks, n_runs))
+
+    def gen_metadata(self, algs: list[str], prob: str, npd: str, n_tasks: int, n_runs: int):
+        data = {alg: self.gen_merged_data(n_tasks, n_runs) for alg in algs}
+        return MetaData(data, prob, npd, Path('tmp'))
 
 
 def save_module(text, filename: Path):
