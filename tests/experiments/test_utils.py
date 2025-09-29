@@ -1,17 +1,20 @@
 import subprocess
+
 import numpy as np
 import shutil
 import unittest
 import yaml
+from itertools import product
 from pathlib import Path
-from unittest.mock import patch, Mock
-from pyfmto import framework as fw, load_problem
+from pyfmto import framework as fw
 from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
-from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils, list_algorithms, load_algorithm
+from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils, list_algorithms, load_algorithm, \
+    MetaData, MergedResults, ClientDataStatis
 from pyfmto.utilities.schemas import LauncherConfig, STPConfig
 from pyfmto.utilities import load_msgpack
-from tests.experiments import export_alg_template
+from unittest.mock import patch, Mock
+from tests.experiments import export_alg_template, ExpDataGenerator
 from tests.framework import OnlineServer
 
 
@@ -31,6 +34,88 @@ def create_solution():
     return solution
 
 
+class TestMetaData(unittest.TestCase):
+    def setUp(self):
+        self.algs = ['ALG1', 'ALG2']
+        self.probs = ['PROB1', 'PROB2']
+        self.npd_names = ['IID', 'NIID']
+        self.n_task = 5
+        self.n_run = 3
+        self.generator = ExpDataGenerator(dim=10, lb=0, ub=1)
+
+    def test_empty(self):
+        md = MetaData({}, 'P1', 'NIID', Path('tmp'))
+        self.assertEqual(md.alg_num, 0)
+        self.assertEqual(md.clt_num, 0)
+        self.assertEqual(md.alg_names, [])
+        self.assertEqual(md.clt_names, [])
+        self.assertEqual(len(md), 0)
+        with self.assertRaises(KeyError):
+            _ = md['A1']
+
+    def test_properties(self):
+        for prob, npd in product(self.probs, self.npd_names):
+            md = self.generator.gen_metadata(algs=self.algs, prob=prob, npd=npd, n_tasks=5, n_runs=3)
+
+            self.assertEqual(len(md), len(self.algs))
+            self.assertEqual(md.alg_num, len(self.algs))
+            self.assertEqual(md.clt_num, self.n_task)
+            self.assertEqual(md.alg_names, self.algs)
+            self.assertEqual(md.clt_names, [f'Client {i+1:>02d}' for i in range(self.n_task)])
+            for alg in self.algs:
+                self.assertIsInstance(md[alg], MergedResults)
+            self.assertIsInstance(md.items(), list)
+            self.assertEqual(len(md.items()), len(self.algs))
+
+
+class TestMergedResults(unittest.TestCase):
+    def setUp(self):
+        self.generator = ExpDataGenerator(dim=10, lb=0, ub=1)
+
+    def test_methods(self):
+        mr = self.generator.gen_merged_data(n_tasks=5, n_runs=3)
+        self.assertFalse(mr.is_empty, False)
+        self.assertEqual(len(mr.items()), 5)
+        self.assertIsInstance(mr.get_statis(mr.sorted_names[0]), ClientDataStatis)
+
+    def test_empty(self):
+        with self.assertRaises(ValueError):
+            MergedResults([])
+
+
+class TestClientDataStatis(unittest.TestCase):
+    def setUp(self):
+        self.conf = STPConfig(dim=10, obj=1, lb=0, ub=1)
+        self.generator = ExpDataGenerator(dim=10, lb=0, ub=1)
+
+    def test_init_empty(self):
+        with self.assertRaises(ValueError):
+            ClientDataStatis([])
+
+    def test_properties(self):
+        cds = ClientDataStatis(self.generator.gen_solutions(n_solutions=10))
+        self.assertTrue(np.all(cds.lb == self.conf.lb))
+        self.assertTrue(np.all(cds.ub == self.conf.ub))
+        self.assertEqual(cds.fe_init, self.conf.fe_init)
+        self.assertEqual(cds.fe_max, self.conf.fe_max)
+        self.assertEqual(cds.x_init.shape[0], cds.fe_init * 10)
+        self.assertEqual(cds.y_init.shape[0], cds.fe_init * 10)
+        self.assertEqual(cds.x_alg.shape[0], (cds.fe_max - cds.fe_init) * 10)
+        self.assertFalse(cds.is_known_optimal)
+        sub_test_cases = [cds.y_dec_statis, cds.y_inc_statis, cds.y_dec_log_statis, cds.y_inc_log_statis]
+        sub_test_names = ['y_dec_statis', 'y_inc_statis', 'y_dec_log_statis', 'y_inc_log_statis']
+        for statis, name in zip(sub_test_cases, sub_test_names):
+            with self.subTest(statis):
+                if 'log' in name:
+                    self.assertTrue(np.all(statis.mean <= 0), f"on {name} mean is\n{statis.mean}")
+                else:
+                    self.assertTrue(np.all(statis.mean >= 0), f"on {name} mean is\n{statis.mean}")
+                self.assertEqual(statis.mean.shape[0], self.conf.fe_max)
+                self.assertEqual(statis.std.shape[0], self.conf.fe_max)
+                self.assertTrue(np.all(statis.std > 0))
+                self.assertEqual(statis.opt.shape[0], 10)
+
+
 class TestReporterUtils(unittest.TestCase):
 
     def setUp(self):
@@ -38,37 +123,6 @@ class TestReporterUtils(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(Path('out'), ignore_errors=True)
-
-    def test_get_runs_data(self):
-        prob = load_problem('tetci2019')
-        all_runs = []
-        for runs in range(1, 6):
-            run_data = RunSolutions()
-            for p in prob[:5]:
-                run_data.update(p.id, p.solutions)
-            all_runs.append(run_data)
-        res = self.utils.get_runs_data(1, all_runs)
-        self.assertEqual(len(res['runs_x']), 5)
-        self.assertEqual(len(res['runs_y']), 5)
-        self.assertEqual(res['fe_init'], prob[0].fe_init)
-        self.assertEqual(res['fe_max'], all_runs[0].get_solutions(1).size)
-
-    def test_calculate_statistics(self):
-        test_cases = [
-            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
-            [[1e-25, 2.0, 3.0], [4.0, 5.0, 6.0]],
-        ]
-
-        for i, data in enumerate(test_cases):
-            with self.subTest(test_case=i + 1):
-                result = ReporterUtils.calculate_statistics(data)
-                rows, cols = np.array(data).shape
-                self.assertEqual(result.mean_orig.shape, (cols, ))
-                self.assertEqual(result.std_orig.shape, (cols, ))
-                self.assertEqual(result.se_orig.shape, (cols, ))
-                self.assertEqual(result.opt_orig.shape, (rows, ))
-                self.assertEqual(result.opt_log.shape, (rows, ))
-                self.assertFalse(result.is_known_optimal)
 
     def test_get_t_test_suffix(self):
         test_cases = [
@@ -122,21 +176,21 @@ class TestReporterUtils(unittest.TestCase):
         result = self.utils.parse_reporter_config(config, prob_conf)
 
         expected_analysis_comb = [
-            (['alg1', 'alg2'], 'PROB1-src1', 2),
-            (['alg1', 'alg2'], 'PROB2', 3),
-            (['alg3', 'alg4'], 'PROB1-src1', 2),
-            (['alg3', 'alg4'], 'PROB2', 3)
+            (['alg1', 'alg2'], 'PROB1-src1', 'NIID2'),
+            (['alg1', 'alg2'], 'PROB2', 'NIID3'),
+            (['alg3', 'alg4'], 'PROB1-src1', 'NIID2'),
+            (['alg3', 'alg4'], 'PROB2', 'NIID3')
         ]
 
         expected_initialize_comb = [
-            ('alg1', 'PROB1-src1', 2),
-            ('alg1', 'PROB2', 3),
-            ('alg2', 'PROB1-src1', 2),
-            ('alg2', 'PROB2', 3),
-            ('alg3', 'PROB1-src1', 2),
-            ('alg3', 'PROB2', 3),
-            ('alg4', 'PROB1-src1', 2),
-            ('alg4', 'PROB2', 3)
+            ('alg1', 'PROB1-src1', 'NIID2'),
+            ('alg1', 'PROB2', 'NIID3'),
+            ('alg2', 'PROB1-src1', 'NIID2'),
+            ('alg2', 'PROB2', 'NIID3'),
+            ('alg3', 'PROB1-src1', 'NIID2'),
+            ('alg3', 'PROB2', 'NIID3'),
+            ('alg4', 'PROB1-src1', 'NIID2'),
+            ('alg4', 'PROB2', 'NIID3')
         ]
 
         self.assertEqual(result['results'], 'out/results')
@@ -369,7 +423,7 @@ class TestRunSolutions(unittest.TestCase):
         self.assertEqual(rs.num_clients, 1)
         self.assertEqual(rs.sorted_ids, [1])
 
-        retrieved = rs.get_solutions(1)
+        retrieved = rs[1]
         self.assertIsInstance(retrieved, Solution)
         self.assertEqual(retrieved.dim, solution.dim)
         self.assertEqual(retrieved.obj, solution.obj)
@@ -381,7 +435,7 @@ class TestRunSolutions(unittest.TestCase):
     def test_get_nonexistent_client_raises_error(self):
         rs = RunSolutions()
         with self.assertRaises(KeyError):
-            rs.get_solutions(99)
+            print(rs[99])
 
     def test_save_empty(self):
         rs = RunSolutions()
@@ -400,23 +454,14 @@ class TestRunSolutions(unittest.TestCase):
         self.assertEqual(rs2.sorted_ids, rs1.sorted_ids)
 
         for cid in rs1.sorted_ids:
-            s1 = rs1.get_solutions(cid)
-            s2 = rs2.get_solutions(cid)
+            s1 = rs1[cid]
+            s2 = rs2[cid]
 
             np.testing.assert_array_equal(s1.x, s2.x)
             np.testing.assert_array_equal(s1.y, s2.y)
             self.assertEqual(s1.dim, s2.dim)
             self.assertEqual(s1.obj, s2.obj)
             self.assertEqual(s1.fe_init, s2.fe_init)
-
-    def test_clear_resets_state(self):
-        rs = RunSolutions()
-        solution = create_solution()
-        rs.update(1, solution)
-
-        rs.clear()
-        self.assertEqual(rs.num_clients, 0)
-        self.assertEqual(rs.sorted_ids, [])
 
 
 class TestExportTools(unittest.TestCase):
