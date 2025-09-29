@@ -41,7 +41,7 @@ class ExpDataGenerator:
 
     def gen_metadata(self, algs: list[str], prob: str, npd: str, n_tasks: int, n_runs: int):
         data = {alg: self.gen_merged_data(n_tasks, n_runs) for alg in algs}
-        return MetaData(data, prob, npd, Path('tmp'))
+        return MetaData(data, prob, npd, Path('tmp/reports'))
 
 
 def save_module(text, filename: Path):

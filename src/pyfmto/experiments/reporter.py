@@ -47,7 +47,7 @@ class ReportGenerator(ABC):
 
     @abstractmethod
     def _generate(self, *args, **kwargs):
-        pass
+        pass  # pragma: no cover
 
     @final
     def generate(self, data: MetaData, *args, **kwargs):
@@ -291,7 +291,7 @@ class LatexGenerator(TableGenerator):
 
 
 class Reporter:
-    def __init__(self, results, initialize_comb):
+    def __init__(self, results: str, initialize_comb: list):
         self._root = Path(results)
         self._cache: dict[str, MergedResults] = {}
         self._generators: dict[str, ReportGenerator] = {}  # Registry of report generators
@@ -309,7 +309,7 @@ class Reporter:
         self._generators[name] = generator
 
     def generate_report(self, generator_name: str, algorithms: list[str], problem: str, npd_name: str, **kwargs):
-        if not generator_name not in self._generators:
+        if generator_name not in self._generators:
             raise ValueError(f"No generator registered for {generator_name}")
         data = self._prepare_data(algorithms, problem, npd_name)
         return self._generators[generator_name].generate(data, **kwargs)
