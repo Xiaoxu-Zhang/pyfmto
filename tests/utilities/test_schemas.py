@@ -206,7 +206,7 @@ class TestReporterConfig(unittest.TestCase):
         self.assertEqual(config.results, 'out/results')
 
     def test_invalid_config(self):
-        inner_too_short = {'algorithms': [['alg1']], 'problems': ['prob1']}
+        inner_too_short = {'algorithms': [[]], 'problems': ['prob1']}
         empty_algorithms = {'algorithms': [], 'problems': ['prob1']}
         empty_problems = {'algorithms': [['alg1', 'alg2']], 'problems': []}
         self.assertRaises(ValidationError, ReporterConfig, **inner_too_short)

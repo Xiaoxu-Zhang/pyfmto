@@ -2,14 +2,55 @@ import shutil
 import unittest
 import matplotlib as plt
 from pathlib import Path
-
 from pyfmto import load_problem, export_reporter_config
 from pyfmto.experiments import RunSolutions, Reports
+from pyfmto.experiments.reporter import (
+    ReportGenerator, CurveGenerator, ViolinGenerator, ExcelGenerator, LatexGenerator, ConsoleGenerator, Reporter
+)
+from pyfmto.experiments.utils import MetaData
+from tests.experiments import ExpDataGenerator
 
 plt.use('Agg')
 
 
-class TestValidReporting(unittest.TestCase):
+class TestGenerators(unittest.TestCase):
+    def setUp(self):
+        generator = ExpDataGenerator(dim=10, lb=-5, ub=5)
+        self.data_ok = generator.gen_metadata(algs=['A1', 'A2'], prob='P1', npd='IID', n_tasks=5, n_runs=3)
+        self.data_empty = MetaData({}, problem='TEST', npd_name='IID', filedir=Path('tmp/report'))
+
+    def tearDown(self):
+        shutil.rmtree(Path('tmp'), ignore_errors=True)
+
+    def test_base_generator(self):
+        class FakeGenerator(ReportGenerator):
+            data_size_req = 1
+
+            def _generate(self, *args, **kwargs):
+                pass
+
+        fg = FakeGenerator()
+        fg.generate(self.data_ok)
+        with self.assertRaises(ValueError):
+            fg.generate(self.data_empty)
+
+    def test_generators(self):
+        curve = CurveGenerator()
+        violin = ViolinGenerator()
+        excel = ExcelGenerator()
+        latex = LatexGenerator()
+        consol = ConsoleGenerator()
+
+        curve.generate(self.data_ok)
+        curve.generate(self.data_ok, showing_size=10)
+        curve.generate(self.data_ok, suffix='.svg')
+        violin.generate(self.data_ok)
+        excel.generate(self.data_ok)
+        latex.generate(self.data_ok)
+        consol.generate(self.data_ok)
+
+
+class TestReporter(unittest.TestCase):
     def setUp(self):
         self.root = Path('out/results/')
         self.algs = ['ALG1', 'ALG2']
@@ -21,9 +62,6 @@ class TestValidReporting(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.root, ignore_errors=True)
         Path('config.yaml').unlink()
-
-    def test_reinit_data_hit_cache(self):
-        self.reports.analyzer.init_data()
 
     def test_to_curve(self):
         self.reports.to_curve()
@@ -45,12 +83,6 @@ class TestValidReporting(unittest.TestCase):
     def test_to_console(self):
         self.reports.to_console()
 
-    def test_show_raw_results(self):
-        self.reports.show_raw_results()
-
-    def test_show_combinations(self):
-        self.reports.show_combinations()
-
     def test_no_data(self):
         export_reporter_config(algs=(['ALG3', 'ALG4'], ), probs=tuple(self.probs), mode='update')
         rep = Reports()
@@ -59,6 +91,11 @@ class TestValidReporting(unittest.TestCase):
         rep.to_violin()
         rep.to_console()
         rep.to_excel()
+
+    def test_none_exist_generator(self):
+        reporter = Reporter('', [])
+        with self.assertRaises(ValueError):
+            reporter.generate_report('non-exist', [], '', '')
 
     def gen_fake_data(self):
         for alg in self.algs:

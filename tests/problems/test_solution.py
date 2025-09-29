@@ -68,6 +68,16 @@ class TestSolution(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.solution_initialized.append(x, y)
 
+    def test_solution_parts(self):
+        x_new = np.random.random(size=(self.conf.fe_max-self.conf.fe_init, self.conf.dim))
+        y_new = np.random.random(size=(self.conf.fe_max-self.conf.fe_init, self.conf.obj))
+        self.solution_initialized.append(x_new, y_new)
+        self.assertEqual(self.solution_initialized.x_init.shape[0], self.conf.fe_init)
+        self.assertEqual(self.solution_initialized.y_init.shape[0], self.conf.fe_init)
+        self.assertEqual(self.solution_initialized.x_alg.shape[0], self.conf.fe_max-self.conf.fe_init)
+        self.assertEqual(self.solution_initialized.y_alg.shape[0], self.conf.fe_max-self.conf.fe_init)
+        self.assertEqual(self.solution_initialized.size, self.conf.fe_max)
+
     def test_information_attributes(self):
         _ = self.solution_empty.__str__()
         _ = self.solution_empty.__repr__()

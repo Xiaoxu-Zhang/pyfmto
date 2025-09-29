@@ -105,6 +105,22 @@ class Solution:
         return self._y
 
     @property
+    def x_init(self) -> ndarray:
+        return self._x[:self.fe_init]
+
+    @property
+    def y_init(self) -> ndarray:
+        return self._y[:self.fe_init]
+
+    @property
+    def x_alg(self) -> ndarray:
+        return self._x[self.fe_init:]
+
+    @property
+    def y_alg(self) -> ndarray:
+        return self._y[self.fe_init:]
+
+    @property
     def x_global(self) -> ndarray:
         return self._x_global
 

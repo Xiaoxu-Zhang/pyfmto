@@ -192,8 +192,8 @@ class ReporterConfig(BaseModel):
     @field_validator('algorithms')
     def inner_lists_must_have_min_length(cls, v):
         for inner_list in v:
-            if len(inner_list) < 2:
-                raise ValueError('inner lists must have at least 2 elements')
+            if len(inner_list) < 1:
+                raise ValueError('inner lists must have at least 1 elements')
         return v
 
     @field_validator('problems', 'algorithms')
