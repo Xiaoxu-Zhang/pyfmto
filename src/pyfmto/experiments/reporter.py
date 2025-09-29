@@ -10,7 +10,7 @@ from pathlib import Path
 from pydantic import validate_call, Field
 from pyfmto.utilities import SeabornPalettes, load_yaml, logger
 from tqdm import tqdm
-from typing import Optional, Literal, Annotated, final
+from typing import Literal, Annotated, final
 
 from .utils import ReporterUtils, MergedResults, MetaData
 
@@ -19,13 +19,22 @@ T_Suffix = Literal['.png', '.jpg', '.eps', '.svg', '.pdf']
 T_Fraction = Annotated[float, Field(ge=0., le=1.)]
 T_Levels10 = Annotated[int, Field(ge=1, le=10)]
 
-__all__ = ['Reports']
+__all__ = [
+    'Reports',
+    'ReportGenerator',
+    'CurveGenerator',
+    'ViolinGenerator',
+    'TableGenerator',
+    'ExcelGenerator',
+    'ConsoleGenerator',
+    'LatexGenerator',
+]
 
 
 class ReportGenerator(ABC):
+    data_size_req: int
 
-    def __init__(self, data_size_req: int):
-        self.data_size_req = data_size_req
+    def __init__(self):
         self.utils = ReporterUtils
 
     @final
@@ -33,8 +42,8 @@ class ReportGenerator(ABC):
         if len(data) >= self.data_size_req:
             return True
         else:
-            print(f"Not enough data for {self.__class__.__name__}")
-            return False
+            raise ValueError(f"{self.__class__.__name__} require at least {self.data_size_req} "
+                             f"data to generate report, got {len(data)} instead.")
 
     @abstractmethod
     def _generate(self, *args, **kwargs):
@@ -47,21 +56,22 @@ class ReportGenerator(ABC):
 
 
 class CurveGenerator(ReportGenerator):
+    data_size_req = 2
 
     def _generate(
             self,
             data: MetaData,
             *,
-            figsize: tuple[float, float, float],
-            alpha: float,
-            palette: SeabornPalettes,
-            suffix: str,
-            styles: tuple[str, ...],
-            showing_size: Optional[int],
-            quality: int,
-            merge: bool,
-            clear: bool,
-            on_log_scale: bool,
+            figsize: tuple[float, float, float] = (3., 2.3, 1.),
+            alpha: T_Fraction = .2,
+            palette: SeabornPalettes = SeabornPalettes.bright,
+            suffix: T_Suffix = '.png',
+            styles: tuple[str, ...] = ('science', 'ieee', 'no-latex'),
+            showing_size: int = -1,
+            quality: T_Levels10 = 3,
+            merge: bool = True,
+            clear: bool = True,
+            on_log_scale: bool = False
     ):
         # Prepare the data
         w, h, s = figsize
@@ -96,16 +106,17 @@ class CurveGenerator(ReportGenerator):
 
 
 class ViolinGenerator(ReportGenerator):
+    data_size_req = 1
 
     def _generate(
             self,
             data: MetaData,
             *,
-            suffix: str,
-            figsize: tuple[float, float, float],
-            quality: int,
-            merge: bool,
-            clear: bool
+            suffix: T_Suffix = '.png',
+            figsize: tuple[float, float, float] = (5., 3., 1.),
+            quality: T_Levels10 = 3,
+            merge: bool = True,
+            clear: bool = True
     ):
         filedir = data.filedir.parent / f"{data.filedir.name} violin"
         filedir.mkdir(parents=True, exist_ok=True)
@@ -122,6 +133,7 @@ class ViolinGenerator(ReportGenerator):
 
 
 class TableGenerator(ReportGenerator, ABC):
+    data_size_req = 2
 
     def _get_table_data(
             self,
@@ -185,8 +197,8 @@ class ExcelGenerator(TableGenerator):
             self,
             data: MetaData,
             *,
-            pvalue: float,
-            styles: tuple[str, ...]
+            pvalue: T_Fraction = 0.05,
+            styles: tuple[str, ...] = ('color-bg-grey', 'style-font-bold', 'style-font-underline')
     ):
         style_map = {
             "color-bg-red": "background-color: #ff0000",
@@ -234,8 +246,7 @@ class ConsoleGenerator(TableGenerator):
             self,
             data: MetaData,
             *,
-            pvalue: float,
-            **kwargs
+            pvalue: T_Fraction = 0.05,
     ):
         str_table, _ = self._tabling(data, pvalue)
         pd.set_option('display.colheader_justify', 'center')
@@ -250,7 +261,7 @@ class LatexGenerator(TableGenerator):
             self,
             data: MetaData,
             *,
-            pvalue: float
+            pvalue: T_Fraction = 0.05
     ):
         tab_data = self._get_table_data(data, pvalue)
         data_df, _, hl_bool_mat, _ = tab_data
@@ -327,11 +338,11 @@ class Reports:
         self.combinations = settings.pop('analysis_comb')
         self.reporter = Reporter(**settings)
 
-        self.reporter.register_generator('to_curve', CurveGenerator(data_size_req=2))
-        self.reporter.register_generator('to_excel', ExcelGenerator(data_size_req=2))
-        self.reporter.register_generator('to_violin', ViolinGenerator(data_size_req=1))
-        self.reporter.register_generator('to_console', ConsoleGenerator(data_size_req=2))
-        self.reporter.register_generator('to_latex', LatexGenerator(data_size_req=2))
+        self.reporter.register_generator('to_curve', CurveGenerator())
+        self.reporter.register_generator('to_excel', ExcelGenerator())
+        self.reporter.register_generator('to_violin', ViolinGenerator())
+        self.reporter.register_generator('to_console', ConsoleGenerator())
+        self.reporter.register_generator('to_latex', LatexGenerator())
 
     @validate_call
     def to_curve(
