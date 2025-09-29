@@ -29,6 +29,7 @@ from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
 StatisData = namedtuple("StatisData", ['mean', 'std', 'se', 'opt'])
 
 __all__ = [
+    "MetaData",
     "RunSolutions",
     "ClientDataStatis",
     "MergedResults",
@@ -60,12 +61,8 @@ class RunSolutions:
         except KeyError:
             raise KeyError(f"Client id '{item}' not found in results")
 
-    def __iter__(self):
-        for cid in self.sorted_ids:
-            yield cid, Solution(self._solutions[cid])
-
-    def __len__(self):
-        return len(self._solutions)
+    def items(self) -> list[tuple[int, Solution]]:
+        return list(zip(self.sorted_ids, self.solutions))
 
     def to_msgpack(self, filename: Union[str, Path] = 'results.msgpack'):
         if self.num_clients == 0:
@@ -74,9 +71,6 @@ class RunSolutions:
             data = copy.deepcopy(self.__dict__)
             save_msgpack(data, filename)
             logger.info(f"Results saved to {filename}")
-
-    def clear(self):
-        self._solutions = {}
 
     @property
     def num_clients(self):
@@ -103,7 +97,8 @@ class ClientDataStatis:
     y_mean: np.ndarray
 
     def __init__(self, solutions: list[Solution]):
-        self.n_data = len(solutions)
+        if len(solutions) < 1:
+            raise ValueError('Empty list of Solutions')
         self._preprocessing(solutions)
 
     def _preprocessing(self, solutions):
@@ -160,37 +155,31 @@ class ClientDataStatis:
 
 class MergedResults:
 
-    def __init__(self, file_dir: Path):
-        self._file_dir = file_dir
-        self._original: list[RunSolutions] = []
-        self._organized: dict[int, list[Solution]] = defaultdict(list)
-        self._load_original()
-        self._organizing()
-        self._analysed: dict[str, ClientDataStatis] = {
+    def __init__(self, runs_data: list[RunSolutions]):
+        if len(runs_data) < 1:
+            raise ValueError('Empty list of RunSolutions')
+        self._original: list[RunSolutions] = runs_data
+        self._reorganized: dict[int, list[Solution]] = defaultdict(list)
+        self._merged: dict[str, ClientDataStatis] = {}
+        self._reorganizing()
+        self._merging()
+
+    def _reorganizing(self):
+        for run_data in self._original:
+            for cid, solution in run_data.items():
+                self._reorganized[cid].append(solution)
+
+    def _merging(self):
+        self._merged = {
             f"Client {cid:>02d}": ClientDataStatis(solutions)
-            for cid, solutions in self._organized.items()
+            for cid, solutions in self._reorganized.items()
         }
 
-    def _organizing(self):
-        for run_data in self._original:
-            for cid, solution in run_data:
-                self._organized[cid].append(solution)
-
-    def _load_original(self):
-        if self._file_dir.exists():
-            runs_filename = [
-                self._file_dir / f_name
-                for f_name in os.listdir(self._file_dir) if f_name.endswith('.msgpack')
-            ]
-            self._original = ReporterUtils.load_runs_data(runs_filename)
-        else:
-            print(f"Result file not found in {colored(str(self._file_dir), 'red')}")
-
     def get_statis(self, c_name) -> ClientDataStatis:
-        return self._analysed[c_name]
+        return self._merged[c_name]
 
     def items(self) -> list[tuple[str, ClientDataStatis]]:
-        return list(self._analysed.items())
+        return list(self._merged.items())
 
     @property
     def is_empty(self):
@@ -198,7 +187,49 @@ class MergedResults:
 
     @property
     def sorted_names(self):
-        return sorted(self._analysed.keys())
+        return sorted(self._merged.keys())
+
+
+class MetaData:
+
+    def __init__(
+            self,
+            data: dict[str, MergedResults],
+            problem: str,
+            npd_name: str,
+            filedir: Path):
+        self._data = data
+        self.problem = problem
+        self.npd_name = npd_name
+        self.filedir = filedir
+
+    def __len__(self):
+        return len(self._data)
+
+    def __getitem__(self, item):
+        return self._data[item]
+
+    def items(self) -> list[tuple[str, MergedResults]]:
+        return list(self._data.items())
+
+    @property
+    def clt_names(self):
+        if self.alg_num == 0:
+            return []
+        else:
+            return list(self._data.values())[0].sorted_names
+
+    @property
+    def clt_num(self):
+        return len(self.clt_names)
+
+    @property
+    def alg_num(self):
+        return len(self._data)
+
+    @property
+    def alg_names(self):
+        return list(self._data.keys())
 
 
 class LauncherUtils:
@@ -429,8 +460,16 @@ class ReporterUtils:
         return 'IID' if np_per_dim == 1 else f"NIID{np_per_dim}"
 
     @staticmethod
-    def load_runs_data(path_list: Union[list[Path], list[str]]) -> list[RunSolutions]:
-        return [RunSolutions(load_msgpack(p)) for p in path_list]
+    def load_runs_data(file_dir: Path) -> list[RunSolutions]:
+        if file_dir.exists():
+            filenames = [
+                file_dir / f_name
+                for f_name in os.listdir(file_dir) if f_name.endswith('.msgpack')
+            ]
+            return [RunSolutions(load_msgpack(p)) for p in filenames]
+        else:
+            print(f"Result file not found in {colored(str(file_dir), 'red')}")
+            return []
 
     @staticmethod
     def get_optimality_index_mat(mean_dict):
