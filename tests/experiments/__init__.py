@@ -21,8 +21,10 @@ class ExpDataGenerator:
     def gen_solution(self):
         sol = Solution(self.conf)
         x = np.random.uniform(self.lb, self.ub, size=(sol.fe_max, self.dim))
-        y = np.random.uniform(self.lb, self.ub, size=(sol.fe_max, 1))
+        y = np.random.uniform(1e-5, self.ub, size=(sol.fe_max, 1))
         sol.append(x, y)
+        sol._x_global = (self.conf.lb + self.conf.ub) / 2
+        sol._y_global = 0.0
         return sol
 
     def gen_run_data(self, n_tasks: int) -> RunSolutions:
