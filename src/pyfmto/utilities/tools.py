@@ -246,7 +246,8 @@ def _log_diff(name, defaults: dict, updates: dict):
         table_data,
         headers=["Parameter", "Default", "Updates", "Using"],
         tablefmt="rounded_grid",
-        colalign=("left", "center", "center", "center")
+        colalign=("left", "center", "center", "center"),
+        disable_numparse=True,  # tabulate will try to parse string 'True' and 'False' to floats and cause error
     )
     logger.debug(table)
 
