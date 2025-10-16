@@ -544,42 +544,25 @@ class ReporterUtils:
 
     @staticmethod
     def merge_images_in(file_dir: Path, clear: bool):
-        file_names = [str(name) for name in file_dir.iterdir()]
-        n_row, n_col = ReporterUtils.find_grid_shape(len(file_names))
-        img_grid = [['' for _ in range(n_col)] for _ in range(n_row)]
-        for i, p in enumerate(sorted(file_names)):
-            img_grid[i // n_col][i % n_col] = str(p)
+        file_paths = list(file_dir.iterdir())
+        suffix = file_paths[0].suffix
+        n_row, n_col = ReporterUtils.find_grid_shape(len(file_paths))
         merge_from = file_dir.name
-        size_info = []
-        images = []
-        for row in img_grid:
-            row_img: list[Optional[Image.Image]] = []
-            for filename in row:
-                if not filename:
-                    row_img.append(None)
-                    continue
-                image = Image.open(filename)
-                size_info.append(image.size)
-                row_img.append(image)
-            images.append(row_img)
-
-        size_info = np.array(size_info, dtype=int)
-        width, height = np.min(size_info, axis=0)
-
+        sorted_paths = sorted(str(path) for path in file_paths)
+        images = [Image.open(path) for path in sorted_paths]
+        sizes = np.array([img.size for img in images])
+        width, height = np.min(sizes, axis=0)
         canvas_width = width * n_col
         canvas_height = height * n_row
-
         merged = Image.new('RGB', (canvas_width, canvas_height), color='white')
-        for row_id in range(n_row):
-            for col_id in range(n_col):
-                img = images[row_id][col_id]
-                if not img:
-                    continue
-                merged.paste(
-                    img.resize((width, height), Image.Resampling.LANCZOS),
-                    (col_id * width, row_id * height)
-                )
-        merged.save(file_dir.parent / f'{merge_from}.png')
+
+        for i, img in enumerate(images):
+            row_id = i // n_col
+            col_id = i % n_col
+            resized_img = img.resize((width, height), Image.Resampling.LANCZOS)
+            merged.paste(resized_img, (col_id * width, row_id * height))
+
+        merged.save(file_dir.parent / f'{merge_from}{suffix}')
         if clear:
             shutil.rmtree(file_dir)
 

@@ -15,7 +15,7 @@ from typing import Literal, Annotated, final
 from .utils import ReporterUtils, MergedResults, MetaData
 
 _ = scienceplots.stylesheets  # This is to suppress the 'unused import' warning
-T_Suffix = Literal['.png', '.jpg', '.eps', '.svg', '.pdf']
+T_Suffix = Literal['.png', '.jpg', '.jpeg', '.svg', '.pdf']
 T_Fraction = Annotated[float, Field(ge=0., le=1.)]
 T_Levels10 = Annotated[int, Field(ge=1, le=10)]
 
@@ -91,7 +91,7 @@ class CurveGenerator(ReportGenerator):
                     start_idx = self.utils.plotting(
                         plt, merged_data, alg_name, c_name, showing_size, on_log_scale, alpha, color
                     )
-                    plt.title('Client')
+                    plt.title(c_name)
                     plt.xlabel('Iteration')
                     plt.ylabel('Fitness')
                 if start_idx > 0:
