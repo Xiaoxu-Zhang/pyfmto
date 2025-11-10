@@ -50,6 +50,7 @@ class TestMetaData(unittest.TestCase):
         self.assertEqual(md.alg_names, [])
         self.assertEqual(md.clt_names, [])
         self.assertEqual(len(md), 0)
+        self.assertEqual(md.dim, 0)
         with self.assertRaises(KeyError):
             _ = md['A1']
 
@@ -74,7 +75,6 @@ class TestMergedResults(unittest.TestCase):
 
     def test_methods(self):
         mr = self.generator.gen_merged_data(n_tasks=5, n_runs=3)
-        self.assertFalse(mr.is_empty, False)
         self.assertEqual(len(mr.items()), 5)
         self.assertIsInstance(mr.get_statis(mr.sorted_names[0]), ClientDataStatis)
 

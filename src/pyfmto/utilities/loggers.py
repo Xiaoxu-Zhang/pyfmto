@@ -57,11 +57,14 @@ def reset_log():
         f.write(LOG_HEAD)
 
 
-def backup_log_to(dest_dir: Path):
+def backup_log_to(dest_dir: Path, filename: str = ''):
     dest_dir.mkdir(parents=True, exist_ok=True)
-    dist_file = dest_dir / LOG_BACKUP.name
-    if LOG_BACKUP.exists() and not dist_file.exists():
-        shutil.copy(LOG_BACKUP, dist_file)
+    if filename:
+        dest_file = dest_dir / filename
+    else:
+        dest_file = dest_dir / LOG_BACKUP.name
+    if LOG_BACKUP.exists() and not dest_file.exists():
+        shutil.copy(LOG_BACKUP, dest_file)
 
 
 logging.config.dictConfig(LOG_CONF)
