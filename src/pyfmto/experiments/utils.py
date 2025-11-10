@@ -182,8 +182,12 @@ class MergedResults:
         return list(self._merged.items())
 
     @property
-    def is_empty(self):
-        return len(self._original) == 0
+    def num_runs(self):
+        return len(self._original)
+
+    @property
+    def dim(self):
+        return self._original[0].solutions[0].dim
 
     @property
     def sorted_names(self):
@@ -226,6 +230,17 @@ class MetaData:
     @property
     def alg_num(self):
         return len(self._data)
+
+    @property
+    def dim(self):
+        if self.alg_num == 0:
+            return 0
+        else:
+            return list(self._data.values())[0].dim
+
+    @property
+    def num_runs(self):
+        return list(self._data.values())[0].num_runs
 
     @property
     def alg_names(self):
