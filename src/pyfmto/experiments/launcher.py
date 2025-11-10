@@ -101,16 +101,15 @@ class Launcher:
             with LauncherUtils.running_server(alg.server, **self._srv_kwargs):
                 results = LauncherUtils.start_clients(clients)
             self._save_results(results)
-            self._update_repeat_id()
-            reset_log()
             self._backup_log()
+            self._update_repeat_id()
             clear_console()
             time.sleep(1)
 
     def _backup_log(self):
-        dest_dir = self._res_dir.parent.parent
+        reset_log()
         if self.backup:
-            backup_log_to(dest_dir)
+            backup_log_to(self._res_dir, f'Log of Run {self._repeat_id:02d}.log')
 
     def _teardown(self):
         clear_console()
@@ -140,7 +139,7 @@ class Launcher:
     def _save_results(self, results: list[tuple[int, Solution]]):
         if self.save:
             res_path = Path(self._res_dir)
-            file_name = res_path / f"Run {self._repeat_id}.msgpack"
+            file_name = res_path / f"Run {self._repeat_id:02d}.msgpack"
             run_solutions = RunSolutions()
             for cid, solution in results:
                 run_solutions.update(cid, solution)
@@ -156,7 +155,8 @@ class Launcher:
     def _n_results(self) -> int:
         res_root = Path(self._res_dir)
         res_root.mkdir(parents=True, exist_ok=True)
-        return len(os.listdir(res_root))
+        lst_res = [f for f in os.listdir(res_root) if f.endswith(".msgpack")]
+        return len(lst_res)
 
     @property
     def _num_comb(self):
