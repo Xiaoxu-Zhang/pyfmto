@@ -16,53 +16,179 @@
 
 ## Install
 
-Require python >= 3.9
+Require python 3.9+
 
 ```bash
 pip install https://pyfmto.oss-cn-hangzhou.aliyuncs.com/dist/pyfmto-0.0.1-py3-none-any.whl
 ```
 
 ## Usage
-
-First, export a demo in your project directory
+For a quick start, you may want to clone the [fmto](https://github.com/Xiaoxu-Zhang/fmto) project, which 
+contains several published algorithms and a template that you can implement your algorithm based on.
 
 ```bash
-cd path/to/your/project
-python # enter python interactive mode
-from pyfmto import export_demo
-export_demo('DEMO')
+git clone https://github.com/Xiaoxu-Zhang/fmto
 ```
 
-then, your project structure should be like this:
+The structure of a pyfmto-based project should be like this:
 
 ```text
 path/to/your/project/
-  ├── algorithms/
-  │   └── DEMO/
-  │       ├── __init__.py
-  │       ├── demo_client.py
-  │       └── demo_server.py
-  ├── config.yaml
-  ├── run.py
-  └── report.py
+   ├── algorithms/
+   │   ├── ALG1/
+   │   └── ALG2/
+   │       ├── __init__.py
+   │       ├── alg2_client.py
+   │       └── alg2_server.py
+   ├── config.yaml
+   ├── run.py
+   └── report.py
 ```
 
-start the demo in cmd(Windows) or terminal(MacOS/Linux)
-
-- Run `run.py` in IDE (PyCharm, VSCode, etc.)
-- Run in terminal or cmd
+After cloning/create the project, you can start your experiments by running the following command:
 
 ```bash
 cd path/to/your/project
 python run.py
 ```
 
-remark:
+And analyze the results by running the following command:
 
-- algorithms/DEMO is the package of the algorithm
-- config.yaml is the configuration file for the experiment
-- run.py is the entry point for the experiment
-- report.py is the report tool to generate experiment reports
+```bash
+python report.py
+```
+
+### Implement an algorithm
+
+To implement an algorithm, you should create a directory, such as `algorithms/ALG`. Basically, the directory should 
+contain the following files:
+
+- `__init__.py`: This file should import the implemented Client and Server classes.
+- `alg_client.py`: This file should implement the client-side of the algorithm.
+- `alg_server.py`: This file should implement the server-side of the algorithm.
+
+The following is an example of an algorithm implementation. Check out the template in the `fmto` project for more details.
+
+```python
+# alg_client.py
+from pyfmto import Client
+
+class MyClient(Client):
+	"""
+	gamma: 0.4
+	omega: 1.3
+	"""
+    # The parameters defined in the docting can be configure in the config file.
+	def __init__(self, problem, kwargs):
+		super().__init__(problem)
+		kwargs = self.update_kwargs(kwargs)
+		self.gamma = kwargs['gamma']
+		self.omega = kwargs['omega']
+	
+	def optimize():
+		# implement the optimizer
+		pass
+```
+
+```python
+# alg_server.py
+from pyfmto import Server
+
+class MyServer(Server):
+	"""
+	alpha: 0.1
+	beta: 0.3
+	"""
+	def __init__(kwargs):
+		super().__init__():
+		kwargs = self.update_kwargs(kwargs)
+		self.alpha = kwargs['alpha']
+		self.beta = kwargs['beta']
+	
+	def aggregate(self) -> None:
+		# implement the aggregate logic
+		pass
+
+	def handle_request(self, pkg) -> Any:
+		# handle the requests of clients
+		pass
+```
+
+```python
+# __init__.py
+from .alg_client import MyClient
+from .alg_server import MyServer
+```
+
+### Implement a problem
+
+Coming soon...
+
+### Configure experiments
+
+To configure experiments, you should create a `config.yaml` file in the root directory of your project. 
+The `config.yaml` file should contain the following information:
+
+```yaml
+launcher:
+  results: out/results                  # Opitonal
+  repeat: 20                            # Opitonal
+  save: true                            # Opitonal
+  loglevel: INFO                        # Opitonal
+  algorithms: [ALG1, ALG2, ...]         # Required
+  problems: [prob1, prob2, ...]         # Required
+
+reporter:
+  results: out/results                  # Opitonal
+  algorithms:                           # Required
+    - [ALG1, ALG2, ALG3]
+    - [ALG1_A, ALG1_B, ALG1_C, ALG1]
+  problems: [prob1, prob2]              # Required
+
+problems:                               # Optional
+  prob1:
+    dim: [10, 20]
+    fe_init: 50
+	fe_max: 110
+
+algorithms:                             # Optional
+	ALG1:
+		client:
+			alpha: 0.7  # The key of the parameter should be defined in the Class's docstring
+		server:
+			gamma: 1.2
+			omega: 0.9
+	ALG1_A:  # Rename for an algorithm's variant
+		base: ALG1  # Specify the base algorithm
+		client:
+			alpha: 0.3
+```
+
+### Entrance scripts
+
+If you create a project by yourself, you should create `run.py` and `report.py` in the root directory of your project.
+
+- `run.py`:
+  ```python
+  # run.py
+  from pyfmto.experiments import Launcher
+  
+  if __name__ == '__main__':
+      launcher = Launcher()
+      launcher.run()
+  ```
+- `report.py`:
+  ```python
+  # report.py
+  from pyfmto.experiments import Reports
+  
+  if __name__ == '__main__':
+      reports = Reports()
+      reports.to_curve(on_log_scale=True)
+      # reports.to_excel()
+      # reports.to_violin()
+      # reports.to_latex()
+  ```
 
 ## Other usage
 
