@@ -275,9 +275,13 @@ class LatexGenerator(TableGenerator):
             return df_styles
 
         styled_df = data_df.style.apply(highlight_cells, axis=None)
+        alg_str = ','.join(data.alg_names[:-1]) + ' and ' + data.alg_names[-1]
+        caption = (f"The average/mean best optimum obtained by {alg_str}, {len(data.alg_names)} "
+                   f"algorithms under comparison, in handling {data.dim}-dimensional MaTOP problems with "
+                   f"$NPD={data.npd_name}$ over {data.num_runs} independent runs.")
         latex_code = styled_df.to_latex(column_format='c' * len(data_df.columns),
                                         environment='table',
-                                        caption=f"Table generated for {data.problem}, {data.npd_name}",
+                                        caption=caption,
                                         label=f"tab:{data.problem}_{data.npd_name}",
                                         position_float='centering',
                                         hrules=True,
@@ -521,7 +525,7 @@ class Reports:
         -------
             None
         """
-        for comb in self.combinations:
+        for comb in tqdm(self.combinations, desc='Saving', unit='Img', ncols=100):
             try:
                 self.reporter.generate_report(
                     'to_violin',
