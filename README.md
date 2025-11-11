@@ -40,6 +40,7 @@ path/to/your/project/
    │       ├── __init__.py
    │       ├── alg2_client.py
    │       └── alg2_server.py
+   ├── problems/
    ├── config.yaml
    ├── run.py
    └── report.py
@@ -122,7 +123,48 @@ from .alg_server import MyServer
 
 ### Implement a problem
 
-Coming soon...
+To implement a problem, you should implement the following modules in the `problems/` directory:
+
+- `__init__.py`: This file should import the implemented Problem class.
+- `prob.py`: This file should implement the problem.
+
+A demo of a problem implementation is as follows:
+
+- `__init__.py`:
+  ```python
+  # __init__.py
+  from .prob import MyMTP
+  ```
+- `prob.py`:
+  ```python
+  # prob.py
+  import numpy as np
+  from numpy import ndarray
+  from pyfmto.problems import SingleTaskProblem, MultiTaskProblem
+  from typing import Union
+  
+  
+  class MySTP(SingleTaskProblem):
+  
+      def __init__(self, dim=2, **kwargs):
+          super().__init__(dim=dim, obj=1, lb=0, ub=1, **kwargs)
+  
+      def _eval_single(self, x: ndarray):
+          return np.sum(x)
+  
+  
+  class MyMTP(MultiTaskProblem):
+      is_realworld = False
+      intro = "user defined MTP"
+      notes = "a demo of user-defined MTP"
+      references = ['ref1', 'ref2']
+  
+      def __init__(self, dim=10, **kwargs):
+          super().__init__(dim, **kwargs)
+  
+      def _init_tasks(self, dim, **kwargs) -> Union[list[SingleTaskProblem], tuple[SingleTaskProblem]]:
+          return [MySTP(dim=dim, **kwargs) for _ in range(10)]
+  ```
 
 ### Configure experiments
 
