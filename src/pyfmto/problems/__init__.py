@@ -1,8 +1,8 @@
 import inspect
 import pandas as pd
 from collections import defaultdict
+from importlib import import_module
 from tabulate import tabulate
-
 from .problem import SingleTaskProblem, MultiTaskProblem
 from .solution import Solution
 from . import realworld
@@ -18,32 +18,38 @@ __all__ = [
 
 
 def collect_problems_meta():
-    results = {}
-    for module in [realworld, synthetic]:
+    problems = {}
+    modules = [realworld, synthetic]
+    try:
+        user_defined = import_module('problems')
+        modules.append(user_defined)
+    except ImportError:
+        pass
+
+    for module in modules:
         for name in dir(module):
             cls = getattr(module, name)
             if inspect.isclass(cls) and issubclass(cls, MultiTaskProblem) and cls != MultiTaskProblem:
-                results[name] = cls
-    return results
-
-
-PROBLEMS = collect_problems_meta()
-_lowercase_map = {name.lower(): name for name in PROBLEMS}
+                problems[name] = cls
+    lowercase_name = {name.lower(): name for name in problems}
+    return problems, lowercase_name
 
 
 def load_problem(name, **kwargs) -> MultiTaskProblem:
+    problems, lowercase_name = collect_problems_meta()
     no_space = name.replace('_', '').lower()
-    if name in PROBLEMS:
-        return PROBLEMS[name](**kwargs)
-    elif no_space in _lowercase_map:
-        return PROBLEMS[_lowercase_map[no_space]](**kwargs)
+    if name in problems:
+        return problems[name](**kwargs)
+    elif no_space in lowercase_name:
+        return problems[lowercase_name[no_space]](**kwargs)
     else:
         raise ValueError(f"Problem '{name}' not found, call list_problems() to see available problems.")
 
 
 def list_problems(print_it=False):
+    problems, _ = collect_problems_meta()
     data = defaultdict(list)
-    for name, cls in PROBLEMS.items():
+    for name, cls in problems.items():
         if issubclass(cls, MultiTaskProblem):
             instance = cls(_init_solutions=False)
             prob_type = "Realworld" if instance.is_realworld else "Synthetic"
@@ -55,4 +61,4 @@ def list_problems(print_it=False):
     df = pd.DataFrame(data)
     if print_it:
         print(tabulate(df, headers='keys', tablefmt='rounded_grid', showindex=False))
-    return list(PROBLEMS.keys())
+    return list(problems.keys())
