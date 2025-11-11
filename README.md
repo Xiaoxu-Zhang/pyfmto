@@ -191,19 +191,19 @@ problems:                               # Optional
   prob1:
     dim: [10, 20]
     fe_init: 50
-	fe_max: 110
+    fe_max: 110
 
 algorithms:                             # Optional
-	ALG1:
-		client:
-			alpha: 0.7  # The key of the parameter should be defined in the Class's docstring
-		server:
-			gamma: 1.2
-			omega: 0.9
-	ALG1_A:  # Rename for an algorithm's variant
-		base: ALG1  # Specify the base algorithm
-		client:
-			alpha: 0.3
+  ALG1:
+    client:
+      alpha: 0.7  # The key of the parameter should be defined in the Class's docstring
+    server:
+      gamma: 1.2
+      omega: 0.9
+  ALG1_A:  # Rename for an algorithm's variant
+    base: ALG1  # Specify the base algorithm
+    client:
+      alpha: 0.3
 ```
 
 ### Entrance scripts
