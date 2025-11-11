@@ -62,7 +62,7 @@ python report.py
 ### Implement an algorithm
 
 To implement an algorithm, you should create a directory, such as `algorithms/ALG`. Basically, the directory should 
-contain the following files:
+contain the following modules:
 
 - `__init__.py`: This file should import the implemented Client and Server classes.
 - `alg_client.py`: This file should implement the client-side of the algorithm.
@@ -79,8 +79,8 @@ class MyClient(Client):
 	gamma: 0.4
 	omega: 1.3
 	"""
-    # The parameters defined in the docting can be configure in the config file.
-	def __init__(self, problem, kwargs):
+    # The parameters defined in the docting can be configured in the config file.
+	def __init__(self, problem, **kwargs):
 		super().__init__(problem)
 		kwargs = self.update_kwargs(kwargs)
 		self.gamma = kwargs['gamma']
@@ -100,7 +100,7 @@ class MyServer(Server):
 	alpha: 0.1
 	beta: 0.3
 	"""
-	def __init__(kwargs):
+	def __init__(self, **kwargs):
 		super().__init__():
 		kwargs = self.update_kwargs(kwargs)
 		self.alpha = kwargs['alpha']
@@ -191,19 +191,19 @@ problems:                               # Optional
   prob1:
     dim: [10, 20]
     fe_init: 50
-	fe_max: 110
+    fe_max: 110
 
 algorithms:                             # Optional
-	ALG1:
-		client:
-			alpha: 0.7  # The key of the parameter should be defined in the Class's docstring
-		server:
-			gamma: 1.2
-			omega: 0.9
-	ALG1_A:  # Rename for an algorithm's variant
-		base: ALG1  # Specify the base algorithm
-		client:
-			alpha: 0.3
+  ALG1:
+    client:
+      alpha: 0.7  # The key of the parameter should be defined in the Class's docstring
+    server:
+      gamma: 1.2
+      omega: 0.9
+  ALG1_A:  # Rename for an algorithm's variant
+    base: ALG1  # Specify the base algorithm
+    client:
+      alpha: 0.3
 ```
 
 ### Entrance scripts
@@ -302,23 +302,3 @@ Available problems and their configurable parameters are listed below:
 
 - **Realworld**
   - **svm_landmine**
-
-### Algorithms
-
-List available algorithms
-
-```python
-from pyfmto.algorithms import list_algorithms
-
-list_algorithms(print_it=True)
-```
-
-If you have export or implements an algorithm (e.g. `MYALG`), you will see it in the output.
-
-```txt
-builtins:
-    FDEMD
-    FMTBO
-yours:
-    MYALG
-```
