@@ -670,12 +670,22 @@ class SingleTaskProblem(ABC):
 
 
 class MultiTaskProblem(ABC):
+    """
+    The following attributes can be config for a subclass:
+        - is_realworld: bool
+        - intro: str
+        - notes: str
+        - references: list[str]
+    """
     is_realworld: bool
     intro = "Not set"
     notes = "Not set"
     references: list[str] = ["Not set"]
 
     def __init__(self, *args, **kwargs):
+        """
+        args and kwargs will be passed to the `_init_tasks` method.
+        """
         self.seed = kwargs.pop('seed', 123)
         self.random_ctrl = kwargs.pop('random_ctrl', 'weak')
         _init_solutions = kwargs.pop('_init_solutions', True)
