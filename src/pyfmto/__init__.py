@@ -25,7 +25,9 @@ __all__ = [
 
 
 def main():
-    parser = argparse.ArgumentParser(description='PyFMTO: Python Library for Federated Many-task Optimization Research')
+    parser = argparse.ArgumentParser(
+        description='PyFMTO: Python Library for Federated Many-task Optimization Research'
+    )
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
 
     # Run command
@@ -48,9 +50,7 @@ def main():
     elif args.command == 'report':
         reports = Reports(conf_file=args.config)
         reports.generate()
-    else:
-        print('Invalid command. Use "run" or "report".')
 
 
 if __name__ == '__main__':
-    main()
+    main()  # pragma: no cover

@@ -354,13 +354,16 @@ class Reports:
         self.reporter.register_generator('to_latex', LatexGenerator())
 
     def generate(self):
-        print(f"formats: {self.formats}")
+        if not self.formats:
+            raise ValueError("No formats specified. Skipping report generation.")
+        invalid_formats: list[str] = []
         for fmt in self.formats:
             if hasattr(self, f'to_{fmt}'):
-                print(f'has attr to_{fmt}')
                 getattr(self, f'to_{fmt}')(**self.kwargs.get(fmt, {}))
             else:
-                print(f"Format '{fmt}' is not supported.")
+                invalid_formats.append(fmt)
+        if invalid_formats:
+            raise ValueError(f"Invalid format(s) specified: {', '.join(invalid_formats)}")
 
     @validate_call
     def to_curve(
