@@ -23,220 +23,122 @@ pip install https://pyfmto.oss-cn-hangzhou.aliyuncs.com/dist/pyfmto-0.0.1-py3-no
 ```
 
 ## Usage
-For a quick start, you may want to clone the [fmto](https://github.com/Xiaoxu-Zhang/fmto) project, which 
-contains several published algorithms and a template that you can implement your algorithm based on.
+
+To begin with, we highly recommend that you clone the [fmto](https://github.com/Xiaoxu-Zhang/fmto) 
+repository. This repository is the official collection of published FMTO algorithms and serves as 
+a practical example of how to structure and perform experiments. The repository includes the 
+following components:
+
+- A collection of published FMTO algorithms.
+- A config file (config.yaml) that provides guidance on how to set up and configure the experiments.
+- A template algorithm named "ALG" that you can use as a basis for implementing your own algorithm.
+- A template problem named "PROB" that you can use as a basis for implementing your own problem.
+
+> **Note**: 
+> 1. The `config.yaml`, `ALG` and `PROB` provided detailed instructions, you can even start your 
+> research without additional documentation.
+> 2. The fmto repository is currently in the early stages of development. We are actively working 
+> on improving existing algorithms and adding new algorithms.
+
+To clone the fmto, you can use the following command:
 
 ```bash
 git clone https://github.com/Xiaoxu-Zhang/fmto
 ```
 
-The structure of a pyfmto-based project should be like this:
-
-```text
-path/to/your/project/
-   ├── algorithms/
-   │   ├── ALG1/
-   │   └── ALG2/
-   │       ├── __init__.py
-   │       ├── alg2_client.py
-   │       └── alg2_server.py
-   ├── problems/
-   ├── config.yaml
-   ├── run.py
-   └── report.py
-```
-
-After cloning/create the project, you can start your experiments by running the following command:
+Now, have a try! Start the experiments by the following command:
 
 ```bash
-cd path/to/your/project
-python run.py
+cd fmto
+pyfmto run
 ```
 
-And analyze the results by running the following command:
+Finally, analyze the results by running the following command:
 
 ```bash
-python report.py
+pyfmto report
 ```
 
-### Implement an algorithm
+> **Note**: You can specify a different config file by using the `-c` option. For example, to run 
+> the experiments using the config file `my_conf.yaml`, you can use the following command:
+> 
+> ```bash
+> pyfmto run -c my_conf.yaml
+> ```
+> The report command also supports the `-c` option.
 
-To implement an algorithm, you should create a directory, such as `algorithms/ALG`. Basically, the directory should 
-contain the following modules:
+## Algorithm's Components
 
-- `__init__.py`: This file should import the implemented Client and Server classes.
-- `alg_client.py`: This file should implement the client-side of the algorithm.
-- `alg_server.py`: This file should implement the server-side of the algorithm.
-
-The following is an example of an algorithm implementation. Check out the template in the `fmto` project for more details.
+An algorithm includes two parts: the client and the server. The client is responsible for optimizing the local problem 
+and the server is responsible for aggregating the knowledge from the clients. The required components for client and
+server are as follows:
 
 ```python
-# alg_client.py
-from pyfmto import Client
+# myalg_client.py
+from pyfmto import Client, Server
 
 class MyClient(Client):
-	"""
-	gamma: 0.4
-	omega: 1.3
-	"""
-    # The parameters defined in the docting can be configured in the config file.
 	def __init__(self, problem, **kwargs):
 		super().__init__(problem)
-		kwargs = self.update_kwargs(kwargs)
-		self.gamma = kwargs['gamma']
-		self.omega = kwargs['omega']
-	
+
 	def optimize():
 		# implement the optimizer
 		pass
-```
-
-```python
-# alg_server.py
-from pyfmto import Server
 
 class MyServer(Server):
-	"""
-	alpha: 0.1
-	beta: 0.3
-	"""
 	def __init__(self, **kwargs):
 		super().__init__():
-		kwargs = self.update_kwargs(kwargs)
-		self.alpha = kwargs['alpha']
-		self.beta = kwargs['beta']
 	
 	def aggregate(self) -> None:
 		# implement the aggregate logic
 		pass
 
 	def handle_request(self, pkg) -> Any:
-		# handle the requests of clients
+		# handle the requests of clients to exchange data
 		pass
 ```
 
+## Problem's Components
+
+There are two types of problems: single-task problems and multitask problems. A single-task problem is a problem
+that has only one objective function. A multitask problem is a problem that has multiple single-task problems. To 
+define a multitask problem, you should implement several SingleTaskProblem and then define a MultiTaskProblem to
+aggregate them.
+
+> **Note**: There are some classical SingleTaskProblem defined in `pyfmto.problems.benchmarks` module. You can use 
+> them directly.
+
 ```python
-# __init__.py
-from .alg_client import MyClient
-from .alg_server import MyServer
-```
+import numpy as np
+from numpy import ndarray
+from pyfmto.problems import SingleTaskProblem, MultiTaskProblem
+from typing import Union
 
-### Implement a problem
+class MySTP(SingleTaskProblem):
 
-To implement a problem, you should implement the following modules in the `problems/` directory:
+    def __init__(self, dim=2, **kwargs):
+        super().__init__(dim=dim, obj=1, lb=0, ub=1, **kwargs)
+    
+    def _eval_single(self, x: ndarray):
+        pass
 
-- `__init__.py`: This file should import the implemented Problem class.
-- `prob.py`: This file should implement the problem.
-
-A demo of a problem implementation is as follows:
-
-- `__init__.py`:
-  ```python
-  # __init__.py
-  from .prob import MyMTP
-  ```
-- `prob.py`:
-  ```python
-  # prob.py
-  import numpy as np
-  from numpy import ndarray
-  from pyfmto.problems import SingleTaskProblem, MultiTaskProblem
-  from typing import Union
-  
-  
-  class MySTP(SingleTaskProblem):
-  
-      def __init__(self, dim=2, **kwargs):
-          super().__init__(dim=dim, obj=1, lb=0, ub=1, **kwargs)
-  
-      def _eval_single(self, x: ndarray):
-          return np.sum(x)
-  
-  
-  class MyMTP(MultiTaskProblem):
-      is_realworld = False
-      intro = "user defined MTP"
-      notes = "a demo of user-defined MTP"
-      references = ['ref1', 'ref2']
-  
-      def __init__(self, dim=10, **kwargs):
-          super().__init__(dim, **kwargs)
-  
-      def _init_tasks(self, dim, **kwargs) -> Union[list[SingleTaskProblem], tuple[SingleTaskProblem]]:
-          return [MySTP(dim=dim, **kwargs) for _ in range(10)]
+class MyMTP(MultiTaskProblem):
+    is_realworld = False
+    intro = "user defined MTP"
+    notes = "a demo of user-defined MTP"
+    references = ['ref1', 'ref2']
+    
+    def __init__(self, dim=10, **kwargs):
+        super().__init__(dim, **kwargs)
+    
+    def _init_tasks(self, dim, **kwargs) -> Union[list[SingleTaskProblem], tuple[SingleTaskProblem]]:
+        # We duplicate MySTP for 10 here as an example
+        return [MySTP(dim=dim, **kwargs) for _ in range(10)]
   ```
 
-### Configure experiments
+## Tools
 
-To configure experiments, you should create a `config.yaml` file in the root directory of your project. 
-The `config.yaml` file should contain the following information:
-
-```yaml
-launcher:
-  results: out/results                  # Opitonal
-  repeat: 20                            # Opitonal
-  save: true                            # Opitonal
-  loglevel: INFO                        # Opitonal
-  algorithms: [ALG1, ALG2, ...]         # Required
-  problems: [prob1, prob2, ...]         # Required
-
-reporter:
-  results: out/results                  # Opitonal
-  algorithms:                           # Required
-    - [ALG1, ALG2, ALG3]
-    - [ALG1_A, ALG1_B, ALG1_C, ALG1]
-  problems: [prob1, prob2]              # Required
-
-problems:                               # Optional
-  prob1:
-    dim: [10, 20]
-    fe_init: 50
-    fe_max: 110
-
-algorithms:                             # Optional
-  ALG1:
-    client:
-      alpha: 0.7  # The key of the parameter should be defined in the Class's docstring
-    server:
-      gamma: 1.2
-      omega: 0.9
-  ALG1_A:  # Rename for an algorithm's variant
-    base: ALG1  # Specify the base algorithm
-    client:
-      alpha: 0.3
-```
-
-### Entrance scripts
-
-If you create a project by yourself, you should create `run.py` and `report.py` in the root directory of your project.
-
-- `run.py`:
-  ```python
-  # run.py
-  from pyfmto.experiments import Launcher
-  
-  if __name__ == '__main__':
-      launcher = Launcher()
-      launcher.run()
-  ```
-- `report.py`:
-  ```python
-  # report.py
-  from pyfmto.experiments import Reports
-  
-  if __name__ == '__main__':
-      reports = Reports()
-      reports.to_curve(on_log_scale=True)
-      # reports.to_excel()
-      # reports.to_violin()
-      # reports.to_latex()
-  ```
-
-## Other usage
-
-### Problems
-
-List available problems
+### list_problems
 
 ```python
 from pyfmto.problems import list_problems
@@ -248,7 +150,7 @@ list_problems(print_it=True)
 prob_lst = list_problems()
 ```
 
-Load a problem
+### load_problem
 
 ```python
 from pyfmto.problems import load_problem, list_problems
@@ -269,15 +171,6 @@ prob = load_problem('arxiv2017', dim=2, fe_init=20, fe_max=50, np_per_dim=5)
 
 # show problem information
 print(prob)
-
-# show distribution of init solutions in 2d space, if dim>2, only the first two dimensions will be shown
-prob.plot_distribution(f'distribution plot.png')
-
-# visualize one of the tasks (require problem dim>=2)
-task = prob[0]
-task.plot_2d(f'visualize2D T{first_task.id}')
-task.plot_3d(f'visualize3D T{first_task.id}')
-task.iplot_3d() # interactive plotting
 ```
 
 The following parameters are available for all problems and can be optionally customized:
@@ -302,3 +195,26 @@ Available problems and their configurable parameters are listed below:
 
 - **Realworld**
   - **svm_landmine**
+
+## Visualization
+
+### SingleTaskProblem Visualization
+
+```python
+from pyfmto.problems.benchmarks import Ackley
+
+task = Ackley()
+task.plot_2d(f'visualize2D T{first_task.id}')
+task.plot_3d(f'visualize3D T{first_task.id}')
+task.iplot_3d() # interactive plotting
+```
+
+### MultiTaskProblem Visualization
+
+Coming soon...
+
+## Contributing
+
+We welcome contributions from the community to enhance the functionality and usability of **pyfmto**.
+If you encounter any issues or have suggestions for improvements, please feel free to open an issue or 
+submit a pull request.
