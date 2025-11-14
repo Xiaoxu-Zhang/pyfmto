@@ -336,17 +336,34 @@ class Reporter:
 
 
 class Reports:
-    def __init__(self):
-        all_conf = load_yaml('config.yaml')
-        settings = ReporterUtils.parse_reporter_config(all_conf.get('reporter'), all_conf.get('problems', {}))
+    def __init__(self, conf_file: str = 'config.yaml'):
+        all_conf = load_yaml(conf_file)
+        reporter_conf = all_conf.get('reporter', {})
+        problem_conf = all_conf.get('problems', {})
+        formats = reporter_conf.pop('formats', [])
+
+        self.kwargs = reporter_conf.pop('kwargs', {})
+        self.formats = formats if isinstance(formats, list) else [formats]
+        settings = ReporterUtils.parse_reporter_config(reporter_conf, problem_conf)
         self.combinations = settings.pop('analysis_comb')
         self.reporter = Reporter(**settings)
-
         self.reporter.register_generator('to_curve', CurveGenerator())
         self.reporter.register_generator('to_excel', ExcelGenerator())
         self.reporter.register_generator('to_violin', ViolinGenerator())
         self.reporter.register_generator('to_console', ConsoleGenerator())
         self.reporter.register_generator('to_latex', LatexGenerator())
+
+    def generate(self):
+        if not self.formats:
+            raise ValueError("No formats specified. Skipping report generation.")
+        invalid_formats: list[str] = []
+        for fmt in self.formats:
+            if hasattr(self, f'to_{fmt}'):
+                getattr(self, f'to_{fmt}')(**self.kwargs.get(fmt, {}))
+            else:
+                invalid_formats.append(fmt)
+        if invalid_formats:
+            raise ValueError(f"Invalid format(s) specified: {', '.join(invalid_formats)}")
 
     @validate_call
     def to_curve(

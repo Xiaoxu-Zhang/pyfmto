@@ -9,6 +9,7 @@ from pyfmto.experiments.reporter import (
 )
 from pyfmto.experiments.utils import MetaData
 from tests.experiments import ExpDataGenerator
+from unittest.mock import patch
 
 plt.use('Agg')
 
@@ -112,3 +113,73 @@ class TestReporter(unittest.TestCase):
                         # print(f"task {task.id}: shapes(x,y) is [{task.solutions.x.shape}, {task.solutions.y.shape}]")
                         run_solutions.update(task.id, task.solutions)
                     run_solutions.to_msgpack(res_root / f"Run {run + 1}.msgpack")
+
+
+class TestReportsGenerate(unittest.TestCase):
+    """Test Reports.generate method with mock to avoid calling real attribute functions"""
+
+    def setUp(self):
+        self.algs = ['ALG1', 'ALG2']
+        self.probs = ['tetci2019', 'arxiv2017']
+        export_reporter_config(algs=(self.algs,), probs=tuple(self.probs), mode='update')
+        self.reports = Reports()
+
+    def tearDown(self):
+        Path('config.yaml').unlink()
+
+    @patch.object(Reports, 'to_curve')
+    @patch.object(Reports, 'to_excel')
+    @patch.object(Reports, 'to_latex')
+    @patch.object(Reports, 'to_console')
+    @patch.object(Reports, 'to_violin')
+    def test_generate_valid_formats(self, mock_violin, mock_console, mock_latex, mock_excel, mock_curve):
+        """Test generate method with valid formats"""
+        # Set up mock returns
+        mock_curve.return_value = None
+        mock_excel.return_value = None
+        mock_latex.return_value = None
+        mock_console.return_value = None
+        mock_violin.return_value = None
+
+        # Test with single format
+        self.reports.formats = ['curve']
+        self.reports.generate()
+        mock_curve.assert_called_once()
+        mock_excel.assert_not_called()
+        mock_latex.assert_not_called()
+        mock_console.assert_not_called()
+        mock_violin.assert_not_called()
+
+        # Reset mocks
+        mock_curve.reset_mock()
+        mock_excel.reset_mock()
+        mock_latex.reset_mock()
+        mock_console.reset_mock()
+        mock_violin.reset_mock()
+
+        # Test with multiple formats
+        self.reports.formats = ['curve', 'excel', 'latex']
+        self.reports.generate()
+        mock_curve.assert_called_once()
+        mock_excel.assert_called_once()
+        mock_latex.assert_called_once()
+        mock_console.assert_not_called()
+        mock_violin.assert_not_called()
+
+    @patch.object(Reports, 'to_curve')
+    def test_generate_invalid_format(self, mock_curve):
+        """Test generate method with invalid format should raise ValueError"""
+        mock_curve.return_value = None
+
+        self.reports.formats = ['invalid_format']
+        with self.assertRaises(ValueError):
+            self.reports.generate()
+
+        mock_curve.assert_not_called()
+
+    def test_generate_empty_formats(self):
+        """Test generate method with empty formats list"""
+        self.reports.formats = []
+        # Should not raise any exception and not call any methods
+        with self.assertRaises(ValueError):
+            self.reports.generate()

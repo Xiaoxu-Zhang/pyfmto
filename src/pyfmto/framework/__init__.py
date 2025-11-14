@@ -23,7 +23,7 @@ __all__ = [
 ]
 
 
-def save_config(name: str, data, mode: Literal['new', 'update'] = 'new'):
+def save_config(name: str, data, mode: str = 'new'):
     if mode == 'new':
         number = 1
         path = Path(f'config_{name}{number}.yaml')
