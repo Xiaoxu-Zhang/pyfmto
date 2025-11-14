@@ -712,7 +712,7 @@ class MultiTaskProblem(ABC):
     def __iter__(self):
         return iter(self._problem)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index)->SingleTaskProblem:
         if isinstance(index, slice):
             return self._problem[index]
         elif isinstance(index, int):
@@ -863,8 +863,8 @@ class MultiTaskProblem(ABC):
 
         Examples
         --------
-        >>> problem.plot_distribution()
-        >>> problem.plot_distribution(dims=(1, 2), filename='distribution.png')
+        #>>> problem.plot_distribution()
+        #>>> problem.plot_distribution(dims=(1, 2), filename='distribution.png')
         """
         init_x: dict[str, ndarray] = {f"T{p.id:02}({p.name})": p.normalize_x(p.solutions.x) for p in self}
         np_per_dim = self[0].np_per_dim
