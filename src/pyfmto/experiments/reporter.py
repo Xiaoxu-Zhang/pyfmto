@@ -336,17 +336,31 @@ class Reporter:
 
 
 class Reports:
-    def __init__(self):
-        all_conf = load_yaml('config.yaml')
-        settings = ReporterUtils.parse_reporter_config(all_conf.get('reporter'), all_conf.get('problems', {}))
+    def __init__(self, conf_file: str = 'config.yaml'):
+        all_conf = load_yaml(conf_file)
+        reporter_conf = all_conf.get('reporter', {})
+        problem_conf = all_conf.get('problems', {})
+        formats = reporter_conf.pop('formats', [])
+
+        self.kwargs = reporter_conf.pop('kwargs', {})
+        self.formats = formats if isinstance(formats, list) else [formats]
+        settings = ReporterUtils.parse_reporter_config(reporter_conf, problem_conf)
         self.combinations = settings.pop('analysis_comb')
         self.reporter = Reporter(**settings)
-
         self.reporter.register_generator('to_curve', CurveGenerator())
         self.reporter.register_generator('to_excel', ExcelGenerator())
         self.reporter.register_generator('to_violin', ViolinGenerator())
         self.reporter.register_generator('to_console', ConsoleGenerator())
         self.reporter.register_generator('to_latex', LatexGenerator())
+
+    def generate(self):
+        print(f"formats: {self.formats}")
+        for fmt in self.formats:
+            if hasattr(self, f'to_{fmt}'):
+                print(f'has attr to_{fmt}')
+                getattr(self, f'to_{fmt}')(**self.kwargs.get(fmt, {}))
+            else:
+                print(f"Format '{fmt}' is not supported.")
 
     @validate_call
     def to_curve(

@@ -47,6 +47,9 @@ classifiers = [
     "Operating System :: OS Independent"
 ]
 
+[project.scripts]
+pyfmto = "pyfmto:main"
+
 [project.urls]
 Homepage = "https://github.com/Xiaoxu-Zhang/pyfmto"
 
