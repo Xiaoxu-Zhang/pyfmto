@@ -1,12 +1,11 @@
 from collections import defaultdict
 from enum import Enum, auto
+from pydantic import validate_call
 from typing import Optional, Any
 
-__all__ = ['Actions', 'ClientPackage', 'DataArchive', 'SyncDataManager']
-
-from pydantic import validate_call
-
 from pyfmto.utilities import logger
+
+__all__ = ['Actions', 'ClientPackage', 'DataArchive', 'SyncDataManager']
 
 
 class Actions(Enum):
