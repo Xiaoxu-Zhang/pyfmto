@@ -11,7 +11,6 @@ requires-python = ">=3.9"
 #license = {file = "LICENSE"}
 dynamic = ["version"]
 dependencies = [
-    "egobox",
     "fastapi",
     "jinja2",
     "matplotlib",
@@ -45,6 +44,61 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Intended Audience :: Researchers",
     "Operating System :: OS Independent"
+]
+
+[project.optional-dependencies]
+dev = [
+    # build
+    "build",
+    "pyproject_hooks",
+    # test
+    "coverage",
+    "pytest",
+    "pytest-cov",
+    "pytest-env",
+    "iniconfig",
+    # types check
+    "mypy",
+    "mypy_extensions",
+    "types-PyYAML",
+    "types-tabulate",
+    "types-requests",
+    "typing-inspection",
+    "typing_extensions",
+    # quality check
+    "flake8",
+    "flake8-pyproject",
+    "pycodestyle",
+    "pyflakes",
+    "mccabe",
+    # other
+    "click",
+    "pluggy",
+    "sniffio",
+    "psutil",
+    "threadpoolctl",
+    "six",
+    "zipp",
+    "packaging",
+    "tomli",
+    "certifi",
+    "charset-normalizer",
+    "idna",
+    "urllib3",
+    "h11",
+    "pydantic",
+    "pydantic_core",
+    "annotated-types",
+    "contourpy",
+    "cycler",
+    "fonttools",
+    "kiwisolver",
+    "pillow",
+    "pyparsing",
+    "pyvista",
+    "joblib",
+    "python-dateutil",
+    "starlette"
 ]
 
 [project.scripts]
