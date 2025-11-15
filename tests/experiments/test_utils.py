@@ -13,7 +13,7 @@ from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils,
     MetaData, MergedResults, ClientDataStatis
 from pyfmto.utilities.schemas import LauncherConfig, STPConfig
 from pyfmto.utilities import load_msgpack
-from unittest.mock import patch, Mock
+from unittest.mock import Mock
 from tests.experiments import export_alg_template, ExpDataGenerator
 from tests.framework import OnlineServer
 
@@ -329,18 +329,6 @@ class TestLauncherUtils(unittest.TestCase):
         res_root2 = self.utils.gen_path(alg, prob, kwargs2)
         self.assertEqual(res_root1, Path('out', 'results', alg, f"{prob}_2D", "IID"))
         self.assertEqual(res_root2, Path('out', 'results', alg, f"{prob}_2D", "NIID2"))
-
-    def test_cross_platform_tools(self):
-        with patch('os.system') as mock_system:
-            with patch('platform.system', return_value="Windows"):
-                self.utils.kill_server()
-                mock_system.assert_called_once_with("taskkill /f /im AlgServer.exe")
-                mock_system.reset_mock()
-
-            with patch('platform.system', return_value="Linux"):
-                self.utils.kill_server()
-                mock_system.assert_called_once_with("pkill -f AlgServer")
-                mock_system.reset_mock()
 
     def test_combine_args_no_list(self):
         args = {

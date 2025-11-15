@@ -4,7 +4,6 @@ import inspect
 import numpy as np
 import os
 import pandas as pd
-import platform
 import seaborn
 import shutil
 import subprocess
@@ -326,14 +325,6 @@ class LauncherUtils:
         futures = [pool.submit(c.start) for c in clients]
         pool.shutdown(wait=True)
         return [fut.result() for fut in futures]
-
-    @staticmethod
-    def kill_server():
-        if platform.system() == 'Windows':
-            os.system("taskkill /f /im AlgServer.exe")
-        else:
-            os.system("pkill -f AlgServer")
-        time.sleep(.5)  # Waiting for the server termination (at least .2s)
 
     @staticmethod
     def gen_exp_combinations(launcher_conf: LauncherConfig, alg_conf: dict, prob_conf: dict):

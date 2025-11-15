@@ -1,4 +1,3 @@
-import atexit
 import os
 import time
 from pathlib import Path
@@ -19,7 +18,6 @@ class Launcher:
     def __init__(self, conf_file: str = 'config.yaml'):
         reset_log()
         clear_console()
-        LauncherUtils.kill_server()
         all_conf = load_yaml(conf_file)
         launcher_conf = LauncherConfig(**all_conf.get('launcher'))
         logger.setLevel(launcher_conf.loglevel)
@@ -45,8 +43,6 @@ class Launcher:
         self._prob_args: dict[str, Any] = {}
         self._clt_kwargs: dict[str, Any] = {}
         self._srv_kwargs: dict[str, Any] = {}
-
-        atexit.register(LauncherUtils.kill_server)
 
     def run(self):
         self._setup()
