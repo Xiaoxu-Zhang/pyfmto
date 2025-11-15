@@ -1,6 +1,9 @@
 __version__ = "0.0.1"
 
 import argparse
+import sys
+from os import listdir
+from pathlib import Path
 from pyfmto.framework import (
     export_problem_config,
     export_launcher_config,
@@ -24,7 +27,17 @@ __all__ = [
 ]
 
 
+def update_path():
+    current_dir = Path().cwd()
+    if 'algorithms' in listdir(current_dir):
+        if str(current_dir) not in sys.path:
+            sys.path.append(str(current_dir))
+    else:
+        raise FileNotFoundError(f"'algorithms' folder not found in the current directory '{current_dir}'.")
+
+
 def main():
+    update_path()
     parser = argparse.ArgumentParser(
         description='PyFMTO: Python Library for Federated Many-task Optimization Research'
     )
@@ -50,7 +63,3 @@ def main():
     elif args.command == 'report':
         reports = Reports(conf_file=args.config)
         reports.generate()
-
-
-if __name__ == '__main__':
-    main()  # pragma: no cover
