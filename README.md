@@ -218,3 +218,17 @@ Coming soon...
 We welcome contributions from the community to enhance the functionality and usability of **pyfmto**.
 If you encounter any issues or have suggestions for improvements, please feel free to open an issue or 
 submit a pull request.
+
+Any changes should be covered by existing tests or added new tests.
+
+To set up a development environment, use the following command:
+
+```bash
+conda create -n pyfmto-dev python=3.10
+conda activate pyfmto-dev
+pip install ".[dev]"
+```
+
+> **Note**:
+> 1. The `[dev]` option is used to install the development dependencies.
+> 2. The environment name `pyfmto-dev` is arbitrary, you can use any name you like.
