@@ -2,7 +2,7 @@ import shutil
 import unittest
 import matplotlib as plt
 from pathlib import Path
-from pyfmto import load_problem, export_reporter_config
+from . import load_problem, export_reporter_config
 from pyfmto.experiments import RunSolutions, Reports
 from pyfmto.experiments.reporter import (
     ReportGenerator, CurveGenerator, ViolinGenerator, ExcelGenerator, LatexGenerator, ConsoleGenerator, Reporter

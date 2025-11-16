@@ -2,7 +2,7 @@ import shutil
 import unittest
 from pathlib import Path
 
-from pyfmto import export_launcher_config, export_algorithm_config, export_problem_config
+from . import export_launcher_config, export_algorithm_config, export_problem_config
 from pyfmto.experiments import Launcher
 from pyfmto.utilities import load_yaml, save_yaml
 from . import export_alg_template

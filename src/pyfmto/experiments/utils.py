@@ -8,7 +8,6 @@ import seaborn
 import shutil
 import subprocess
 import sys
-import textwrap
 import time
 from collections import defaultdict, namedtuple
 from contextlib import contextmanager

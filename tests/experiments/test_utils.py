@@ -6,7 +6,6 @@ import unittest
 import yaml
 from itertools import product
 from pathlib import Path
-from pyfmto import framework as fw
 from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils, list_algorithms, load_algorithm, \
@@ -450,37 +449,6 @@ class TestRunSolutions(unittest.TestCase):
             self.assertEqual(s1.dim, s2.dim)
             self.assertEqual(s1.obj, s2.obj)
             self.assertEqual(s1.fe_init, s2.fe_init)
-
-
-class TestExportTools(unittest.TestCase):
-    def setUp(self):
-        self.files = ['run.py', 'config.yaml', 'report.py']
-        self.alg_dir = Path('algorithms')
-        self.conf = Path('config.yaml')
-
-    def tearDown(self):
-        shutil.rmtree(self.alg_dir, ignore_errors=True)
-        Path('run.py').unlink(missing_ok=True)
-        for filename in self.files:
-            Path(filename).unlink(missing_ok=True)
-
-    def test_export_to_new(self):
-        funcs = [
-            fw.export_launcher_config,
-            fw.export_reporter_config,
-            fw.export_problem_config,
-        ]
-
-        # each func repeat twice to cover file exists case
-        tmp_files = [f() for f in funcs + funcs]
-        for p in tmp_files:
-            self.assertTrue(p.exists())
-        for p in tmp_files:
-            p.unlink()
-
-    def test_export_invalid_config(self):
-        fw.export_algorithm_config(algs=('INVALID', ))
-        fw.export_problem_config(probs=('INVALID', ))
 
 
 class TestOtherUtils(unittest.TestCase):
