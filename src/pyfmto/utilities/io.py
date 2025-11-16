@@ -9,7 +9,7 @@ from ruamel.yaml.error import MarkedYAMLError
 
 yaml = YAML()
 yaml.indent(mapping=2, sequence=4, offset=2)
-yaml.default_flow_style = True
+yaml.default_flow_style = None
 
 T_Path = Union[str, Path]
 
@@ -58,7 +58,7 @@ def dumps_yaml(data: Union[dict, CommentedMap]):
             text.append(f"\n{line}")
         else:
             text.append(line)
-    return ''.join(text)
+    return '\n'.join(text)
 
 
 @validate_call
