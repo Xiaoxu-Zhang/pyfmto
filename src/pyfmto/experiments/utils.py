@@ -625,8 +625,7 @@ def list_algorithms(print_it=False):
     folders = os.listdir('algorithms') if os.path.exists('algorithms') else []
     alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
     if print_it:
-        alg_str = '\n'.join(alg_names)
-        print(textwrap.indent(alg_str, ' ' * 2))
+        print('\n'.join(alg_names))
     return alg_names
 
 
