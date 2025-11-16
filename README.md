@@ -10,9 +10,9 @@
 
 ```
 
-# Federated Many-task Optimization Library for Python
+# PyFMTO
 
-**pyfmto** is a Python library for federated many-task optimization research
+**PyFMTO** is a pure Python library for federated many-task optimization research
 
 ## Install
 
@@ -24,10 +24,10 @@ pip install https://pyfmto.oss-cn-hangzhou.aliyuncs.com/dist/pyfmto-0.0.1-py3-no
 
 ## Usage
 
-To begin with, we highly recommend that you clone the [fmto](https://github.com/Xiaoxu-Zhang/fmto) 
-repository. This repository is the official collection of published FMTO algorithms and serves as 
-a practical example of how to structure and perform experiments. The repository includes the 
-following components:
+To begin with, we highly recommend that you clone the 
+[fmto](https://github.com/Xiaoxu-Zhang/fmto) repository. This repository is the official 
+collection of published FMTO algorithms and serves as a practical example of how to structure 
+and perform experiments. The repository includes the following components:
 
 - A collection of published FMTO algorithms.
 - A config file (config.yaml) that provides guidance on how to set up and configure the experiments.
@@ -69,9 +69,9 @@ pyfmto report
 
 ## Algorithm's Components
 
-An algorithm includes two parts: the client and the server. The client is responsible for optimizing the local problem 
-and the server is responsible for aggregating the knowledge from the clients. The required components for client and
-server are as follows:
+An algorithm includes two parts: the client and the server. The client is responsible for 
+optimizing the local problem and the server is responsible for aggregating the knowledge from 
+the clients. The required components for client and server are as follows:
 
 ```python
 # myalg_client.py
@@ -100,13 +100,13 @@ class MyServer(Server):
 
 ## Problem's Components
 
-There are two types of problems: single-task problems and multitask problems. A single-task problem is a problem
-that has only one objective function. A multitask problem is a problem that has multiple single-task problems. To 
-define a multitask problem, you should implement several SingleTaskProblem and then define a MultiTaskProblem to
-aggregate them.
+There are two types of problems: single-task problems and multitask problems. A single-task 
+problem is a problem that has only one objective function. A multitask problem is a problem that 
+has multiple single-task problems. To define a multitask problem, you should implement several 
+SingleTaskProblem and then define a MultiTaskProblem to aggregate them.
 
-> **Note**: There are some classical SingleTaskProblem defined in `pyfmto.problems.benchmarks` module. You can use 
-> them directly.
+> **Note**: There are some classical SingleTaskProblem defined in `pyfmto.problems.benchmarks` 
+> module. You can use them directly.
 
 ```python
 import numpy as np
@@ -187,7 +187,8 @@ Available problems and their configurable parameters are listed below:
     - `dim`: int $\in [1, 50]$  # If dim > 25, the number of tasks will be 17, else 18
   - **tevc2024**
     - `dim`: int $\in [1, 10]$
-    - `src_problem`: str $\in$ ['Griewank', 'Rastrigin', 'Ackley', 'Schwefel', 'Sphere', 'Rosenbrock', 'Weierstrass', 'Ellipsoid']
+    - `src_problem`: str $\in$ ['Griewank', 'Rastrigin', 'Ackley', 'Schwefel', 'Sphere', 
+      'Rosenbrock', 'Weierstrass', 'Ellipsoid']
   - **tetci2019**
     - `dim`: int $\in [1, 50]$ # If dim > 25, the number of tasks will be 8, else 10
   - **cec2022**
@@ -215,20 +216,4 @@ Coming soon...
 
 ## Contributing
 
-We welcome contributions from the community to enhance the functionality and usability of **pyfmto**.
-If you encounter any issues or have suggestions for improvements, please feel free to open an issue or 
-submit a pull request.
-
-Any changes should be covered by existing tests or added new tests.
-
-To set up a development environment, use the following command:
-
-```bash
-conda create -n pyfmto-dev python=3.10
-conda activate pyfmto-dev
-pip install ".[dev]"
-```
-
-> **Note**:
-> 1. The `[dev]` option is used to install the development dependencies.
-> 2. The environment name `pyfmto-dev` is arbitrary, you can use any name you like.
+see [contributing](CONTRIBUTING.md) for instructions on how to contribute to PyFMTO.
