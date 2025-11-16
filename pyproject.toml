@@ -101,7 +101,7 @@ dev = [
 ]
 
 [project.scripts]
-pyfmto = "pyfmto:main"
+pyfmto = "pyfmto.utilities.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Xiaoxu-Zhang/pyfmto"
