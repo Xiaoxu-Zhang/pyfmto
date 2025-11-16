@@ -7,7 +7,6 @@ from .packages import ClientPackage, SyncDataManager, DataArchive
 from pyfmto.problems import load_problem
 from pyfmto.utilities import save_yaml, load_yaml
 from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
-from pyfmto.experiments.utils import get_alg_kwargs
 
 __all__ = [
     'Client',
@@ -162,6 +161,7 @@ def export_algorithm_config(
     all_algorithms = {}
     for name in algs:
         try:
+            from pyfmto.experiments.utils import get_alg_kwargs
             curr = get_alg_kwargs(name)
             all_algorithms[name] = curr
         except Exception as e:
