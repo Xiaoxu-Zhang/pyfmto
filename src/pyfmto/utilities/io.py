@@ -4,12 +4,12 @@ from pathlib import Path
 from typing import Union, Any, Optional
 
 from pydantic import validate_call
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML, CommentedMap
 from ruamel.yaml.error import MarkedYAMLError
 
 yaml = YAML()
 yaml.indent(mapping=2, sequence=4, offset=2)
-yaml.default_flow_style = None
+yaml.default_flow_style = True
 
 T_Path = Union[str, Path]
 
@@ -46,8 +46,7 @@ def parse_yaml(text: Optional[str]):
         raise
 
 
-@validate_call
-def dumps_yaml(data: dict):
+def dumps_yaml(data: Union[dict, CommentedMap]):
     from io import StringIO
     string_stream = StringIO()
     yaml.dump(data, string_stream)
@@ -59,7 +58,7 @@ def dumps_yaml(data: dict):
             text.append(f"\n{line}")
         else:
             text.append(line)
-    return '\n'.join(text)
+    return ''.join(text)
 
 
 @validate_call
