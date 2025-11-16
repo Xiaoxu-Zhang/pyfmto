@@ -712,7 +712,7 @@ class MultiTaskProblem(ABC):
     def __iter__(self):
         return iter(self._problem)
 
-    def __getitem__(self, index) -> Union[SingleTaskProblem, list[SingleTaskProblem], tuple[SingleTaskProblem]]:
+    def __getitem__(self, index) -> SingleTaskProblem:
         if isinstance(index, slice):
             return self._problem[index]
         elif isinstance(index, int):
