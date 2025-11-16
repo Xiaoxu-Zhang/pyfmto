@@ -13,8 +13,22 @@ __all__ = [
     'list_problems',
     'MultiTaskProblem',
     'Solution',
-    'SingleTaskProblem'
+    'SingleTaskProblem',
+    'DEFAULT_CONF'
 ]
+
+
+DEFAULT_CONF = """
+    tetci2019:
+        dim: 10  # 1 <= dim <= 50
+    cec2022:
+        dim: 10  # 10 or 20
+    tevc2024:
+        dim: 10  # 1 <= dim <= 10
+        src_problem: [Ackley]  # Options: Ackley, Griewank, Rastrigin, Rosenbrock, Schwefel, Sphere, Weierstrass
+    arxiv2017:
+        dim: 10  # 1 <= dim <= 50
+"""
 
 
 def collect_problems_meta():
