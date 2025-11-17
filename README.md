@@ -14,6 +14,21 @@
 
 **PyFMTO** is a pure Python library for federated many-task optimization research
 
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-demo.gif" 
+width="95%"/><br>
+      Run experiments
+    </td>
+    <td align="center">
+      <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-iplot.gif" 
+width="95%"/><br>
+      Plot tasks
+    </td>
+  </tr>
+</table>
+
 ## Install
 
 Require python 3.9+
@@ -131,7 +146,7 @@ class MyMTP(MultiTaskProblem):
     def __init__(self, dim=10, **kwargs):
         super().__init__(dim, **kwargs)
     
-    def _init_tasks(self, dim, **kwargs) -> Union[list[SingleTaskProblem], tuple[SingleTaskProblem]]:
+    def _init_tasks(self, dim, **kwargs) -> list[SingleTaskProblem]:
         # We duplicate MySTP for 10 here as an example
         return [MySTP(dim=dim, **kwargs) for _ in range(10)]
   ```
