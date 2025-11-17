@@ -4,7 +4,12 @@ import sys
 from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import patch
-from pyfmto import main, update_path
+
+from pyfmto import list_problems
+from pyfmto.experiments import list_report_formats
+from pyfmto.experiments.utils import list_algorithms
+from pyfmto.utilities.cli import update_path, main
+from tests.experiments import export_alg_template
 
 
 class TestUpdatePath(unittest.TestCase):
@@ -25,7 +30,7 @@ class TestUpdatePath(unittest.TestCase):
         algorithms_dir = self.temp_dir / "algorithms"
         algorithms_dir.mkdir()
 
-        with patch('pyfmto.Path.cwd', return_value=self.temp_dir):
+        with patch('pyfmto.utilities.cli.Path.cwd', return_value=self.temp_dir):
             if str(self.temp_dir) in sys.path:
                 sys.path.remove(str(self.temp_dir))
             update_path()
@@ -35,7 +40,7 @@ class TestUpdatePath(unittest.TestCase):
         algorithms_dir = self.temp_dir / "algorithms"
         algorithms_dir.mkdir()
 
-        with patch('pyfmto.Path.cwd', return_value=self.temp_dir):
+        with patch('pyfmto.utilities.cli.Path.cwd', return_value=self.temp_dir):
             if str(self.temp_dir) not in sys.path:
                 sys.path.append(str(self.temp_dir))
             orig_len = len(sys.path)
@@ -43,7 +48,7 @@ class TestUpdatePath(unittest.TestCase):
             self.assertEqual(len(sys.path), orig_len)
 
     def test_update_path_without_algorithms_folder(self):
-        with patch('pyfmto.Path.cwd', return_value=self.temp_dir):
+        with patch('pyfmto.utilities.cli.Path.cwd', return_value=self.temp_dir):
             with self.assertRaises(FileNotFoundError):
                 update_path()
 
@@ -60,7 +65,7 @@ class TestUpdatePath(unittest.TestCase):
         algorithms_dir = self.temp_dir / "algorithms"
         algorithms_dir.mkdir()
 
-        with patch('pyfmto.Path.cwd', return_value=self.temp_dir):
+        with patch('pyfmto.utilities.cli.Path.cwd', return_value=self.temp_dir):
             if str(self.temp_dir) in sys.path:
                 sys.path.remove(str(self.temp_dir))
             update_path()
@@ -70,25 +75,21 @@ class TestUpdatePath(unittest.TestCase):
 
 
 class TestMainFunction(unittest.TestCase):
-    """Test cases for the main function in pyfmto.__init__"""
 
     def setUp(self):
         self.algorithms_dir = Path().cwd() / "algorithms"
         self.algorithms_dir.mkdir(parents=True, exist_ok=True)
-        """Set up test fixtures before each test method."""
         self.original_argv = sys.argv
 
     def tearDown(self):
-        """Clean up after each test method."""
         sys.argv = self.original_argv
         if self.algorithms_dir.exists():
             import shutil
             shutil.rmtree(self.algorithms_dir)
 
-    @patch('pyfmto.Launcher')
-    @patch('pyfmto.Reports')
+    @patch('pyfmto.utilities.cli.Launcher')
+    @patch('pyfmto.utilities.cli.Reports')
     def test_run_command(self, mock_reports, mock_launcher):
-        """Test that the main function correctly handles the 'run' command."""
         # Setup mock launcher
         mock_launcher_instance = Mock()
         mock_launcher.return_value = mock_launcher_instance
@@ -103,10 +104,9 @@ class TestMainFunction(unittest.TestCase):
         mock_launcher_instance.run.assert_called_once()
         mock_reports.assert_not_called()
 
-    @patch('pyfmto.Launcher')
-    @patch('pyfmto.Reports')
+    @patch('pyfmto.utilities.cli.Launcher')
+    @patch('pyfmto.utilities.cli.Reports')
     def test_report_command(self, mock_reports, mock_launcher):
-        """Test that the main function correctly handles the 'report' command."""
         # Setup mock reports
         mock_reports_instance = Mock()
         mock_reports.return_value = mock_reports_instance
@@ -121,10 +121,9 @@ class TestMainFunction(unittest.TestCase):
         mock_reports_instance.generate.assert_called_once()
         mock_launcher.assert_not_called()
 
-    @patch('pyfmto.Launcher')
-    @patch('pyfmto.Reports')
+    @patch('pyfmto.utilities.cli.Launcher')
+    @patch('pyfmto.utilities.cli.Reports')
     def test_default_config_file(self, mock_reports, mock_launcher):
-        """Test that the main function uses default config when none is specified."""
         # Setup mock launcher
         mock_launcher_instance = Mock()
         mock_launcher.return_value = mock_launcher_instance
@@ -137,3 +136,21 @@ class TestMainFunction(unittest.TestCase):
         # Verify launcher was created with default config
         mock_launcher.assert_called_once_with(conf_file='config.yaml')
         mock_launcher_instance.run.assert_called_once()
+
+    def test_list_command(self):
+        options = ['algorithms', 'problems', 'reports']
+        args_lst = [['pyfmto', 'list', option] for option in options]
+        for test_args in args_lst:
+            with self.subTest(test_args=test_args):
+                with patch.object(sys, 'argv', test_args):
+                    main()
+
+    def test_show_command(self):
+        export_alg_template('ALG1')
+        export_alg_template('ALG2')
+        options = list_problems() + list_report_formats() + list_algorithms() + ['Invalid']
+        args_lst = [['pyfmto', 'show', option] for option in options]
+        for test_args in args_lst:
+            with self.subTest(test_args=test_args):
+                with patch.object(sys, 'argv', test_args):
+                    main()

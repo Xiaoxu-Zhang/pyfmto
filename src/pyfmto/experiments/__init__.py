@@ -8,12 +8,12 @@ __all__ = [
     'Reports',
     'Launcher',
     'RunSolutions',
-    'list_reports',
     'DEFAULT_CONF',
+    'list_report_formats',
 ]
 
 
-def list_reports(print_it=False):
+def list_report_formats(print_it=False):
     res = [r[3:] for r in dir(Reports) if 'to_' in r]
     if print_it:
         print('\n'.join(res))
