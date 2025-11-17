@@ -474,5 +474,7 @@ class TestOtherUtils(unittest.TestCase):
         self.assertTrue(issubclass(res.server, Server))
 
     def test_load_invalid_algorithm(self):
+        with self.assertRaises(ValueError):
+            load_algorithm('NONEXISTENT')
         with self.assertRaises(RuntimeError):
             load_algorithm('INVALID')
