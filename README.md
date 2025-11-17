@@ -73,49 +73,58 @@ get helps. The CLI layers are as follows:
 
 ```txt
 pyfmto
+   ├── -h/--help
    ├── run [-c/--config <config_file>]
    ├── report [-c/--config <config_file>]
    ├── list algorithms/problems/reports
    └── show <result of list>
 ```
 
-Specifically, the detail and examples of the CLI commands are as follows:
+**Examples:**
 
-- `pyfmto run`
-  - Run experiments
-  - You can specify a different config file by using the `-c` or `--config` option. For example, to 
-    run the experiments using the config file `my_conf.yaml`, you can use the following command:
-  ```bash
-  pyfmto run -c my_conf.yaml
-  ```
-- `pyfmto report`
-  - Analyze results
-  - Same as `run` command, it also supports `-c/--config` option.
-- `pyfmto list`
-  - List available options
-  - You can use the following command to list all available options for `algorithms`, `problems` or 
-    `report formats`, for example:
-  ```bash
-  pyfmto list algorithms
-  ```
-- `pyfmto show`
-  - Show default config of an algorithm, problem or report format
-  - `show` supports all the options list by `list` command, for example:
-  ```bash
-  ~$ pyfmto list algorithms
-  ALG1
-  ALG2
-  ~$ pyfmto show ALG1
-  client:
-    alpha: 0.1
-  server:
-    beta: 0.2
-  ```
-  - You can check the supported args of an algorithm, problem or report format through the
-    `show` command.
-- get help (you can also use `-h` to replace `--help` in the following commands)
-  - `pyfmto --help`
-  - `pyfmto <command> --help`
+- Get help:
+    ```bash
+    pyfmto -h # or ↓
+    # pyfmto --help
+    # pyfmto list -h
+    ```
+- Run experiments:
+    ```bash
+    pyfmto run # or ↓
+    # pyfmto run -c config.yaml
+    ```
+- Generate reports:
+    ```bash
+    pyfmto report # or ↓
+    # pyfmto report -c config.yaml
+    ```
+- List something:
+    ```bash
+    pyfmto list algorithms
+    ```
+    output:
+    ```txt
+    Found 6 Algorithms:
+    FDEMD
+    ADDFBO
+    BO
+    FMTBO
+    IAFFBO
+    ALG
+    ```
+- Show supported configurations:
+    ```bash
+    pyfmto show ALG
+    # pyfmto will automatically find the name in 'algorithms', 'problems' and 'reports'
+    ```
+    output:
+    ```txt
+    client:   
+      alpha: 0.2
+    
+    server:
+      beta: 0.5
+    ```
 
 ### Use PyFMTO in python
 
@@ -131,11 +140,34 @@ if __name__ == '__main__':
     # reporter.to_ ...
 ```
 
+## Architecture and Ecosystem
+
+<div align="center">
+  <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-architecture.svg" 
+width="90%">
+</div>
+
+Where the filled area represents the fully developed modules. And the non-filled area represents
+the base modules that can be inherited and extended.
+
+The bottom layer listed the core technologies used in PyFMTO for computing, communicating, plotting 
+and testing.
+
 ## About fmto
 
 The repository [fmto](https://github.com/Xiaoxu-Zhang/fmto) is the official collection of 
-published FMTO algorithms and serves as a practical example of how to structure and perform 
-experiments. The repository includes the following components:
+published FMTO algorithms. The relationship between the `fmto` and `PyFMTO` is as follows:
+
+<p align="center">
+    <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/fmto-relation.svg"/>
+<p>
+
+The `fmto` is designed to provide a platform for researchers to compare and evaluate the 
+performance of different FMTO algorithms. The repository is built on top of the PyFMTO library, 
+which provides a flexible and extensible framework for implementing FMTO algorithms.
+
+It also serves as a practical example of how to structure and perform experiments. The repository 
+includes the following components:
 
 - A collection of published FMTO algorithms.
 - A config file (config.yaml) that provides guidance on how to set up and configure the experiments.
@@ -146,18 +178,6 @@ The `config.yaml`, `ALG` and `PROB` provided detailed instructions, you can even
 research without additional documentation.
 The fmto repository is currently in the early stages of development. We are actively working 
 on improving existing algorithms and adding new algorithms.
-
-## Structure of PyFMTO
-
-<div align="center">
-  <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-structure.svg" width="50%">
-</div>
-
-Where the filled area represents the fully developed modules. And the non-filled area represents
-the base modules that can be inherited and extended.
-
-The bottom layer listed the core technologies used in PyFMTO for computing, communicating, plotting 
-and testing.
 
 ## Algorithm's Components
 
