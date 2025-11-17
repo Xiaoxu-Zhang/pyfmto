@@ -37,10 +37,10 @@ Python 3.9+
 
 ### Quick Start
 
-Clone the [fmto](https://github.com/Xiaoxu-Zhang/fmto) repository ([why?](#fmto-repository)):
+Clone the [fmto](https://github.com/Xiaoxu-Zhang/fmto.git) repository ([why?](#about-fmto)):
 
 ```bash
-git clone https://github.com/Xiaoxu-Zhang/fmto
+git clone https://github.com/Xiaoxu-Zhang/fmto.git
 cd fmto
 ```
 
@@ -66,7 +66,7 @@ pyfmto report
 
 The reports will be saved in the folder `out/results/<today>`
 
-### Command Line Interface (CLI)
+### Command-line Interface (CLI)
 
 PyFMTO provides a command-line interface (CLI) for running experiments, analyzing results and 
 get helps. The CLI layers are as follows:
@@ -146,6 +146,18 @@ The `config.yaml`, `ALG` and `PROB` provided detailed instructions, you can even
 research without additional documentation.
 The fmto repository is currently in the early stages of development. We are actively working 
 on improving existing algorithms and adding new algorithms.
+
+## Structure of PyFMTO
+
+<div align="center">
+  <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-structure.svg" width="50%">
+</div>
+
+Where the filled area represents the fully developed modules. And the non-filled area represents
+the base modules that can be inherited and extended.
+
+The bottom layer listed the core technologies used in PyFMTO for computing, communicating, plotting 
+and testing.
 
 ## Algorithm's Components
 
