@@ -1,6 +1,5 @@
 import argparse
 import sys
-from os import listdir
 from pathlib import Path
 
 from .io import parse_yaml, dumps_yaml
@@ -11,11 +10,8 @@ from ..problems import list_problems, DEFAULT_CONF as PROB_CONF
 
 def update_path():
     current_dir = Path().cwd()
-    if 'algorithms' in listdir(current_dir):
-        if str(current_dir) not in sys.path:
-            sys.path.append(str(current_dir))
-    else:
-        raise FileNotFoundError(f"'algorithms' folder not found in the current directory '{current_dir}'.")
+    if str(current_dir) not in sys.path:
+        sys.path.append(str(current_dir))
 
 
 def main():

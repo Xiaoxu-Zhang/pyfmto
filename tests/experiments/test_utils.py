@@ -464,17 +464,24 @@ class TestOtherUtils(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.alg_dir, ignore_errors=True)
 
+    def test_without_alg_dir(self):
+        shutil.rmtree(self.alg_dir, ignore_errors=True)
+        res = list_algorithms(print_it=True)
+        self.assertEqual(res, [])
+
     def test_list_algorithms(self):
         list_algorithms(print_it=True)
 
     def test_load_algorithm(self):
         res = load_algorithm('ALG1')
-        self.assertEqual(res.name, 'ALG1')
         self.assertTrue(issubclass(res.client, Client))
         self.assertTrue(issubclass(res.server, Server))
 
     def test_load_invalid_algorithm(self):
         with self.assertRaises(ValueError):
             load_algorithm('NONEXISTENT')
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ModuleNotFoundError):
             load_algorithm('INVALID')
+        shutil.rmtree(self.alg_dir)
+        with self.assertRaises(FileNotFoundError):
+            load_algorithm('ALG')

@@ -26,16 +26,6 @@ class TestUpdatePath(unittest.TestCase):
             import shutil
             shutil.rmtree(self.temp_dir)
 
-    def test_update_path_with_algorithms_folder(self):
-        algorithms_dir = self.temp_dir / "algorithms"
-        algorithms_dir.mkdir()
-
-        with patch('pyfmto.utilities.cli.Path.cwd', return_value=self.temp_dir):
-            if str(self.temp_dir) in sys.path:
-                sys.path.remove(str(self.temp_dir))
-            update_path()
-            self.assertIn(str(self.temp_dir), sys.path)
-
     def test_update_path_already_in_path(self):
         algorithms_dir = self.temp_dir / "algorithms"
         algorithms_dir.mkdir()
@@ -46,20 +36,6 @@ class TestUpdatePath(unittest.TestCase):
             orig_len = len(sys.path)
             update_path()
             self.assertEqual(len(sys.path), orig_len)
-
-    def test_update_path_without_algorithms_folder(self):
-        with patch('pyfmto.utilities.cli.Path.cwd', return_value=self.temp_dir):
-            with self.assertRaises(FileNotFoundError):
-                update_path()
-
-    def test_update_path_current_directory_real(self):
-        algorithms_dir = self.temp_dir / "algorithms"
-        algorithms_dir.mkdir()
-        os.chdir(self.temp_dir)
-        if str(self.temp_dir) in sys.path:
-            sys.path.remove(str(self.temp_dir))
-        update_path()
-        self.assertIn(str(self.temp_dir), sys.path)
 
     def test_update_path_path_normalization(self):
         algorithms_dir = self.temp_dir / "algorithms"

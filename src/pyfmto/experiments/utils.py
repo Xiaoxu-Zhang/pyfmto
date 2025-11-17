@@ -582,7 +582,6 @@ class ReporterUtils:
 
 
 class Algorithm:
-    name: str
     client: Type[Client]
     server: Type[Server]
 
@@ -592,13 +591,14 @@ class Algorithm:
 
 
 def load_algorithm(name: str):
-    alg = Algorithm()
-    alg.name = name
-    alg_names = list_algorithms()
-    if name in alg_names:
+    alg_dir = Path().cwd() / 'algorithms' / name
+    if alg_dir.exists():
         module = importlib.import_module(f"algorithms.{name}")
+    elif alg_dir.parent.exists():
+        raise ValueError(f"algorithm {name} not found in {alg_dir.parent}.")
     else:
-        raise ValueError(f'algorithm {name} not found.')
+        raise FileNotFoundError(f"'algorithms' folder not found in {Path().cwd()}.")
+    alg = Algorithm()
 
     for attr_name in dir(module):
         attr = getattr(module, attr_name)
@@ -616,15 +616,23 @@ def load_algorithm(name: str):
     if not hasattr(alg, 'server'):
         msg.append("  Server not found.")
     if len(msg) > 1:
-        raise RuntimeError('\n'.join(msg))
+        raise ModuleNotFoundError('\n'.join(msg))
     return alg
 
 
 def list_algorithms(print_it=False):
-    folders = os.listdir('algorithms') if os.path.exists('algorithms') else []
-    alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
+    alg_dir = Path().cwd() / 'algorithms'
+    if alg_dir.exists():
+        folders = os.listdir(alg_dir)
+        alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
+    else:
+        alg_names = []
     if print_it:
-        print('\n'.join(alg_names))
+        if alg_dir.exists():
+            alg_str = '\n'.join(alg_names)
+            print(f"Found {len(alg_names)} algorithms: \n{alg_str}")
+        else:
+            print(f"'algorithms' folder not found in {alg_dir.parent}.")
     return alg_names
 
 
