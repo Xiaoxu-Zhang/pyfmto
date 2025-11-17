@@ -57,7 +57,7 @@ def main():
         reports.generate()
     elif args.command == 'list':
         if args.name == 'problems':
-            print('\n'.join(list(parse_yaml(PROB_CONF).keys())))
+            print('\n'.join(list_problems()))
         elif args.name == 'algorithms':
             list_algorithms(print_it=True)
         elif args.name == 'reports':
@@ -67,7 +67,7 @@ def main():
             conf = parse_yaml(PROB_CONF)
             data = conf.get(args.name.lower())
             if not data:
-                print(f"Configuration for {args.name} not found.")
+                print(f"{args.name} no more configurable parameters.")
             else:
                 print(dumps_yaml(data))
         elif args.name.upper() in list_algorithms():

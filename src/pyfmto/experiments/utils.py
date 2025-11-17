@@ -591,6 +591,7 @@ class Algorithm:
 
 
 def load_algorithm(name: str):
+    name = name.upper()
     alg_dir = Path().cwd() / 'algorithms' / name
     if alg_dir.exists():
         module = importlib.import_module(f"algorithms.{name}")
