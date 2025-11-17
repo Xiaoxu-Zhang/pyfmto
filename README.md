@@ -29,58 +29,123 @@ width="95%"/><br>
   </tr>
 </table>
 
-## Install
+## Requirements
 
-Require python 3.9+
-
-```bash
-pip install https://pyfmto.oss-cn-hangzhou.aliyuncs.com/dist/pyfmto-0.0.1-py3-none-any.whl
-```
+Python 3.9+
 
 ## Usage
 
-To begin with, we highly recommend that you clone the 
-[fmto](https://github.com/Xiaoxu-Zhang/fmto) repository. This repository is the official 
-collection of published FMTO algorithms and serves as a practical example of how to structure 
-and perform experiments. The repository includes the following components:
+### Quick Start
+
+Clone the [fmto](https://github.com/Xiaoxu-Zhang/fmto) repository ([why?](#fmto-repository)):
+
+```bash
+git clone https://github.com/Xiaoxu-Zhang/fmto
+cd fmto
+```
+
+Create an environment (`conda` is recommended) and install PyFMTO:
+
+```bash
+conda create -n fmto python=3.10
+conda activate fmto
+pip install pyfmto
+```
+
+Start the experiments:
+
+```bash
+pyfmto run
+```
+
+Generate reports:
+
+```bash
+pyfmto report
+```
+
+The reports will be saved in the folder `out/results/<today>`
+
+### Command Line Interface (CLI)
+
+PyFMTO provides a command-line interface (CLI) for running experiments, analyzing results and 
+get helps. The CLI layers are as follows:
+
+```txt
+pyfmto
+   ├── run [-c/--config <config_file>]
+   ├── report [-c/--config <config_file>]
+   ├── list algorithms/problems/reports
+   └── show <result of list>
+```
+
+Specifically, the detail and examples of the CLI commands are as follows:
+
+- `pyfmto run`
+  - Run experiments
+  - You can specify a different config file by using the `-c` or `--config` option. For example, to 
+    run the experiments using the config file `my_conf.yaml`, you can use the following command:
+  ```bash
+  pyfmto run -c my_conf.yaml
+  ```
+- `pyfmto report`
+  - Analyze results
+  - Same as `run` command, it also supports `-c/--config` option.
+- `pyfmto list`
+  - List available options
+  - You can use the following command to list all available options for `algorithms`, `problems` or 
+    `report formats`, for example:
+  ```bash
+  pyfmto list algorithms
+  ```
+- `pyfmto show`
+  - Show default config of an algorithm, problem or report format
+  - `show` supports all the options list by `list` command, for example:
+  ```bash
+  ~$ pyfmto list algorithms
+  ALG1
+  ALG2
+  ~$ pyfmto show ALG1
+  client:
+    alpha: 0.1
+  server:
+    beta: 0.2
+  ```
+  - You can check the supported args of an algorithm, problem or report format through the
+    `show` command.
+- get help (you can also use `-h` to replace `--help` in the following commands)
+  - `pyfmto --help`
+  - `pyfmto <command> --help`
+
+### Use PyFMTO in python
+
+```python
+from pyfmto import Launcher, Reporter
+
+if __name__ == '__main__':
+    launcher = Launcher()
+    launcher.run()
+    
+    reporter = Reporter()
+    reporter.to_curve()
+    # reporter.to_ ...
+```
+
+## About fmto
+
+The repository [fmto](https://github.com/Xiaoxu-Zhang/fmto) is the official collection of 
+published FMTO algorithms and serves as a practical example of how to structure and perform 
+experiments. The repository includes the following components:
 
 - A collection of published FMTO algorithms.
 - A config file (config.yaml) that provides guidance on how to set up and configure the experiments.
 - A template algorithm named "ALG" that you can use as a basis for implementing your own algorithm.
 - A template problem named "PROB" that you can use as a basis for implementing your own problem.
 
-> **Note**: 
-> 1. The `config.yaml`, `ALG` and `PROB` provided detailed instructions, you can even start your 
-> research without additional documentation.
-> 2. The fmto repository is currently in the early stages of development. We are actively working 
-> on improving existing algorithms and adding new algorithms.
-
-To clone the fmto, you can use the following command:
-
-```bash
-git clone https://github.com/Xiaoxu-Zhang/fmto
-```
-
-Now, have a try! Start the experiments by the following command:
-
-```bash
-cd fmto
-pyfmto run
-```
-
-Finally, analyze the results by running the following command:
-
-```bash
-pyfmto report
-```
-
-> **Note**: You can specify a different config file by using the `-c` option. For example, to run 
-> the experiments using the config file `my_conf.yaml`, you can use the following command:
-> 
-> ```bash
-> pyfmto run -c my_conf.yaml
-> ```
-> The report command also supports the `-c` option.
+The `config.yaml`, `ALG` and `PROB` provided detailed instructions, you can even start your 
+research without additional documentation.
+The fmto repository is currently in the early stages of development. We are actively working 
+on improving existing algorithms and adding new algorithms.
 
 ## Algorithm's Components
 
@@ -188,30 +253,6 @@ prob = load_problem('arxiv2017', dim=2, fe_init=20, fe_max=50, np_per_dim=5)
 print(prob)
 ```
 
-The following parameters are available for all problems and can be optionally customized:
-
-- `fe_init`: int $\in [1, +\infty]$ (default: `5*dim`)
-- `fe_max`: int $\in [\text{fe_init}, +\infty)$ (default: `11*dim`)
-- `np_per_dim`: int $\in [1, +\infty)$ (default: `1`)
-- `random_ctrl`: str $\in$ {'no', 'weak', 'strong'}
-
-Available problems and their configurable parameters are listed below:
-
-- **Synthetic**
-  - **arxiv2017**
-    - `dim`: int $\in [1, 50]$  # If dim > 25, the number of tasks will be 17, else 18
-  - **tevc2024**
-    - `dim`: int $\in [1, 10]$
-    - `src_problem`: str $\in$ ['Griewank', 'Rastrigin', 'Ackley', 'Schwefel', 'Sphere', 
-      'Rosenbrock', 'Weierstrass', 'Ellipsoid']
-  - **tetci2019**
-    - `dim`: int $\in [1, 50]$ # If dim > 25, the number of tasks will be 8, else 10
-  - **cec2022**
-    - `dim`: int $\in$ {10, 20}
-
-- **Realworld**
-  - **svm_landmine**
-
 ## Visualization
 
 ### SingleTaskProblem Visualization
@@ -227,7 +268,15 @@ task.iplot_3d() # interactive plotting
 
 ### MultiTaskProblem Visualization
 
-Coming soon...
+The right side GIF at the beginning of this README is generated by the following code:
+
+```python
+from pyfmto import load_problem
+
+if __name__ == '__main__':
+    prob = load_problem('arxiv2017', dim=2)
+    prob.iplot_tasks_3d(tasks_id=[2, 5, 12, 18])
+```
 
 ## Contributing
 
