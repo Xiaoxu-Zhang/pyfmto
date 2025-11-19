@@ -25,7 +25,7 @@ class TestLauncher(unittest.TestCase):
     def tearDown(self):
         Path('config.yaml').unlink()
         shutil.rmtree('algorithms')
-        shutil.rmtree('out')
+        shutil.rmtree('out', ignore_errors=True)
 
     def test_basic_run(self):
         launcher = Launcher()

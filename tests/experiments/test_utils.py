@@ -469,7 +469,7 @@ class TestOtherUtils(unittest.TestCase):
     def test_without_alg_dir(self):
         shutil.rmtree(self.alg_dir, ignore_errors=True)
         res = list_algorithms(print_it=True)
-        self.assertEqual(res, [])
+        self.assertEqual(res, {})
 
     def test_list_algorithms(self):
         list_algorithms(print_it=True)
