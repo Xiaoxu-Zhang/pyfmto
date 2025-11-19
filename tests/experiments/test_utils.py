@@ -6,6 +6,8 @@ import unittest
 import yaml
 from itertools import product
 from pathlib import Path
+
+from pyfmto.experiments import show_default_conf, list_report_formats
 from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import (
@@ -487,3 +489,13 @@ class TestOtherUtils(unittest.TestCase):
         shutil.rmtree(self.alg_dir)
         with self.assertRaises(FileNotFoundError):
             load_algorithm('ALG')
+
+    def test_list_report_formats(self):
+        res = list_report_formats(print_it=True)
+        for fmt in ['curve', 'violin', 'excel', 'latex', 'console']:
+            self.assertIn(fmt, res)
+
+    def test_show_default_conf(self):
+        for fmt in list_report_formats() + ['nonexist']:
+            with self.subTest(fmt=fmt):
+                self.assertIsNone(show_default_conf(fmt))
