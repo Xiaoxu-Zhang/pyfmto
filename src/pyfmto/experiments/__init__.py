@@ -4,11 +4,13 @@ from .utils import (
     RunSolutions,
 )
 
+from ..utilities import parse_yaml, dumps_yaml, matched_str_head
+
 __all__ = [
     'Reports',
     'Launcher',
     'RunSolutions',
-    'DEFAULT_CONF',
+    'show_default_conf',
     'list_report_formats',
 ]
 
@@ -18,6 +20,15 @@ def list_report_formats(print_it=False):
     if print_it:
         print('\n'.join(res))
     return res
+
+
+def show_default_conf(name: str):
+    conf = parse_yaml(DEFAULT_CONF)
+    full_name = matched_str_head(name, list(conf.keys()))
+    if full_name:
+        print(dumps_yaml(conf[full_name]))
+    else:
+        print(f"No matched format name {name} in report formats {list(conf.keys())}")
 
 
 DEFAULT_CONF = """
