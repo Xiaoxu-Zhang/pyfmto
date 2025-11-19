@@ -1,11 +1,11 @@
 import argparse
 import sys
+import textwrap
 from pathlib import Path
 
 from .tools import matched_str_head
 from ..experiments import Launcher, Reports, list_report_formats, show_default_conf
-from ..experiments.loaders import list_algorithms, load_problem, load_algorithm
-from .. import list_problems
+from .loaders import list_problems, load_algorithm, list_algorithms, load_problem
 
 
 def update_path():
@@ -58,7 +58,7 @@ def main():
     elif args.command == 'list':
         full_name = matched_str_head(args.name, ['problems', 'algorithms', 'reports'])
         if full_name == 'problems':
-            print('\n'.join(list_problems()))
+            print(textwrap.indent('\n'.join(list_problems()), ' ' * 4))
         elif full_name == 'algorithms':
             list_algorithms(print_it=True)
         elif full_name == 'reports':
@@ -68,10 +68,10 @@ def main():
         full_name = matched_str_head(t, ['problems', 'algorithms', 'reports'])
         if full_name == 'problems':
             prob = load_problem(v)
-            print(prob.kwargs_yaml)
+            print(prob.params_yaml)
         elif full_name == 'algorithms':
             alg = load_algorithm(v)
-            print(alg.kwargs_yaml)
+            print(alg.params_yaml)
         elif full_name == 'reports':
             show_default_conf(v)
         else:
