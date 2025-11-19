@@ -2,7 +2,8 @@ import shutil
 import unittest
 import matplotlib as plt
 from pathlib import Path
-from . import load_problem, export_reporter_config
+from . import export_reporter_config
+from pyfmto import init_problem
 from pyfmto.experiments import RunSolutions, Reports
 from pyfmto.experiments.reporter import (
     ReportGenerator, CurveGenerator, ViolinGenerator, ExcelGenerator, LatexGenerator, ConsoleGenerator, Reporter
@@ -104,7 +105,7 @@ class TestReporter(unittest.TestCase):
                 res_root = self.root / alg / prob.upper() / 'IID'
                 res_root.mkdir(parents=True, exist_ok=True)
                 for run in range(5):
-                    problem = load_problem(prob)
+                    problem = init_problem(prob)
                     run_solutions = RunSolutions()
                     for task in problem:
                         x = task.random_uniform_x(task.fe_available)

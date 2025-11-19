@@ -4,7 +4,7 @@ import unittest
 
 from pyfmto.experiments.utils import LauncherUtils
 from pyfmto.framework import Client, Server, ClientPackage
-from pyfmto.problems import load_problem
+from pyfmto import init_problem
 from tests.framework import (
     OfflineServer, OnlineClient, OnlineServer
 )
@@ -16,7 +16,7 @@ N_CLIENTS = 2
 class TestClientSide(unittest.TestCase):
 
     def setUp(self):
-        self.problems = load_problem('tetci2019', dim=5, fe_init=20, fe_max=30)
+        self.problems = init_problem('tetci2019', dim=5, fe_init=20, fe_max=30)
         self.utils = LauncherUtils
 
     def test_valid_offline_client(self):
@@ -68,7 +68,7 @@ class TestClientSide(unittest.TestCase):
 
     def test_valid_server(self):
         server = OnlineServer()
-        problems = load_problem('tetci2019', dim=5, fe_init=20, fe_max=30)
+        problems = init_problem('tetci2019', dim=5, fe_init=20, fe_max=30)
         clients = [OnlineClient(prob) for prob in problems[:N_CLIENTS]]
         thread = threading.Thread(target=server.start)
         thread.start()

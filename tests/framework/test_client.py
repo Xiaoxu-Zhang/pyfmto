@@ -3,13 +3,13 @@ import unittest
 from itertools import product
 
 from pyfmto.framework import Client
-from pyfmto.problems import load_problem
+from pyfmto import init_problem
 from pyfmto.utilities import parse_yaml
 
 
 class TestClient(unittest.TestCase):
     def setUp(self):
-        self.problems = load_problem('tetci2019')
+        self.problems = init_problem('tetci2019')
 
     def test_empty_client_attributes(self):
 

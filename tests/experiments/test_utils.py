@@ -8,8 +8,10 @@ from itertools import product
 from pathlib import Path
 from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
-from pyfmto.experiments.utils import RunSolutions, LauncherUtils, ReporterUtils, list_algorithms, load_algorithm, \
-    MetaData, MergedResults, ClientDataStatis
+from pyfmto.experiments.utils import (
+    RunSolutions, LauncherUtils, ReporterUtils, MetaData, MergedResults, ClientDataStatis
+)
+from pyfmto import load_algorithm, list_algorithms
 from pyfmto.utilities.schemas import LauncherConfig, STPConfig
 from pyfmto.utilities import load_msgpack
 from unittest.mock import Mock

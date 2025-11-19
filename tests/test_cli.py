@@ -5,9 +5,8 @@ from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from pyfmto import list_problems
+from pyfmto import list_problems, list_algorithms
 from pyfmto.experiments import list_report_formats
-from pyfmto.experiments.utils import list_algorithms
 from pyfmto.utilities.cli import update_path, main
 from tests.experiments import export_alg_template
 
@@ -124,7 +123,7 @@ class TestMainFunction(unittest.TestCase):
     def test_show_command(self):
         export_alg_template('ALG1')
         export_alg_template('ALG2')
-        options = list_problems() + list_report_formats() + list_algorithms() + ['Invalid']
+        options = list(list_problems().keys()) + list_report_formats() + list(list_algorithms().keys()) + ['Invalid']
         args_lst = [['pyfmto', 'show', option] for option in options]
         for test_args in args_lst:
             with self.subTest(test_args=test_args):
