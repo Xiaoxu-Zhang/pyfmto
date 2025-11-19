@@ -8,8 +8,9 @@ from ruamel.yaml import YAML, CommentedMap
 from ruamel.yaml.error import MarkedYAMLError
 
 yaml = YAML()
+yaml.default_flow_style = False
+yaml.preserve_quotes = True
 yaml.indent(mapping=2, sequence=4, offset=2)
-yaml.default_flow_style = None
 
 T_Path = Union[str, Path]
 
@@ -29,8 +30,7 @@ def load_yaml(filename: T_Path):
         return parse_yaml(f.read())
 
 
-@validate_call
-def save_yaml(data: dict, filename: T_Path):
+def save_yaml(data: Union[dict, CommentedMap], filename: T_Path):
     with open(filename, 'w') as f:
         f.write(dumps_yaml(data))
 
@@ -51,7 +51,17 @@ def dumps_yaml(data: Union[dict, CommentedMap]):
     string_stream = StringIO()
     yaml.dump(data, string_stream)
     text: list[str] = []
-    for line in string_stream.getvalue().splitlines():
+    rows = string_stream.getvalue().splitlines()
+
+    add_newline = False
+    for line in rows:
+        if line.startswith(' '):
+            add_newline = True
+            break
+    if not add_newline:
+        return '\n'.join(rows)
+
+    for line in rows:
         if text and not line.startswith(' '):
             # Only add a newline if the line is
             # not indented and not the first line
