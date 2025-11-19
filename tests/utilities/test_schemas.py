@@ -155,6 +155,12 @@ class TestLauncherConfig(unittest.TestCase):
         self.assertTrue(config.save)
         self.assertEqual(config.algorithms, ['alg1', 'alg2'])
         self.assertEqual(config.problems, ['prob1', 'prob2'])
+        self.assertEqual(config.n_exp, 0)
+        config.experiments = [1, 2, 3]
+        self.assertEqual(config.n_exp, 3)
+        self.assertEqual(config.experiments, [1, 2, 3])
+        self.assertEqual(config.total_repeat, config.n_exp * config.repeat)
+        config.show_summary()
 
     def test_defaults(self):
         config = LauncherConfig(algorithms=['alg1'], problems=['prob1'])

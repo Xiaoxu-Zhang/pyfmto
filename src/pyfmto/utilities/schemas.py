@@ -186,13 +186,17 @@ class LauncherConfig(BaseModel):
         colored_tab, _ = show_in_table(
             num_exp=len(self.experiments),
             repeat_per_exp=self.repeat,
-            total_repeat=self.n_exp * self.repeat,
+            total_repeat=self.total_repeat,
         )
         print(colored_tab)
 
     @property
     def n_exp(self) -> int:
         return len(self.experiments)
+
+    @property
+    def total_repeat(self) -> int:
+        return self.n_exp * self.repeat
 
 
 class ReporterConfig(BaseModel):
