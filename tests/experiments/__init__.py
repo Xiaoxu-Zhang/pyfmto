@@ -2,7 +2,7 @@ import numpy as np
 import textwrap
 from pathlib import Path
 from typing import Union, Literal
-from pyfmto.problems import load_problem
+from pyfmto import load_problem
 from pyfmto.utilities import save_yaml, load_yaml
 from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
 from pyfmto.experiments import RunSolutions
@@ -257,7 +257,7 @@ def export_algorithm_config(
     all_algorithms = {}
     for name in algs:
         try:
-            from pyfmto.experiments.utils import get_alg_kwargs
+            from pyfmto.experiments.loaders import get_alg_kwargs
             curr = get_alg_kwargs(name)
             all_algorithms[name] = curr
         except Exception as e:

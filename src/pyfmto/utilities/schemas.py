@@ -3,6 +3,9 @@ import warnings
 from typing import Union, Optional, cast
 from pydantic import BaseModel, field_validator, model_validator, ConfigDict
 
+from pyfmto.utilities import show_in_table
+from pyfmto.utilities.confparser import ExperimentConfig
+
 T_Bound = Union[int, float, list, tuple, np.ndarray]
 
 
@@ -153,6 +156,7 @@ class LauncherConfig(BaseModel):
     loglevel: str = 'INFO'
     algorithms: list[str]
     problems: list[str]
+    experiments: list[ExperimentConfig] = []
 
     @field_validator('results', mode='before')
     def results_must_be_not_none(cls, v):
@@ -178,6 +182,18 @@ class LauncherConfig(BaseModel):
         if len(v) < 1:
             raise ValueError('list must have at least 1 element')
         return v
+
+    def show_summary(self):
+        colored_tab, _ = show_in_table(
+            num_exp=len(self.experiments),
+            repeat_per_exp=self.repeat,
+            total_repeat=self.n_exp * self.repeat,
+        )
+        print(colored_tab)
+
+    @property
+    def n_exp(self) -> int:
+        return len(self.experiments)
 
 
 class ReporterConfig(BaseModel):
