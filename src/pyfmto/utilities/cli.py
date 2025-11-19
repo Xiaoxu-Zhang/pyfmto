@@ -2,10 +2,10 @@ import argparse
 import sys
 from pathlib import Path
 
-from .io import parse_yaml, dumps_yaml
-from ..experiments import Launcher, Reports, list_report_formats, DEFAULT_CONF as EXP_CONF
-from ..experiments.utils import list_algorithms, get_alg_kwargs
-from ..problems import list_problems, DEFAULT_CONF as PROB_CONF
+from .tools import matched_str_head
+from ..experiments import Launcher, Reports, list_report_formats, show_default_conf
+from ..experiments.loaders import list_algorithms, load_problem, load_algorithm
+from .. import list_problems
 
 
 def update_path():
@@ -56,25 +56,23 @@ def main():
         reports = Reports(conf_file=args.config)
         reports.generate()
     elif args.command == 'list':
-        if args.name == 'problems':
+        full_name = matched_str_head(args.name, ['problems', 'algorithms', 'reports'])
+        if full_name == 'problems':
             print('\n'.join(list_problems()))
-        elif args.name == 'algorithms':
+        elif full_name == 'algorithms':
             list_algorithms(print_it=True)
-        elif args.name == 'reports':
+        elif full_name == 'reports':
             list_report_formats(print_it=True)
     elif args.command == 'show':
-        if args.name.lower() in list(map(lambda x: x.lower(), list_problems())):
-            conf = parse_yaml(PROB_CONF)
-            data = conf.get(args.name.lower())
-            if not data:
-                print(f"{args.name} no more configurable parameters.")
-            else:
-                print(dumps_yaml(data))
-        elif args.name.upper() in list_algorithms():
-            kwargs = get_alg_kwargs(args.name)
-            print(dumps_yaml(kwargs))
-        elif args.name.lower() in list_report_formats():
-            conf = parse_yaml(EXP_CONF)
-            print(dumps_yaml(conf[args.name]))
+        t, v = args.name.split('.')
+        full_name = matched_str_head(t, ['problems', 'algorithms', 'reports'])
+        if full_name == 'problems':
+            prob = load_problem(v)
+            print(prob.kwargs_yaml)
+        elif full_name == 'algorithms':
+            alg = load_algorithm(v)
+            print(alg.kwargs_yaml)
+        elif full_name == 'reports':
+            show_default_conf(v)
         else:
-            print(f"Config for {args.name} not found. Please check the available options using 'list' command.")
+            print(f"No matched group for {t}.")
