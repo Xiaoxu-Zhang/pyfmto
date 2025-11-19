@@ -1,6 +1,4 @@
 import copy
-import importlib
-import inspect
 import numpy as np
 import os
 import pandas as pd
@@ -21,7 +19,7 @@ from typing import Optional, Union, Type
 
 from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
-from pyfmto.utilities import logger, save_msgpack, titled_tabulate, load_msgpack, parse_yaml, colored
+from pyfmto.utilities import logger, save_msgpack, titled_tabulate, load_msgpack, colored
 from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
 
 StatisData = namedtuple("StatisData", ['mean', 'std', 'se', 'opt'])
@@ -32,11 +30,7 @@ __all__ = [
     "ClientDataStatis",
     "MergedResults",
     "LauncherUtils",
-    "ReporterUtils",
-    "Algorithm",
-    "load_algorithm",
-    "list_algorithms",
-    "get_alg_kwargs"
+    "ReporterUtils"
 ]
 
 
@@ -579,71 +573,3 @@ class ReporterUtils:
             return '.png'
         else:
             return suffix
-
-
-class Algorithm:
-    client: Type[Client]
-    server: Type[Server]
-
-    @property
-    def is_complete(self) -> bool:
-        return hasattr(self, 'client') and hasattr(self, 'server')
-
-
-def load_algorithm(name: str):
-    name = name.upper()
-    alg_dir = Path().cwd() / 'algorithms' / name
-    if alg_dir.exists():
-        module = importlib.import_module(f"algorithms.{name}")
-    elif alg_dir.parent.exists():
-        raise ValueError(f"algorithm {name} not found in {alg_dir.parent}.")
-    else:
-        raise FileNotFoundError(f"'algorithms' folder not found in {Path().cwd()}.")
-    alg = Algorithm()
-
-    for attr_name in dir(module):
-        attr = getattr(module, attr_name)
-        if inspect.isclass(attr):
-            if issubclass(attr, Client):
-                alg.client = attr
-            if issubclass(attr, Server):
-                alg.server = attr
-        if alg.is_complete:
-            break
-
-    msg: list[str] = [f'load algorithm {name} failed:']
-    if not hasattr(alg, 'client'):
-        msg.append("  Client not found.")
-    if not hasattr(alg, 'server'):
-        msg.append("  Server not found.")
-    if len(msg) > 1:
-        raise ModuleNotFoundError('\n'.join(msg))
-    return alg
-
-
-def list_algorithms(print_it=False):
-    alg_dir = Path().cwd() / 'algorithms'
-    if alg_dir.exists():
-        folders = os.listdir(alg_dir)
-        alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
-    else:
-        alg_names = []
-    if print_it:
-        if alg_dir.exists():
-            alg_str = '\n'.join(alg_names)
-            print(f"Found {len(alg_names)} algorithms: \n{alg_str}")
-        else:
-            print(f"'algorithms' folder not found in {alg_dir.parent}.")
-    return alg_names
-
-
-def get_alg_kwargs(name: str):
-    alg_data = load_algorithm(name)
-    clt = alg_data.client.__doc__
-    srv = alg_data.server.__doc__
-    data = {}
-    if clt:
-        data.update({'client': parse_yaml(clt)})
-    if srv:
-        data.update({'server': parse_yaml(srv)})
-    return data
