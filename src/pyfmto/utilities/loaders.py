@@ -128,7 +128,10 @@ def load_algorithm(name: str) -> AlgorithmData:
     if alg_dir.exists():
         module = importlib.import_module(f"algorithms.{name}")
     else:
-        raise ModuleNotFoundError(f"Algorithm {name} not found.")
+        if alg_dir.parent.exists():
+            raise ValueError(f"Algorithm {name} not found.")
+        else:
+            raise FileNotFoundError(f"'algorithms' folder not found in {alg_dir.parent.parent}.")
 
     clt, srv = None, None
     for attr_name in dir(module):
