@@ -5,12 +5,11 @@ from setproctitle import setproctitle
 from pyfmto.problems import Solution
 from pyfmto.utilities import (
     logger, reset_log, show_in_table, clear_console,
-    backup_log_to, load_yaml)
+    backup_log_to)
 from .utils import LauncherUtils, RunSolutions
+from ..utilities.loaders import ExperimentConfig, ConfigParser
 
 __all__ = ['Launcher']
-
-from ..utilities.confparser import ConfigParser, ExperimentConfig
 
 
 class Launcher:
@@ -20,8 +19,7 @@ class Launcher:
     def __init__(self, conf_file: str = 'config.yaml'):
         reset_log()
         clear_console()
-        conf_dict = load_yaml(conf_file)
-        self.conf = ConfigParser(conf_dict).launcher
+        self.conf = ConfigParser(conf_file).launcher
 
         # Runtime data
         self._repeat_id = 0
