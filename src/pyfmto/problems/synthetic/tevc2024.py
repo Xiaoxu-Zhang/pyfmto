@@ -12,6 +12,10 @@ T_SrcProblem = Literal[
 
 
 class Tevc2024(Mtp):
+    """
+    dim: 10  # 1 <= dim <= 10
+    src_problem: [Ackley]  # Options: Ackley, Griewank, Rastrigin, Rosenbrock, Schwefel, Sphere, Weierstrass
+    """
     is_realworld = False
     intro = """
         This module implements a multi-task optimization benchmark derived from a single base function,

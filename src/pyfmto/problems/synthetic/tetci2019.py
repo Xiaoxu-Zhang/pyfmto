@@ -15,6 +15,9 @@ __all__ = ['Tetci2019']
 
 
 class Tetci2019(Mtp):
+    """
+    dim: 10  # 1 <= dim <= 50
+    """
     is_realworld = False
     intro = ""
     notes = """

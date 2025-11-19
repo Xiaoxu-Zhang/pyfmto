@@ -21,6 +21,9 @@ class _BenchmarksCec2022(Stp):
 
 
 class Cec2022(Mtp):
+    """
+    dim: 10  # 10 or 20
+    """
     is_realworld = False
     intro = """
         Synthetic of CEC 2022 benchmark problems

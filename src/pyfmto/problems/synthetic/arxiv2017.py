@@ -16,6 +16,9 @@ __all__ = ["Arxiv2017"]
 
 
 class Arxiv2017(Mtp):
+    """
+    dim: 10  # 1 <= dim <= 50
+    """
     is_realworld = False
     intro = """
         A many-task single-objective optimization problem based on transformed versions
