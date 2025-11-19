@@ -28,7 +28,7 @@ async def load_body(request: Request):
 class Server(ABC):
     _server: uvicorn.Server
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self._active_clients = set()
         self._server_info = defaultdict(list)
         self._agg_interval = 0.5

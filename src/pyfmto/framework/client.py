@@ -39,7 +39,7 @@ def record_runtime(name=None):
 
 
 class Client(ABC):
-    def __init__(self, problem: SingleTaskProblem):
+    def __init__(self, problem: SingleTaskProblem, **kwargs):
         self._url: str = ''
         self._conn_retry: int = -1
         self.problem = problem
