@@ -257,9 +257,9 @@ def export_algorithm_config(
     all_algorithms = {}
     for name in algs:
         try:
-            from pyfmto.experiments.loaders import get_alg_kwargs
-            curr = get_alg_kwargs(name)
-            all_algorithms[name] = curr
+            from pyfmto import load_algorithm
+            curr = load_algorithm(name)
+            all_algorithms[name] = curr.params_default
         except Exception as e:
             print(e)
     return save_config('algorithms', all_algorithms, mode)

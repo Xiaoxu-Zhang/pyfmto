@@ -6,5 +6,3 @@ __all__ = [
     'MultiTaskProblem',
     'Solution',
 ]
-
-
