@@ -1,13 +1,13 @@
 import unittest
 
-from pyfmto.problems import load_problem, list_problems
+from pyfmto import init_problem, list_problems
 
 
 class TestAllProblems(unittest.TestCase):
     def setUp(self):
         self.problems = []
         for prob_name in list_problems():
-            self.problems.append(load_problem(prob_name, _init_solutions=False))
+            self.problems.append(init_problem(prob_name, _init_solutions=False))
 
     def test_list_problems(self):
         list_problems(print_it=True)
@@ -37,4 +37,4 @@ class TestAllProblems(unittest.TestCase):
                 self.assertEqual(x2.shape[0], 2, msg)
                 self.assertEqual(x1.shape[0], y1.shape[0], msg)
                 self.assertEqual(x2.shape[0], y2.shape[0], msg)
-        self.assertRaises(ValueError, load_problem, 'invalid_name')
+        self.assertRaises(ValueError, init_problem, 'invalid_name')

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from scipy.io import loadmat
 
-from pyfmto.problems import load_problem
+from pyfmto import init_problem
 
 DEFAULT_DIM = 10
 DEFAULT_INIT_FE = 5 * DEFAULT_DIM
@@ -18,7 +18,7 @@ MODIFIED_NP_PER_DIM = 4
 
 class TestArxiv2017(unittest.TestCase):
     def test_init_default(self):
-        default = load_problem('arxiv2017')
+        default = init_problem('arxiv2017')
         self.assertEqual(len(default), 18)
         for task in default:
             with self.subTest(task=task):
@@ -29,7 +29,7 @@ class TestArxiv2017(unittest.TestCase):
     def test_different_dim(self):
         for dim in [3, 5, 10, 15, 20, 30, 50]:
             with self.subTest(dim=dim):
-                prob = load_problem('arxiv2017', dim=dim, _init_solutions=False)
+                prob = init_problem('arxiv2017', dim=dim, _init_solutions=False)
                 if dim <= 25:
                     self.assertEqual(prob.task_num, 18)
                 else:
@@ -41,7 +41,7 @@ class TestArxiv2017(unittest.TestCase):
     def test_different_budgets(self):
         for fe_init, fe_max in [(10, 20), (30, 40), (50, 60)]:
             with self.subTest(fe_init=fe_init, fe_max=fe_max):
-                prob = load_problem('arxiv2017', fe_init=fe_init, fe_max=fe_max)
+                prob = init_problem('arxiv2017', fe_init=fe_init, fe_max=fe_max)
                 for task in prob:
                     self.assertEqual(task.fe_init, fe_init)
                     self.assertEqual(task.fe_max, fe_max)
@@ -49,15 +49,15 @@ class TestArxiv2017(unittest.TestCase):
     def test_different_np(self):
         for np_per_dim in [1, 2, 3, 4, 5]:
             with self.subTest(np_per_dim=np_per_dim):
-                prob = load_problem('arxiv2017', np_per_dim=np_per_dim)
+                prob = init_problem('arxiv2017', np_per_dim=np_per_dim)
                 for task in prob:
                     self.assertEqual(task.np_per_dim, np_per_dim)
 
     def test_rasis(self):
         dim_none = {'dim': None}
         dim_out = {'dim': 51}
-        self.assertRaises(ValueError, load_problem, 'arxiv2017', **dim_none)
-        self.assertRaises(ValueError, load_problem, 'arxiv2017', **dim_out)
+        self.assertRaises(ValueError, init_problem, 'arxiv2017', **dim_none)
+        self.assertRaises(ValueError, init_problem, 'arxiv2017', **dim_out)
 
 
 class TestValidateFunctions(unittest.TestCase):
@@ -74,7 +74,7 @@ class TestValidateFunctions(unittest.TestCase):
     """
 
     def setUp(self):
-        self.problems = load_problem('arxiv2017', _init_solutions=False)
+        self.problems = init_problem('arxiv2017', _init_solutions=False)
         self.val_data = {}
         val_data = loadmat(str(Path(__file__).parent / "validation_arxiv2017.mat"))
         for p in self.problems:
