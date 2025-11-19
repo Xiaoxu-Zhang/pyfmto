@@ -14,6 +14,7 @@ __all__ = [
     'update_kwargs',
     'titled_tabulate',
     'tabulate_formats',
+    'matched_str_head',
 ]
 
 
@@ -257,3 +258,10 @@ def clear_console():
         os.system('cls')
     else:
         os.system('clear')
+
+
+def matched_str_head(s: str, str_list: list[str]) -> str:
+    for item in str_list:
+        if item.startswith(s):
+            return item
+    return ''

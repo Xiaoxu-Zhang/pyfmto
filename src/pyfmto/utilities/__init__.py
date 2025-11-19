@@ -12,6 +12,7 @@ from .tools import (
     show_in_table,
     titled_tabulate,
     tabulate_formats,
+    matched_str_head,
 )
 
 from .stroptions import (
@@ -40,6 +41,7 @@ __all__ = [
     'clear_console',
     'show_in_table',
     'titled_tabulate',
+    'matched_str_head',
     'tabulate_formats',
     'Cmaps',
     'StrColors',
