@@ -1,10 +1,9 @@
 import numpy as np
 import warnings
-from typing import Union, Optional, cast
 from pydantic import BaseModel, field_validator, model_validator, ConfigDict
+from typing import Union, Optional, cast, Any
 
-from pyfmto.utilities import show_in_table
-from pyfmto.utilities.confparser import ExperimentConfig
+from .tools import show_in_table
 
 T_Bound = Union[int, float, list, tuple, np.ndarray]
 
@@ -156,7 +155,7 @@ class LauncherConfig(BaseModel):
     loglevel: str = 'INFO'
     algorithms: list[str]
     problems: list[str]
-    experiments: list[ExperimentConfig] = []
+    experiments: list[Any] = []
 
     @field_validator('results', mode='before')
     def results_must_be_not_none(cls, v):
