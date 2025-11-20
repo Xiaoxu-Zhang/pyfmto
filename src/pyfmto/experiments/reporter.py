@@ -8,11 +8,12 @@ import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from pydantic import validate_call, Field
-from pyfmto.utilities import SeabornPalettes, load_yaml, logger
+from pyfmto.utilities import SeabornPalettes, logger
 from tqdm import tqdm
 from typing import Literal, Annotated, final
 
 from .utils import ReporterUtils, MergedResults, MetaData
+from ..utilities.loaders import ConfigLoader, ReporterConfig
 
 _ = scienceplots.stylesheets  # This is to suppress the 'unused import' warning
 T_Suffix = Literal['.png', '.jpg', '.jpeg', '.svg', '.pdf']
@@ -235,6 +236,7 @@ class ExcelGenerator(TableGenerator):
         global_styled_df = global_df.style.map(highlight_cells, **kwargs1)
         solo_styled_df = solo_df.style.map(highlight_cells, **kwargs2)
 
+        writer: pd.ExcelWriter
         with pd.ExcelWriter(data.filedir.with_suffix('.xlsx'), engine='openpyxl') as writer:
             global_styled_df.to_excel(writer, index=False, sheet_name='Global')
             solo_styled_df.to_excel(writer, index=False, sheet_name='Solo')
@@ -295,19 +297,19 @@ class LatexGenerator(TableGenerator):
 
 
 class Reporter:
-    def __init__(self, results: str, initialize_comb: list):
-        self._root = Path(results)
+    def __init__(self, conf: ReporterConfig):
+        self.conf = conf
         self._cache: dict[str, MergedResults] = {}
         self._generators: dict[str, ReportGenerator] = {}  # Registry of report generators
-        self._load_data(initialize_comb)
+        self._load_data()
 
-    def _load_data(self, combinations):
-        for comb in combinations:
-            subdir = '/'.join(comb)
-            if subdir not in self._cache:
-                runs_data = ReporterUtils.load_runs_data(self._root / subdir)
+    def _load_data(self):
+        for exp in self.conf.experiments:
+            key = '/'.join(exp.root.parts[-3:])
+            if key not in self._cache:
+                runs_data = ReporterUtils.load_runs_data(exp.root, prefix=exp.prefix)
                 if runs_data:
-                    self._cache[subdir] = MergedResults(runs_data)
+                    self._cache[key] = MergedResults(runs_data)
 
     def register_generator(self, name: str, generator: ReportGenerator):
         self._generators[name] = generator
@@ -329,7 +331,7 @@ class Reporter:
         return MetaData(data, problem, npd_name, filedir)
 
     def _get_output_dir(self, algorithms: list[str], problem: str, npd_name: str) -> Path:
-        filedir = self._root / f"{time.strftime('%Y-%m-%d')}" / f"{algorithms[-1]}" / f"{problem}"
+        filedir = self.conf.root / f"{time.strftime('%Y-%m-%d')}" / f"{algorithms[-1]}" / f"{problem}"
         filedir.mkdir(parents=True, exist_ok=True)
         file_name = filedir / f"{npd_name}"
         return file_name
@@ -337,16 +339,8 @@ class Reporter:
 
 class Reports:
     def __init__(self, conf_file: str = 'config.yaml'):
-        all_conf = load_yaml(conf_file)
-        reporter_conf = all_conf.get('reporter', {})
-        problem_conf = all_conf.get('problems', {})
-        formats = reporter_conf.pop('formats', [])
-
-        self.kwargs = reporter_conf.pop('kwargs', {})
-        self.formats = formats if isinstance(formats, list) else [formats]
-        settings = ReporterUtils.parse_reporter_config(reporter_conf, problem_conf)
-        self.combinations = settings.pop('analysis_comb')
-        self.reporter = Reporter(**settings)
+        self.conf = ConfigLoader(conf_file).reporter
+        self.reporter = Reporter(self.conf)
         self.reporter.register_generator('to_curve', CurveGenerator())
         self.reporter.register_generator('to_excel', ExcelGenerator())
         self.reporter.register_generator('to_violin', ViolinGenerator())
@@ -354,12 +348,12 @@ class Reports:
         self.reporter.register_generator('to_latex', LatexGenerator())
 
     def generate(self):
-        if not self.formats:
+        if not self.conf.formats:
             raise ValueError("No formats specified. Skipping report generation.")
         invalid_formats: list[str] = []
-        for fmt in self.formats:
+        for fmt in self.conf.formats:
             if hasattr(self, f'to_{fmt}'):
-                getattr(self, f'to_{fmt}')(**self.kwargs.get(fmt, {}))
+                getattr(self, f'to_{fmt}')(**self.conf.params.get(fmt, {}))
             else:
                 invalid_formats.append(fmt)
         if invalid_formats:
@@ -411,7 +405,7 @@ class Reports:
             If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
         """
         need_new_line = True
-        for comb in tqdm(self.combinations, desc='Saving', unit='Img', ncols=100):
+        for comb in tqdm(self.conf.groups, desc='Saving', unit='Img', ncols=100):
             try:
                 self.reporter.generate_report(
                     'to_curve',
@@ -460,7 +454,7 @@ class Reports:
              supported colors are in [])
              - ``type-font-[bold|italic|underline]`` ---Font types (multiple can be applied, supported types are in [])
         """
-        for comb in self.combinations:
+        for comb in self.conf.groups:
             try:
                 self.reporter.generate_report(
                     'to_excel',
@@ -486,7 +480,7 @@ class Reports:
         pvalue : float, optional
             T-test threshold parameter to determine statistical significance. Default is 0.05.
         """
-        for comb in self.combinations:
+        for comb in self.conf.groups:
             try:
                 self.reporter.generate_report('to_latex', *comb, pvalue=pvalue)
             except Exception as e:
@@ -507,7 +501,7 @@ class Reports:
         pvalue : float, optional
             T-test threshold for determining statistical significance. Default is 0.05.
         """
-        for comb in self.combinations:
+        for comb in self.conf.groups:
             try:
                 self.reporter.generate_report('to_console', *comb, pvalue=pvalue)
             except Exception as e:
@@ -542,7 +536,7 @@ class Reports:
         -------
             None
         """
-        for comb in tqdm(self.combinations, desc='Saving', unit='Img', ncols=100):
+        for comb in tqdm(self.conf.groups, desc='Saving', unit='Img', ncols=100):
             try:
                 self.reporter.generate_report(
                     'to_violin',
