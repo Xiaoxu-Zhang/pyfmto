@@ -45,6 +45,19 @@ def recursive_to_pure_dict(data: Union[dict, CommentedMap]) -> dict[str, Any]:
     return data
 
 
+def combine_params(params: dict[str, Union[Any, list[Any]]]) -> list[dict[str, Any]]:
+    values = []
+    for key, value in params.items():
+        if isinstance(value, list):
+            values.append(value)
+        else:
+            values.append([value])
+    result = []
+    for combination in product(*values):
+        result.append(dict(zip(params.keys(), combination)))
+    return result
+
+
 def list_algorithms(print_it=False):
     alg_dir = Path().cwd() / 'algorithms'
     if alg_dir.exists():
@@ -206,11 +219,10 @@ class ProblemData:
     def __parse_default_params(self):
         p_doc = self.problem.__doc__
         self.params_default.update(parse_yaml(p_doc))
-        if 'dim' in self.params_default:
-            dim = self.params_default['dim']
+        if self.dim > 0:
             self.params_default.update(
-                fe_init=5 * dim,
-                fe_max=11 * dim,
+                fe_init=5 * self.dim,
+                fe_max=11 * self.dim,
             )
 
     def copy(self) -> 'ProblemData':
@@ -231,6 +243,28 @@ class ProblemData:
     @property
     def name(self) -> str:
         return self.problem.__name__
+
+    @property
+    def npd(self) -> int:
+        return self.params['np_per_dim']
+
+    @property
+    def npd_str(self) -> str:
+        return f"NPD{self.npd}"
+
+    @property
+    def dim(self) -> int:
+        if 'dim' in self.params_default:
+            return self.params_default['dim']
+        else:
+            return 0
+
+    @property
+    def dim_str(self) -> str:
+        if self.dim > 0:
+            return f"{self.dim}D"
+        else:
+            return ""
 
     @property
     def params_yaml(self) -> str:
@@ -254,22 +288,24 @@ class ExperimentConfig:
 
     @property
     def root(self) -> Path:
-        alg_name = self.algorithm.name
-        prob_name = self.problem.name
-        if 'dim' in self.problem.params:
-            prob_name = f"{prob_name}_{self.problem.params['dim']}D"
-        npd = self.problem.params['np_per_dim']
-        return self._root / alg_name / prob_name / f"NPD{npd}"
+        if self.problem.dim > 0:
+            problem = f"{self.problem.name}_{self.problem.dim_str}"
+        else:
+            problem = self.problem.name
+        return self._root / self.algorithm.name / problem / self.problem.npd_str
 
-    def result_name(self, file_id: int):
+    @property
+    def prefix(self) -> str:
         fe_init = self.problem.params.get('fe_init')
         fe_max = self.problem.params.get('fe_max')
         seed = self.problem.params.get('seed')
         fe_i = "" if fe_init is None else f"FEi{fe_init}_"
         fe_m = "" if fe_max is None else f"FEm{fe_max}_"
         seed = "" if seed is None else f"Seed{seed}_"
-        filename = f"{fe_i}{fe_m}{seed}Rep{file_id:02d}.msgpack"
-        return self.root / filename
+        return f"{fe_i}{fe_m}{seed}"
+
+    def result_name(self, file_id: int):
+        return self.root / f"{self.prefix}Rep{file_id:02d}.msgpack"
 
     @property
     def num_results(self) -> int:
@@ -367,13 +403,13 @@ class LauncherConfig(BaseModel):
 
 
 class ReporterConfig(BaseModel):
-    results: Optional[str] = 'out/results'
+    results: str
     algorithms: list[list[str]]
     problems: list[str]
-
-    @field_validator('results')
-    def results_must_be_not_none(cls, v):
-        return v if v is not None else 'out/results'
+    formats: list[str]
+    params: dict[str, Any] = {}
+    experiments: list[ExperimentConfig] = []
+    groups: list[tuple[list[str], str, str]] = []
 
     @field_validator('algorithms')
     def inner_lists_must_have_min_length(cls, v):
@@ -388,6 +424,10 @@ class ReporterConfig(BaseModel):
             raise ValueError('problems list must have at least 1 element')
         return v
 
+    @property
+    def root(self) -> Path:
+        return Path(self.results)
+
 
 class ConfigLoader:
     """
@@ -399,10 +439,7 @@ class ConfigLoader:
         algorithms: []        # run these algorithms
         problems: []          # run each algorithm on these problems
     reporter:
-        results: out/results  # [optional] load results from this directory
         formats: [excel]      # [optional] generate these reports
-        algorithms: []        # make comparison on these groups of algorithms
-        problems: []          # use results that algorithms runs on these problems
     """
 
     def __init__(self, config: str = 'config.yaml'):
@@ -421,45 +458,42 @@ class ConfigLoader:
                 config[key] = value
 
         # Use values in launcher if not specified in reporter
-        launcher_algs = self.config['launcher'].get('algorithms', [])
-        reporter_algs = self.config['reporter'].get('algorithms', [])
-        launcher_probs = self.config['launcher'].get('problems', [])
-        reporter_probs = self.config['reporter'].get('problems', [])
-        if not reporter_algs:
-            config['reporter']['algorithms'] = [launcher_algs]
-        if not reporter_probs:
-            config['reporter']['problems'] = launcher_probs
+        for key in ['results', 'problems', 'algorithms']:
+            if key in config['reporter']:
+                continue
+            if key == 'algorithms':
+                config['reporter'][key] = [config['launcher'][key]]
+            else:
+                config['reporter'][key] = config['launcher'][key]
         return config
 
     @property
     def launcher(self) -> LauncherConfig:
         conf = LauncherConfig(**self.config['launcher'])
-        algorithms = self.gen_alg_list()
-        problems = self.gen_prob_list()
+        algorithms = self.gen_alg_list(conf.algorithms)
+        problems = self.gen_prob_list(conf.problems)
         conf.experiments = [ExperimentConfig(alg, prob, conf.results) for alg, prob in product(algorithms, problems)]
         return conf
 
     @property
     def reporter(self) -> ReporterConfig:
-        return ReporterConfig(**self.config['reporter'])
+        conf = ReporterConfig(**self.config['reporter'])
+        algorithms = self.gen_alg_list(list(set(sum(conf.algorithms, []))))
+        problems = self.gen_prob_list(conf.problems)
+        conf.experiments = [
+            ExperimentConfig(alg, prob, conf.results)
+            for alg, prob in product(algorithms, problems)
+        ]
+        conf.groups = [
+            (algs, prob.name, prob.npd_str)
+            for algs, prob in list(product(conf.algorithms, problems))
+        ]
+        return conf
 
-    @staticmethod
-    def combine_params(params: dict[str, Union[Any, list[Any]]]) -> list[dict[str, Any]]:
-        values = []
-        for key, value in params.items():
-            if isinstance(value, list):
-                values.append(value)
-            else:
-                values.append([value])
-        result = []
-        for combination in product(*values):
-            result.append(dict(zip(params.keys(), combination)))
-        return result
-
-    def gen_alg_list(self) -> list[AlgorithmData]:
+    def gen_alg_list(self, names: list[str]) -> list[AlgorithmData]:
         algorithms: list[AlgorithmData] = []
         available_algs = list_algorithms()
-        for name_alias in self.config['launcher']['algorithms']:
+        for name_alias in names:
             alg_params = self.config.get('algorithms', {}).get(name_alias, {})
             alg_name = alg_params.pop('base', name_alias)
             if alg_name not in available_algs:
@@ -471,16 +505,16 @@ class ConfigLoader:
             algorithms.append(alg_data)
         return algorithms
 
-    def gen_prob_list(self) -> list[ProblemData]:
+    def gen_prob_list(self, names: list[str]) -> list[ProblemData]:
         available_probs = list_problems()
         lower_case_map = {n.lower(): n for n in available_probs.keys()}
         problems: list[ProblemData] = []
-        for prob_name in self.config['launcher']['problems']:
+        for prob_name in names:
             if prob_name not in lower_case_map:
                 logger.error(f"Problem {prob_name} is not available.")
                 continue
             prob_params = self.config.get('problems', {}).get(prob_name, {})
-            params_variations = self.combine_params(prob_params)
+            params_variations = combine_params(prob_params)
             for params in params_variations:
                 prob_data = available_probs[lower_case_map[prob_name]].copy()
                 prob_data.set_params_update(params)
