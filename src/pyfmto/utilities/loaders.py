@@ -7,8 +7,8 @@ from importlib import import_module
 from itertools import product
 from pathlib import Path
 from pydantic import BaseModel, field_validator, ConfigDict
-from ruamel.yaml import CommentedMap
 from typing import Type, Any, Union, Optional
+from ruamel.yaml import CommentedMap
 
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
@@ -24,7 +24,7 @@ __all__ = [
     'load_problem',
     'init_problem',
     'ProblemData',
-    'ConfigParser',
+    'ConfigLoader',
     'AlgorithmData',
     'ExperimentConfig',
     'ReporterConfig',
@@ -33,6 +33,10 @@ __all__ = [
 
 
 def recursive_to_pure_dict(data: Union[dict, CommentedMap]) -> dict[str, Any]:
+    """
+    Recursively convert nested dict and CommentedMap objects to a pure Python
+    dictionary to avoid YAML serialization issues.
+    """
     if not isinstance(data, (dict, CommentedMap)):
         return data
     for k, v in data.items():
@@ -54,7 +58,7 @@ def list_algorithms(print_it=False):
         try:
             algorithms[name] = load_algorithm(name)
         except Exception as e:
-            logger.error(f"Faild to load {name}: {e}")
+            logger.error(f"Failed to load {name}: {e}")
 
     if print_it:
         if alg_dir.exists():
@@ -385,7 +389,7 @@ class ReporterConfig(BaseModel):
         return v
 
 
-class ConfigParser:
+class ConfigLoader:
     """
     launcher:
         results: out/results  # [optional] save results to this directory
@@ -404,15 +408,27 @@ class ConfigParser:
     def __init__(self, config: str = 'config.yaml'):
         self.config_default = parse_yaml(self.__class__.__doc__)
         self.config_update = load_yaml(config)
+        self.config = self.preprocess()
 
-    @property
-    def config(self) -> dict:
+    def preprocess(self) -> dict[str, Any]:
         config = self.config_default.copy()
+
+        # Update config with values in config file
         for key, value in self.config_update.items():
             if key in config:
                 config[key].update(value)
             else:
                 config[key] = value
+
+        # Use values in launcher if not specified in reporter
+        launcher_algs = self.config['launcher'].get('algorithms', [])
+        reporter_algs = self.config['reporter'].get('algorithms', [])
+        launcher_probs = self.config['launcher'].get('problems', [])
+        reporter_probs = self.config['reporter'].get('problems', [])
+        if not reporter_algs:
+            config['reporter']['algorithms'] = [launcher_algs]
+        if not reporter_probs:
+            config['reporter']['problems'] = launcher_probs
         return config
 
     @property
@@ -428,7 +444,7 @@ class ConfigParser:
         return ReporterConfig(**self.config['reporter'])
 
     @staticmethod
-    def params_product(params: dict[str, Union[Any, list[Any]]]) -> list[dict[str, Any]]:
+    def combine_params(params: dict[str, Union[Any, list[Any]]]) -> list[dict[str, Any]]:
         values = []
         for key, value in params.items():
             if isinstance(value, list):
@@ -464,7 +480,7 @@ class ConfigParser:
                 logger.error(f"Problem {prob_name} is not available.")
                 continue
             prob_params = self.config.get('problems', {}).get(prob_name, {})
-            params_variations = self.params_product(prob_params)
+            params_variations = self.combine_params(prob_params)
             for params in params_variations:
                 prob_data = available_probs[lower_case_map[prob_name]].copy()
                 prob_data.set_params_update(params)
