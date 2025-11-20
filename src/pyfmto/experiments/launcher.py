@@ -13,7 +13,7 @@ __all__ = ['Launcher']
 
 
 class Launcher:
-    exp_id: int
+    exp_idx: int
     exp: ExperimentConfig
 
     def __init__(self, conf_file: str = 'config.yaml'):
@@ -23,15 +23,14 @@ class Launcher:
 
         # Runtime data
         self._repeat_id = 0
-        self._running_id = 0
         self._num_clients = 0
 
     def run(self):
         self._setup()
-        for self.exp_id, self.exp in enumerate(self.conf.experiments):
+        for self.exp_idx, self.exp in enumerate(self.conf.experiments):
             if self.conf.save:
                 self.exp.init_root()
-                self.exp.save_info()
+                self.exp.backup_params()
             self._repeating()
         self._teardown()
 
@@ -48,7 +47,7 @@ class Launcher:
             clients = [self.exp.algorithm.client(p, **clt_params) for p in problem]
             self._iid_info = problem[0].np_per_dim
             self._num_clients = len(clients)
-            self._show_settings()
+            self._show_progress()
 
             # Launch algorithm
             srv_params = self.exp.algorithm.params.get('server', {})
@@ -69,13 +68,13 @@ class Launcher:
         clear_console()
         self.conf.show_summary()
 
-    def _show_settings(self):
-        n_rep = self.conf.repeat * (self._running_id - 1) + self._repeat_id
-        n_all_rep = self.conf.n_exp * self.conf.repeat
+    def _show_progress(self):
+        curr_rep = self.conf.repeat * self.exp_idx + self._repeat_id - 1
+        total_rep = self.conf.total_repeat
         colored_tab, original_tab = show_in_table(
-            running=f"{self._running_id}/{self.conf.n_exp}",
+            running=f"{self.exp_idx+1}/{self.conf.n_exp}",
             repeat=f"{self._repeat_id}/{self.conf.repeat}",
-            progress=f"[{n_rep}/{n_all_rep}][{100 * n_rep / n_all_rep:.2f}%]",
+            progress=f"[{curr_rep}/{total_rep}][{100 * curr_rep / total_rep:.2f}%]",
             algorithm=self.exp.algorithm.name,
             problem=self.exp.problem.name,
             iid=self._iid_info,
@@ -86,15 +85,14 @@ class Launcher:
 
     def _save_results(self, results: list[tuple[int, Solution]]):
         if self.conf.save:
-            file_name = self.exp.root / f"Run {self._repeat_id:02d}.msgpack"
             run_solutions = RunSolutions()
             for cid, solution in results:
                 run_solutions.update(cid, solution)
-            run_solutions.to_msgpack(file_name)
+            run_solutions.to_msgpack(self.exp.result_name(self._repeat_id))
 
     def _update_repeat_id(self):
         if self.conf.save:
-            self._repeat_id = self._n_results + 1
+            self._repeat_id = self.exp.num_results + 1
         else:
             self._repeat_id += 1
 
