@@ -18,6 +18,108 @@ from .loggers import logger
 from .schemas import LauncherConfig, ReporterConfig
 
 
+__all__ = [
+    'list_algorithms',
+    'load_algorithm',
+    'list_problems',
+    'load_problem',
+    'init_problem',
+    'ProblemData',
+    'ConfigParser',
+    'AlgorithmData',
+    'ExperimentConfig',
+]
+
+
+def load_algorithm(name: str) -> 'AlgorithmData':
+    name = name.upper()
+    alg_dir = Path().cwd() / 'algorithms' / name
+    if alg_dir.exists():
+        module = importlib.import_module(f"algorithms.{name}")
+    else:
+        if alg_dir.parent.exists():
+            raise ValueError(f"Algorithm {name} not found.")
+        else:
+            raise FileNotFoundError(f"'algorithms' folder not found in {alg_dir.parent.parent}.")
+
+    clt, srv = None, None
+    for attr_name in dir(module):
+        attr = getattr(module, attr_name)
+        if inspect.isclass(attr):
+            if issubclass(attr, Client):
+                clt = attr
+            if issubclass(attr, Server):
+                srv = attr
+        if clt and srv:
+            return AlgorithmData(name, clt, srv)
+
+    msg: list[str] = [f'Load algorithm {name} failed:']
+    if not clt:
+        msg.append("  Client not found.")
+    if not srv:
+        msg.append("  Server not found.")
+    raise ModuleNotFoundError('\n'.join(msg))
+
+
+def list_algorithms(print_it=False):
+    alg_dir = Path().cwd() / 'algorithms'
+    if alg_dir.exists():
+        folders = os.listdir(alg_dir)
+        alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
+    else:
+        alg_names = []
+
+    algorithms: dict[str, AlgorithmData] = {}
+    for name in alg_names:
+        try:
+            algorithms[name] = load_algorithm(name)
+        except Exception as e:
+            logger.error(f"Faild to load {name}: {e}")
+
+    if print_it:
+        if alg_dir.exists():
+            alg_str = '\n'.join(list(algorithms.keys()))
+            print(f"Found {len(algorithms)} available algorithms: \n{textwrap.indent(alg_str, ' ' * 4)}")
+        else:
+            print(f"'algorithms' folder not found in {alg_dir.parent}.")
+    return algorithms
+
+
+def init_problem(name: str, **kwargs) -> MultiTaskProblem:
+    return load_problem(name).problem(**kwargs)
+
+
+def load_problem(name: str) -> 'ProblemData':
+    problems = list_problems()
+    lowercase_map = {n.lower(): n for n in problems.keys()}
+    if name.lower() in lowercase_map:
+        return problems[lowercase_map[name.lower()]]
+    else:
+        raise ValueError(f"Problem '{name}' not found, use 'pyfmto show problems' to see available problems.")
+
+
+def list_problems(print_it=False) -> dict[str, 'ProblemData']:
+    problems: dict[str, ProblemData] = {}
+    for module in [realworld, synthetic]:
+        problems.update(collect_problems(module))
+    prob_dir = Path().cwd() / 'problems'
+    if prob_dir.exists():
+        problems.update(collect_problems(import_module('problems')))
+    if print_it:
+        print("Available problems:")
+        print(textwrap.indent('\n'.join(list(problems.keys())), ' ' * 4))
+    return problems
+
+
+def collect_problems(module) -> dict[str, 'ProblemData']:
+    problems = {}
+    for name in dir(module):
+        cls = getattr(module, name)
+        if inspect.isclass(cls) and issubclass(cls, MultiTaskProblem) and cls != MultiTaskProblem:
+            problems[name] = ProblemData(cls)
+    return problems
+
+
 class AlgorithmData:
 
     def __init__(self, name: str, client: Type[Client], server: Type[Server]):
@@ -120,95 +222,6 @@ class ProblemData:
             return dumps_yaml(self.params_default)
         else:
             return f"Problem '{self.name}' no configurable parameters."
-
-
-def load_algorithm(name: str) -> AlgorithmData:
-    name = name.upper()
-    alg_dir = Path().cwd() / 'algorithms' / name
-    if alg_dir.exists():
-        module = importlib.import_module(f"algorithms.{name}")
-    else:
-        if alg_dir.parent.exists():
-            raise ValueError(f"Algorithm {name} not found.")
-        else:
-            raise FileNotFoundError(f"'algorithms' folder not found in {alg_dir.parent.parent}.")
-
-    clt, srv = None, None
-    for attr_name in dir(module):
-        attr = getattr(module, attr_name)
-        if inspect.isclass(attr):
-            if issubclass(attr, Client):
-                clt = attr
-            if issubclass(attr, Server):
-                srv = attr
-        if clt and srv:
-            return AlgorithmData(name, clt, srv)
-
-    msg: list[str] = [f'Load algorithm {name} failed:']
-    if not clt:
-        msg.append("  Client not found.")
-    if not srv:
-        msg.append("  Server not found.")
-    raise ModuleNotFoundError('\n'.join(msg))
-
-
-def list_algorithms(print_it=False):
-    alg_dir = Path().cwd() / 'algorithms'
-    if alg_dir.exists():
-        folders = os.listdir(alg_dir)
-        alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
-    else:
-        alg_names = []
-
-    algorithms: dict[str, AlgorithmData] = {}
-    for name in alg_names:
-        try:
-            algorithms[name] = load_algorithm(name)
-        except Exception as e:
-            logger.error(f"Faild to load {name}: {e}")
-
-    if print_it:
-        if alg_dir.exists():
-            alg_str = '\n'.join(list(algorithms.keys()))
-            print(f"Found {len(algorithms)} available algorithms: \n{textwrap.indent(alg_str, ' ' * 4)}")
-        else:
-            print(f"'algorithms' folder not found in {alg_dir.parent}.")
-    return algorithms
-
-
-def init_problem(name: str, **kwargs) -> MultiTaskProblem:
-    return load_problem(name).problem(**kwargs)
-
-
-def load_problem(name: str) -> ProblemData:
-    problems = list_problems()
-    lowercase_map = {n.lower(): n for n in problems.keys()}
-    if name.lower() in lowercase_map:
-        return problems[lowercase_map[name.lower()]]
-    else:
-        raise ValueError(f"Problem '{name}' not found, use 'pyfmto show problems' to see available problems.")
-
-
-def list_problems(print_it=False) -> dict[str, ProblemData]:
-    problems: dict[str, ProblemData] = {}
-    for module in [realworld, synthetic]:
-        problems.update(collect_problems(module))
-    prob_dir = Path().cwd() / 'problems'
-    if prob_dir.exists():
-        problems.update(collect_problems(import_module('problems')))
-    if print_it:
-        print("Available problems:")
-        print(textwrap.indent('\n'.join(list(problems.keys())), ' ' * 4))
-    return problems
-
-
-def collect_problems(module) -> dict[str, ProblemData]:
-    problems = {}
-    for name in dir(module):
-        cls = getattr(module, name)
-        if inspect.isclass(cls) and issubclass(cls, MultiTaskProblem) and cls != MultiTaskProblem:
-            problems[name] = ProblemData(cls)
-    return problems
 
 
 CONF_DEFAULTS = """
