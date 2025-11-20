@@ -7,7 +7,7 @@ from pyfmto.utilities import (
     logger, reset_log, show_in_table, clear_console,
     backup_log_to)
 from .utils import LauncherUtils, RunSolutions
-from ..utilities.loaders import ExperimentConfig, ConfigParser
+from ..utilities.loaders import ExperimentConfig, ConfigLoader
 
 __all__ = ['Launcher']
 
@@ -19,7 +19,7 @@ class Launcher:
     def __init__(self, conf_file: str = 'config.yaml'):
         reset_log()
         clear_console()
-        self.conf = ConfigParser(conf_file).launcher
+        self.conf = ConfigLoader(conf_file).launcher
 
         # Runtime data
         self._repeat_id = 0
@@ -62,7 +62,10 @@ class Launcher:
     def _backup_log(self):
         reset_log()
         if self.conf.backup:
-            backup_log_to(self.exp.root, f'Log of Run {self._repeat_id:02d}.log')
+            res_file = self.exp.result_name(self._repeat_id)
+            log_dir = res_file.with_name('logs')
+            log_name = res_file.with_suffix('.log').name
+            backup_log_to(log_dir, log_name)
 
     def _teardown(self):
         clear_console()
