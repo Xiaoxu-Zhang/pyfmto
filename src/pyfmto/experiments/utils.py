@@ -20,7 +20,7 @@ from typing import Optional, Union, Type
 from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
 from pyfmto.utilities import logger, save_msgpack, titled_tabulate, load_msgpack, colored
-from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
+from pyfmto.utilities.loaders import LauncherConfig, ReporterConfig
 
 StatisData = namedtuple("StatisData", ['mean', 'std', 'se', 'opt'])
 

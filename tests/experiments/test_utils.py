@@ -14,7 +14,8 @@ from pyfmto.experiments.utils import (
     RunSolutions, LauncherUtils, ReporterUtils, MetaData, MergedResults, ClientDataStatis
 )
 from pyfmto import load_algorithm, list_algorithms
-from pyfmto.utilities.schemas import LauncherConfig, STPConfig
+from pyfmto.utilities.schemas import STPConfig
+from pyfmto.utilities.loaders import LauncherConfig
 from pyfmto.utilities import load_msgpack
 from unittest.mock import Mock
 from tests.experiments import export_alg_template, ExpDataGenerator

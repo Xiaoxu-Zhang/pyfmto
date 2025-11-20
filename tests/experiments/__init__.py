@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Union, Literal
 from pyfmto import load_problem
 from pyfmto.utilities import save_yaml, load_yaml
-from pyfmto.utilities.schemas import LauncherConfig, ReporterConfig
+from pyfmto.utilities.loaders import LauncherConfig, ReporterConfig
 from pyfmto.experiments import RunSolutions
 from pyfmto.experiments.utils import MergedResults, MetaData
 from pyfmto.problems import Solution

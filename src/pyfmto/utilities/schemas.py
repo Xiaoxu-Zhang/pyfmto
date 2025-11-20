@@ -1,9 +1,7 @@
 import numpy as np
 import warnings
 from pydantic import BaseModel, field_validator, model_validator, ConfigDict
-from typing import Union, Optional, cast, Any
-
-from .tools import show_in_table
+from typing import Union, Optional, cast
 
 T_Bound = Union[int, float, list, tuple, np.ndarray]
 
@@ -144,82 +142,6 @@ class FunctionInputs(BaseModel):
         if self.x.shape[1] != self.dim:
             raise ValueError(f'x must have shape (n, {self.dim}), got {self.x.shape} instead')
         return self
-
-
-class LauncherConfig(BaseModel):
-    results: str = 'out/results'
-    repeat: int = 1
-    seed: int = 42
-    backup: bool = True
-    save: bool = True
-    loglevel: str = 'INFO'
-    algorithms: list[str]
-    problems: list[str]
-    experiments: list[Any] = []
-
-    @field_validator('results', mode='before')
-    def results_must_be_not_none(cls, v):
-        if not isinstance(v, (str, type(None))):
-            raise TypeError(f'results must be a string or None, got {type(v)} instead')
-        return v if v is not None else 'out/results'
-
-    @field_validator('loglevel')
-    def loglevel_must_be_valid(cls, v):
-        valid_values = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-        if v not in valid_values:
-            raise ValueError(f'loglevel must be one of {valid_values}, got {v} instead')
-        return v
-
-    @field_validator('repeat', 'seed')
-    def integer_must_be_positive(cls, v):
-        if v < 1:
-            raise ValueError('repeat must be >= 1')
-        return v
-
-    @field_validator('algorithms', 'problems')
-    def lists_must_not_be_empty(cls, v):
-        if len(v) < 1:
-            raise ValueError('list must have at least 1 element')
-        return v
-
-    def show_summary(self):
-        colored_tab, _ = show_in_table(
-            num_exp=len(self.experiments),
-            repeat_per_exp=self.repeat,
-            total_repeat=self.total_repeat,
-        )
-        print(colored_tab)
-
-    @property
-    def n_exp(self) -> int:
-        return len(self.experiments)
-
-    @property
-    def total_repeat(self) -> int:
-        return self.n_exp * self.repeat
-
-
-class ReporterConfig(BaseModel):
-    results: Optional[str] = 'out/results'
-    algorithms: list[list[str]]
-    problems: list[str]
-
-    @field_validator('results')
-    def results_must_be_not_none(cls, v):
-        return v if v is not None else 'out/results'
-
-    @field_validator('algorithms')
-    def inner_lists_must_have_min_length(cls, v):
-        for inner_list in v:
-            if len(inner_list) < 1:
-                raise ValueError('inner lists must have at least 1 elements')
-        return v
-
-    @field_validator('problems', 'algorithms')
-    def outer_list_must_not_be_empty(cls, v):
-        if len(v) < 1:
-            raise ValueError('problems list must have at least 1 element')
-        return v
 
 
 class PlottingArgs(BaseModel):

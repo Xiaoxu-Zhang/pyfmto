@@ -6,17 +6,16 @@ import textwrap
 from importlib import import_module
 from itertools import product
 from pathlib import Path
-from typing import Type, Any, Union
-
+from pydantic import BaseModel, field_validator, ConfigDict
 from ruamel.yaml import CommentedMap
+from typing import Type, Any, Union, Optional
 
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
 from pyfmto.problems import MultiTaskProblem, realworld, synthetic
 from .io import parse_yaml, dumps_yaml, load_yaml, save_yaml
 from .loggers import logger
-from .schemas import LauncherConfig, ReporterConfig
-
+from .tools import show_in_table
 
 __all__ = [
     'list_algorithms',
@@ -28,7 +27,42 @@ __all__ = [
     'ConfigParser',
     'AlgorithmData',
     'ExperimentConfig',
+    'ReporterConfig',
+    'LauncherConfig',
 ]
+
+
+def recursive_to_pure_dict(data: Union[dict, CommentedMap]) -> dict[str, Any]:
+    if not isinstance(data, (dict, CommentedMap)):
+        return data
+    for k, v in data.items():
+        if isinstance(v, (dict, CommentedMap)):
+            data[k] = recursive_to_pure_dict(dict(v))
+    return data
+
+
+def list_algorithms(print_it=False):
+    alg_dir = Path().cwd() / 'algorithms'
+    if alg_dir.exists():
+        folders = os.listdir(alg_dir)
+        alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
+    else:
+        alg_names = []
+
+    algorithms: dict[str, AlgorithmData] = {}
+    for name in alg_names:
+        try:
+            algorithms[name] = load_algorithm(name)
+        except Exception as e:
+            logger.error(f"Faild to load {name}: {e}")
+
+    if print_it:
+        if alg_dir.exists():
+            alg_str = '\n'.join(list(algorithms.keys()))
+            print(f"Found {len(algorithms)} available algorithms: \n{textwrap.indent(alg_str, ' ' * 4)}")
+        else:
+            print(f"'algorithms' folder not found in {alg_dir.parent}.")
+    return algorithms
 
 
 def load_algorithm(name: str) -> 'AlgorithmData':
@@ -61,32 +95,10 @@ def load_algorithm(name: str) -> 'AlgorithmData':
     raise ModuleNotFoundError('\n'.join(msg))
 
 
-def list_algorithms(print_it=False):
-    alg_dir = Path().cwd() / 'algorithms'
-    if alg_dir.exists():
-        folders = os.listdir(alg_dir)
-        alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
-    else:
-        alg_names = []
-
-    algorithms: dict[str, AlgorithmData] = {}
-    for name in alg_names:
-        try:
-            algorithms[name] = load_algorithm(name)
-        except Exception as e:
-            logger.error(f"Faild to load {name}: {e}")
-
-    if print_it:
-        if alg_dir.exists():
-            alg_str = '\n'.join(list(algorithms.keys()))
-            print(f"Found {len(algorithms)} available algorithms: \n{textwrap.indent(alg_str, ' ' * 4)}")
-        else:
-            print(f"'algorithms' folder not found in {alg_dir.parent}.")
-    return algorithms
-
-
 def init_problem(name: str, **kwargs) -> MultiTaskProblem:
-    return load_problem(name).problem(**kwargs)
+    prob = load_problem(name)
+    prob.set_params_update(kwargs)
+    return prob.initialize()
 
 
 def load_problem(name: str) -> 'ProblemData':
@@ -224,22 +236,6 @@ class ProblemData:
             return f"Problem '{self.name}' no configurable parameters."
 
 
-CONF_DEFAULTS = """
-launcher:
-    results: out/results  # [optional] save results to this directory
-    repeat: 2             # [optional] repeat each experiment for this number of times
-    save: true            # [optional] save results to disk
-    loglevel: INFO        # [optional] log level [CRITICAL, ERROR, WARNING, INFO, DEBUG], default INFO
-    algorithms: []        # run these algorithms
-    problems: []          # run each algorithm on these problems
-reporter:
-    results: out/results  # [optional] load results from this directory
-    formats: [excel]      # [optional] generate these reports
-    algorithms: []        # make comparison on these groups of algorithms
-    problems: []          # use results that algorithms runs on these problems
-"""
-
-
 class ExperimentConfig:
 
     def __init__(
@@ -261,19 +257,43 @@ class ExperimentConfig:
         npd = self.problem.params['np_per_dim']
         return self._root / alg_name / prob_name / f"NPD{npd}"
 
-    def save_info(self):
+    def result_name(self, file_id: int):
+        fe_init = self.problem.params.get('fe_init')
+        fe_max = self.problem.params.get('fe_max')
+        seed = self.problem.params.get('seed')
+        fe_i = "" if fe_init is None else f"FEi{fe_init}_"
+        fe_m = "" if fe_max is None else f"FEm{fe_max}_"
+        seed = "" if seed is None else f"Seed{seed}_"
+        filename = f"{fe_i}{fe_m}{seed}Rep{file_id:02d}.msgpack"
+        return self.root / filename
+
+    @property
+    def num_results(self) -> int:
+        prefix = self.result_name(0).name.split('Rep')[0]
+        suffix = '.msgpack'
+        results = [f for f in os.listdir(self.root) if f.startswith(prefix) and f.endswith(suffix)]
+        return len(results)
+
+    @property
+    def params_dict(self) -> dict[str, Any]:
         data = {
-                'alg_params': self.algorithm.params,
-                'alg_default': self.algorithm.params_default,
-                'alg_update': self.algorithm.params_update,
-                'prob_params': self.problem.params,
-                'prob_default': self.problem.params_default,
-                'prob_update': self.problem.params_update,
+            'algorithm': {
+                'name': self.algorithm.name,
+                'params': self.algorithm.params,
+                'default': self.algorithm.params_default,
+                'update': self.algorithm.params_update,
+            },
+            'problem': {
+                'name': self.problem.name,
+                'params': self.problem.params,
+                'default': self.problem.params_default,
+                'update': self.problem.params_update,
             }
-        save_yaml(
-            CommentedMap(data),
-            self.root.parent / "exp_conf.yaml")
-        return data
+        }
+        return recursive_to_pure_dict(data)
+
+    def backup_params(self):
+        save_yaml(self.params_dict, self.root.parent / "exp_conf.yaml")
 
     def init_root(self):
         self.root.mkdir(parents=True, exist_ok=True)
@@ -288,10 +308,101 @@ class ExperimentConfig:
         return '\n'.join(info)
 
 
+class LauncherConfig(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    results: str = 'out/results'
+    repeat: int = 1
+    seed: int = 42
+    backup: bool = True
+    save: bool = True
+    loglevel: str = 'INFO'
+    algorithms: list[str]
+    problems: list[str]
+    experiments: list[ExperimentConfig] = []
+
+    @field_validator('results', mode='before')
+    def results_must_be_not_none(cls, v):
+        if not isinstance(v, (str, type(None))):
+            raise TypeError(f'results must be a string or None, got {type(v)} instead')
+        return v if v is not None else 'out/results'
+
+    @field_validator('loglevel')
+    def loglevel_must_be_valid(cls, v):
+        valid_values = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if v not in valid_values:
+            raise ValueError(f'loglevel must be one of {valid_values}, got {v} instead')
+        return v
+
+    @field_validator('repeat', 'seed')
+    def integer_must_be_positive(cls, v):
+        if v < 1:
+            raise ValueError('repeat must be >= 1')
+        return v
+
+    @field_validator('algorithms', 'problems')
+    def lists_must_not_be_empty(cls, v):
+        if len(v) < 1:
+            raise ValueError('list must have at least 1 element')
+        return v
+
+    def show_summary(self):
+        colored_tab, _ = show_in_table(
+            num_exp=len(self.experiments),
+            repeat_per_exp=self.repeat,
+            total_repeat=self.total_repeat,
+        )
+        print(colored_tab)
+
+    @property
+    def n_exp(self) -> int:
+        return len(self.experiments)
+
+    @property
+    def total_repeat(self) -> int:
+        return self.n_exp * self.repeat
+
+
+class ReporterConfig(BaseModel):
+    results: Optional[str] = 'out/results'
+    algorithms: list[list[str]]
+    problems: list[str]
+
+    @field_validator('results')
+    def results_must_be_not_none(cls, v):
+        return v if v is not None else 'out/results'
+
+    @field_validator('algorithms')
+    def inner_lists_must_have_min_length(cls, v):
+        for inner_list in v:
+            if len(inner_list) < 1:
+                raise ValueError('inner lists must have at least 1 elements')
+        return v
+
+    @field_validator('problems', 'algorithms')
+    def outer_list_must_not_be_empty(cls, v):
+        if len(v) < 1:
+            raise ValueError('problems list must have at least 1 element')
+        return v
+
+
 class ConfigParser:
+    """
+    launcher:
+        results: out/results  # [optional] save results to this directory
+        repeat: 2             # [optional] repeat each experiment for this number of times
+        save: true            # [optional] save results to disk
+        loglevel: INFO        # [optional] log level [CRITICAL, ERROR, WARNING, INFO, DEBUG], default INFO
+        algorithms: []        # run these algorithms
+        problems: []          # run each algorithm on these problems
+    reporter:
+        results: out/results  # [optional] load results from this directory
+        formats: [excel]      # [optional] generate these reports
+        algorithms: []        # make comparison on these groups of algorithms
+        problems: []          # use results that algorithms runs on these problems
+    """
 
     def __init__(self, config: str = 'config.yaml'):
-        self.config_default = parse_yaml(CONF_DEFAULTS)
+        self.config_default = parse_yaml(self.__class__.__doc__)
         self.config_update = load_yaml(config)
 
     @property

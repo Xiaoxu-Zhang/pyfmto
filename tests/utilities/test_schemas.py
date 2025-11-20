@@ -7,10 +7,9 @@ from pyfmto.utilities.schemas import (
     STPConfig,
     PlottingArgs,
     FunctionInputs,
-    LauncherConfig,
-    ReporterConfig,
     TransformerConfig,
 )
+from pyfmto.utilities.loaders import LauncherConfig, ReporterConfig
 
 
 class TestSTPConfig(unittest.TestCase):
