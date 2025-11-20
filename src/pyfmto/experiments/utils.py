@@ -459,15 +459,29 @@ class ReporterUtils:
         return 'IID' if np_per_dim == 1 else f"NIID{np_per_dim}"
 
     @staticmethod
-    def load_runs_data(file_dir: Path) -> list[RunSolutions]:
+    def load_runs_data(file_dir: Path, prefix: str = '') -> list[RunSolutions]:
+        """
+        Load all RunSolutions from a directory.
+        Parameters
+        ----------
+        file_dir: Path
+            The directory to load RunSolutions from.
+        prefix: str
+            The prefix of the RunSolutions file.
+        """
+        suffix = '.msgpack'
         if file_dir.exists():
             filenames = [
                 file_dir / f_name
-                for f_name in os.listdir(file_dir) if f_name.endswith('.msgpack')
+                for f_name in os.listdir(file_dir) if f_name.startswith(prefix) and f_name.endswith(suffix)
             ]
             return [RunSolutions(load_msgpack(p)) for p in filenames]
         else:
-            print(f"Result file not found in {colored(str(file_dir), 'red')}")
+            print(
+                f"{colored('Result file not found:', 'red')}\n"
+                f"    FileRoot: {colored(str(file_dir), 'green')}\n"
+                f"    NameRule: {prefix}{colored('Any', 'green')}{suffix}\n"
+            )
             return []
 
     @staticmethod
