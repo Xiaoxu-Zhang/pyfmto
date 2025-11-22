@@ -124,7 +124,8 @@ env = ["COLUMNS=120"]
 testpaths = ["tests/"]
 filterwarnings = [
     "ignore:FigureCanvasAgg is non-interactive",
-    "ignore:pkg_resources is deprecated as an API"
+    "ignore:pkg_resources is deprecated as an API",
+    "ignore:Precision loss occurred in moment calculation"
 ]
 
 [tool.coverage.run]
