@@ -1,4 +1,3 @@
-import os
 import time
 from setproctitle import setproctitle
 
@@ -98,11 +97,6 @@ class Launcher:
             self._repeat_id = self.exp.num_results + 1
         else:
             self._repeat_id += 1
-
-    @property
-    def _n_results(self) -> int:
-        lst_res = [f for f in os.listdir(self.exp.root) if f.endswith(".msgpack")]
-        return len(lst_res)
 
     @property
     def _finished(self):

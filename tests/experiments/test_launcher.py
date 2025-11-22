@@ -1,47 +1,39 @@
-import shutil
 import unittest
 from pathlib import Path
+from typing import Any
 
-from . import export_launcher_config, export_algorithm_config, export_problem_config
 from pyfmto.experiments import Launcher
-from pyfmto.utilities import load_yaml, save_yaml
-from . import export_alg_template
+from pyfmto.utilities import save_yaml
+from ..helpers import remove_temp_files
+from ..helpers.generators import (
+    gen_algorithm, gen_problem
+)
 
 
 class TestLauncher(unittest.TestCase):
 
     def setUp(self):
-        export_alg_template('TMP')
-        export_launcher_config(algs=['TMP'], repeat=2, probs=['tetci2019'], mode='update')
-        export_problem_config(probs=('tetci2019', ), mode='update')
-        conf = load_yaml('config.yaml')
-        conf['problems'].update(
-            {
-                'tetci2019': {'fe_init': 20, 'fe_max': 25, 'dim': 3}
+        Path('out').mkdir(exist_ok=True)
+        self.conf_file = 'out/config.yaml'
+        self.conf: dict[str, Any] = {
+            'launcher': {
+                'algorithms': ['ALG1'],
+                'problems': ['PROB1'],
             }
-        )
-        save_yaml(conf, 'config.yaml')
+        }
+        gen_algorithm('ALG1')
+        gen_problem('PROB1')
+        save_yaml(self.conf, self.conf_file)
 
     def tearDown(self):
-        Path('config.yaml').unlink()
-        shutil.rmtree('algorithms')
-        shutil.rmtree('out', ignore_errors=True)
+        remove_temp_files()
 
-    def test_basic_run(self):
-        launcher = Launcher()
-        launcher.run()
-
-    def test_kwargs_update(self):
-        export_algorithm_config(algs=('TMP', ), mode='update')  # cover kwargs update logic
-        conf = load_yaml('config.yaml')
-        conf['algorithms']['TMP'].update({'client': {'alpha': 0.01}})
-        save_yaml(conf, 'config.yaml')
-        launcher = Launcher()
+    def test_default_conf(self):
+        launcher = Launcher(self.conf_file)
         launcher.run()
 
     def test_not_save(self):
-        conf = load_yaml('config.yaml')
-        conf['launcher']['save'] = False
-        save_yaml(conf, 'config.yaml')
-        launcher = Launcher()
+        self.conf['launcher'].update({'save': False, 'backup': True})
+        save_yaml(self.conf, self.conf_file)
+        launcher = Launcher(self.conf_file)
         launcher.run()
