@@ -192,28 +192,31 @@ class MetaData:
             self,
             data: dict[str, MergedResults],
             problem: str,
-            npd_name: str,
-            filedir: Path):
-        self._data = data
+            npd: str,
+            root: Path):
+        self.data = data
         self.problem = problem
-        self.npd_name = npd_name
-        self.filedir = filedir
+        self.npd = npd
+        self.root = root
 
     def __len__(self):
-        return len(self._data)
+        return len(self.data)
 
     def __getitem__(self, item):
-        return self._data[item]
+        return self.data[item]
 
     def items(self) -> list[tuple[str, MergedResults]]:
-        return list(self._data.items())
+        return list(self.data.items())
+
+    def is_empty(self):
+        return len(self.data) == 0
 
     @property
     def clt_names(self):
         if self.alg_num == 0:
             return []
         else:
-            return list(self._data.values())[0].sorted_names
+            return list(self.data.values())[0].sorted_names
 
     @property
     def clt_num(self):
@@ -221,22 +224,32 @@ class MetaData:
 
     @property
     def alg_num(self):
-        return len(self._data)
+        return len(self.data)
 
     @property
     def dim(self):
         if self.alg_num == 0:
             return 0
         else:
-            return list(self._data.values())[0].dim
+            return list(self.data.values())[0].dim
 
     @property
     def num_runs(self):
-        return list(self._data.values())[0].num_runs
+        return list(self.data.values())[0].num_runs
 
     @property
     def alg_names(self):
-        return list(self._data.keys())
+        return list(self.data.keys())
+
+    @property
+    def report_filename(self) -> Path:
+        if self.is_empty():
+            raise ValueError(f"Empty data for analysis on [{self.problem}] with [{self.npd}]")
+        else:
+            filedir = self.root / f"{time.strftime('%Y-%m-%d')}" / f"{self.alg_names[-1]}" / f"{self.problem}"
+            filedir.mkdir(parents=True, exist_ok=True)
+            file_name = filedir / self.npd
+            return file_name
 
 
 class LauncherUtils:
