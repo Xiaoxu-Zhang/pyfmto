@@ -1,0 +1,32 @@
+from typing import Any
+
+from pyfmto.framework import Client, Server, ClientPackage
+
+
+class NameAlgClient(Client):
+    """
+    name: c
+    """
+
+    def __init__(self, problem, **kwargs):
+        super().__init__(problem)
+        self.problem.auto_update_solutions = True
+
+    def optimize(self):
+        x = self.problem.random_uniform_x(1)
+        self.problem.evaluate(x)
+
+
+class NameAlgServer(Server):
+    """
+    name: s
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__()
+
+    def aggregate(self):
+        pass
+
+    def handle_request(self, pkg: ClientPackage) -> Any:
+        pass
