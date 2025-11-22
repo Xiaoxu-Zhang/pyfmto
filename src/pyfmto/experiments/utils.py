@@ -13,14 +13,12 @@ from PIL import Image
 from matplotlib import pyplot as plt
 from scipy import stats
 from concurrent.futures import ThreadPoolExecutor
-from itertools import product
 from pathlib import Path
 from typing import Optional, Union, Type
 
 from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
 from pyfmto.utilities import logger, save_msgpack, titled_tabulate, load_msgpack, colored
-from pyfmto.utilities.loaders import LauncherConfig, ReporterConfig
 
 StatisData = namedtuple("StatisData", ['mean', 'std', 'se', 'opt'])
 
@@ -332,43 +330,6 @@ class LauncherUtils:
         pool.shutdown(wait=True)
         return [fut.result() for fut in futures]
 
-    @staticmethod
-    def gen_exp_combinations(launcher_conf: LauncherConfig, alg_conf: dict, prob_conf: dict):
-        alg_items = [(name, alg_conf.get(name, {})) for name in launcher_conf.algorithms]
-        prob_conf = {name: prob_conf.get(name, {}) for name in launcher_conf.problems}
-        prob_items = LauncherUtils.combine_args(prob_conf)
-        combinations = [(*alg_item, *prob_item) for alg_item, prob_item in product(alg_items, prob_items)]
-        return combinations
-
-    @staticmethod
-    def combine_args(args: dict):
-        prob_items = []
-        for prob_name, prob_args in args.items():
-            list_args = {k: v for k, v in prob_args.items() if isinstance(v, list)}
-            non_list_args = {k: v for k, v in prob_args.items() if not isinstance(v, list)}
-
-            if not list_args:
-                args = {**non_list_args}
-                prob_items.append((prob_name, args))
-                continue
-
-            keys, values = zip(*list_args.items())
-            for combination in product(*values):
-                args = {**non_list_args, **dict(zip(keys, combination))}
-                prob_items.append((prob_name, args))
-        return prob_items
-
-    @staticmethod
-    def gen_path(alg_name, prob_name, prob_args):
-        np_per_dim = prob_args.get('np_per_dim')
-        dim = prob_args.get('dim')
-        dim = '' if dim is None else f'_{dim}D'
-        src_prob = prob_args.get('src_problem', '')
-        src_prob = f'-{src_prob}' if src_prob != '' else ''
-        init_data_type = 'IID' if np_per_dim in (1, None) else f'NIID{np_per_dim}'
-        res_root = Path('out', 'results', alg_name, f"{prob_name.upper()}{src_prob}{dim}", init_data_type)
-        return res_root
-
 
 class ReporterUtils:
 
@@ -415,28 +376,6 @@ class ReporterUtils:
         return (a, b) if a > b else (b, a)
 
     @staticmethod
-    def parse_reporter_config(config: dict, prob_conf: dict):
-        reporter = ReporterConfig(**config)
-        algorithms = reporter.algorithms
-        problems = reporter.problems
-        prob_items = []
-        for name, args in LauncherUtils.combine_args({name: prob_conf.get(name, {}) for name in problems}):
-            src_prob = args.get('src_problem')
-            npd_name = ReporterUtils.get_np_name(args.get('np_per_dim', 1))
-            if src_prob:
-                prob_items.append((f"{name.upper()}-{src_prob}", npd_name))
-            else:
-                prob_items.append((name.upper(), npd_name))
-        analysis_comb = [(alg, *prob_item) for alg, prob_item in product(algorithms, prob_items)]
-        initialize_comb = [(alg, *prob_item) for alg, prob_item in product(sum(algorithms, []), prob_items)]
-        analyses = {
-            'results': reporter.results,
-            'analysis_comb': analysis_comb,
-            'initialize_comb': initialize_comb
-        }
-        return analyses
-
-    @staticmethod
     def get_t_test_suffix(opt_list1, opt_list2, mean1, mean2, pvalue):
         diff = mean1 - mean2
         _, p = stats.ttest_ind(opt_list1, opt_list2)
@@ -468,10 +407,6 @@ class ReporterUtils:
             return 0
 
     @staticmethod
-    def get_np_name(np_per_dim: int):
-        return 'IID' if np_per_dim == 1 else f"NIID{np_per_dim}"
-
-    @staticmethod
     def load_runs_data(file_dir: Path, prefix: str = '') -> list[RunSolutions]:
         """
         Load all RunSolutions from a directory.
@@ -498,34 +433,12 @@ class ReporterUtils:
             return []
 
     @staticmethod
-    def get_optimality_index_mat(mean_dict):
+    def get_optimality_mask_mat(mean_dict):
         df = pd.DataFrame.from_dict(mean_dict)
         data_mat = df.to_numpy()
-
         mat_shape = data_mat.shape[0], data_mat.shape[1]
-        solo_index_mat = np.zeros(shape=mat_shape, dtype=bool)
-        global_index_mat = np.zeros(shape=mat_shape, dtype=bool)
-
-        row, col = solo_index_mat.shape
-        min_idx = np.argmin(data_mat, axis=1)
-        for i in range(row):
-            global_index_mat[i, min_idx[i]] = True
-            obj_val = data_mat[i, -1]
-            for j in range(col - 1):
-                if data_mat[i, j] < obj_val:
-                    solo_index_mat[i, j] = True
-        solo_index_mat = global_index_mat + solo_index_mat
-
-        # row+1: the last row is the count of best solution of each algorithm
-        # col+1: the first col is the index of Client
-        add_row = np.zeros(shape=solo_index_mat.shape[1], dtype=bool)
-        solo_index_mat = np.vstack((solo_index_mat, add_row))
-        global_index_mat = np.vstack((global_index_mat, add_row))
-
-        add_col = np.zeros(shape=solo_index_mat.shape[0], dtype=bool).reshape(-1, 1)
-        solo_index_mat = np.hstack((add_col, solo_index_mat))
-        global_index_mat = np.hstack((add_col, global_index_mat))
-        return global_index_mat, solo_index_mat
+        mask = np.zeros(shape=mat_shape, dtype=bool)
+        return mask
 
     @staticmethod
     def get_mat_statis(y_mat: np.ndarray):

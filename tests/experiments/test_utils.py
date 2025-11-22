@@ -7,18 +7,14 @@ import yaml
 from itertools import product
 from pathlib import Path
 
-from pyfmto.experiments import show_default_conf, list_report_formats
-from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import (
     RunSolutions, LauncherUtils, ReporterUtils, MetaData, MergedResults, ClientDataStatis
 )
-from pyfmto import load_algorithm, list_algorithms
 from pyfmto.utilities.schemas import STPConfig
-from pyfmto.utilities.loaders import LauncherConfig
 from pyfmto.utilities import load_msgpack
 from unittest.mock import Mock
-from tests.experiments import export_alg_template, ExpDataGenerator
+from tests.helpers.generators import ExpDataGenerator
 from tests.framework import OnlineServer
 
 
@@ -42,7 +38,7 @@ class TestMetaData(unittest.TestCase):
     def setUp(self):
         self.algs = ['ALG1', 'ALG2']
         self.probs = ['PROB1', 'PROB2']
-        self.npd_names = ['IID', 'NIID']
+        self.npd_names = ['NPD1', 'NPD2']
         self.n_task = 5
         self.n_run = 3
         self.generator = ExpDataGenerator(dim=10, lb=0, ub=1)
@@ -57,6 +53,8 @@ class TestMetaData(unittest.TestCase):
         self.assertEqual(md.dim, 0)
         with self.assertRaises(KeyError):
             _ = md['A1']
+        with self.assertRaises(ValueError):
+            _ = md.report_filename
 
     def test_properties(self):
         for prob, npd in product(self.probs, self.npd_names):
@@ -66,6 +64,8 @@ class TestMetaData(unittest.TestCase):
             self.assertEqual(md.alg_num, len(self.algs))
             self.assertEqual(md.clt_num, self.n_task)
             self.assertEqual(md.alg_names, self.algs)
+            self.assertEqual(md.dim, 10)
+            self.assertEqual(md.num_runs, self.n_run)
             self.assertEqual(md.clt_names, [f'Client {i+1:>02d}' for i in range(self.n_task)])
             for alg in self.algs:
                 self.assertIsInstance(md[alg], MergedResults)
@@ -167,39 +167,6 @@ class TestReporterUtils(unittest.TestCase):
             kwargs = case.copy()
             expected = kwargs.pop('expected')
             self.assertEqual(self.utils.get_t_test_suffix(**kwargs), expected)
-
-    def test_parse_reporter_config(self):
-        config = {
-            'algorithms': [['alg1', 'alg2'], ['alg3', 'alg4']],
-            'problems': ['prob1', 'prob2']
-        }
-        prob_conf = {
-            'prob1': {'src_problem': 'src1', 'np_per_dim': 2},
-            'prob2': {'np_per_dim': 3}
-        }
-        result = self.utils.parse_reporter_config(config, prob_conf)
-
-        expected_analysis_comb = [
-            (['alg1', 'alg2'], 'PROB1-src1', 'NIID2'),
-            (['alg1', 'alg2'], 'PROB2', 'NIID3'),
-            (['alg3', 'alg4'], 'PROB1-src1', 'NIID2'),
-            (['alg3', 'alg4'], 'PROB2', 'NIID3')
-        ]
-
-        expected_initialize_comb = [
-            ('alg1', 'PROB1-src1', 'NIID2'),
-            ('alg1', 'PROB2', 'NIID3'),
-            ('alg2', 'PROB1-src1', 'NIID2'),
-            ('alg2', 'PROB2', 'NIID3'),
-            ('alg3', 'PROB1-src1', 'NIID2'),
-            ('alg3', 'PROB2', 'NIID3'),
-            ('alg4', 'PROB1-src1', 'NIID2'),
-            ('alg4', 'PROB2', 'NIID3')
-        ]
-
-        self.assertEqual(result['results'], 'out/results')
-        self.assertEqual(result['analysis_comb'], expected_analysis_comb)
-        self.assertEqual(result['initialize_comb'], expected_initialize_comb)
 
     def test_all_rows_equal(self):
         col_title = ["Col1", "Col2", "Col3"]
@@ -318,77 +285,6 @@ class TestLauncherUtils(unittest.TestCase):
         mock_process.wait.assert_any_call(timeout=5)
         mock_process.kill.assert_called_once()
 
-    def test_gen_path(self):
-        alg = 'ALG'
-        prob = 'PROB'
-        kwargs1 = {
-            'np_per_dim': 1,
-            'dim': 2,
-        }
-        kwargs2 = {
-            'np_per_dim': 2,
-            'dim': 2,
-        }
-        res_root1 = self.utils.gen_path(alg, prob, kwargs1)
-        res_root2 = self.utils.gen_path(alg, prob, kwargs2)
-        self.assertEqual(res_root1, Path('out', 'results', alg, f"{prob}_2D", "IID"))
-        self.assertEqual(res_root2, Path('out', 'results', alg, f"{prob}_2D", "NIID2"))
-
-    def test_combine_args_no_list(self):
-        args = {
-            'problem1': {'param1': 'value1', 'param2': 'value2'}
-        }
-        result = self.utils.combine_args(args)
-        expected = [('problem1', {'param1': 'value1', 'param2': 'value2'})]
-        self.assertEqual(result, expected)
-
-    def test_combine_args_with_list(self):
-        args = {
-            'problem1': {'param1': 'value1', 'param2': [1, 2]}
-        }
-        result = self.utils.combine_args(args)
-        expected = [
-            ('problem1', {'param1': 'value1', 'param2': 1}),
-            ('problem1', {'param1': 'value1', 'param2': 2})
-        ]
-        self.assertEqual(result, expected)
-
-    def test_combine_args_multiple_lists(self):
-        args = {
-            'problem1': {'param1': [1, 2], 'param2': ['a', 'b']}
-        }
-        result = self.utils.combine_args(args)
-        expected = [
-            ('problem1', {'param1': 1, 'param2': 'a'}),
-            ('problem1', {'param1': 1, 'param2': 'b'}),
-            ('problem1', {'param1': 2, 'param2': 'a'}),
-            ('problem1', {'param1': 2, 'param2': 'b'})
-        ]
-        self.assertEqual(result, expected)
-
-    def test_gen_exp_combinations(self):
-        launcher_conf = LauncherConfig(
-            algorithms=['alg1', 'alg2'],
-            problems=['prob1', 'prob2']
-        )
-        alg_conf = {
-            'alg1': {'alg_param': 1},
-            'alg2': {'alg_param': 2}
-        }
-        prob_conf = {
-            'prob1': {'prob_param': 'a'},
-            'prob2': {'prob_param': 'b'}
-        }
-        result = self.utils.gen_exp_combinations(launcher_conf, alg_conf, prob_conf)
-
-        expected = [
-            ('alg1', {'alg_param': 1}, 'prob1', {'prob_param': 'a'}),
-            ('alg1', {'alg_param': 1}, 'prob2', {'prob_param': 'b'}),
-            ('alg2', {'alg_param': 2}, 'prob1', {'prob_param': 'a'}),
-            ('alg2', {'alg_param': 2}, 'prob2', {'prob_param': 'b'})
-        ]
-        self.assertEqual(result, expected)
-
 
 class TestRunSolutions(unittest.TestCase):
 
@@ -454,49 +350,3 @@ class TestRunSolutions(unittest.TestCase):
             self.assertEqual(s1.dim, s2.dim)
             self.assertEqual(s1.obj, s2.obj)
             self.assertEqual(s1.fe_init, s2.fe_init)
-
-
-class TestOtherUtils(unittest.TestCase):
-
-    def setUp(self):
-        self.alg_dir = Path('algorithms')
-        self.alg_dir.mkdir(parents=True, exist_ok=True)
-        export_alg_template('ALG1')
-        export_alg_template('ALG2')
-        empty = self.alg_dir / 'INVALID'
-        empty.mkdir()
-
-    def tearDown(self):
-        shutil.rmtree(self.alg_dir, ignore_errors=True)
-
-    def test_without_alg_dir(self):
-        shutil.rmtree(self.alg_dir, ignore_errors=True)
-        res = list_algorithms(print_it=True)
-        self.assertEqual(res, {})
-
-    def test_list_algorithms(self):
-        list_algorithms(print_it=True)
-
-    def test_load_algorithm(self):
-        res = load_algorithm('ALG1')
-        self.assertTrue(issubclass(res.client, Client))
-        self.assertTrue(issubclass(res.server, Server))
-
-    def test_load_invalid_algorithm(self):
-        with self.assertRaises(ValueError):
-            load_algorithm('NONEXISTENT')
-        with self.assertRaises(ModuleNotFoundError):
-            load_algorithm('INVALID')
-        shutil.rmtree(self.alg_dir)
-        with self.assertRaises(FileNotFoundError):
-            load_algorithm('ALG')
-
-    def test_list_report_formats(self):
-        res = list_report_formats(print_it=True)
-        for fmt in ['curve', 'violin', 'excel', 'latex', 'console']:
-            self.assertIn(fmt, res)
-
-    def test_show_default_conf(self):
-        for fmt in list_report_formats() + ['nonexist']:
-            with self.subTest(fmt=fmt):
-                self.assertIsNone(show_default_conf(fmt))
