@@ -1,34 +1,36 @@
 import numpy as np
 from pathlib import Path
 from typing import Union, Literal
-from pyfmto import load_problem
 from pyfmto.experiments import RunSolutions
 from pyfmto.experiments.utils import MergedResults, MetaData
 from pyfmto.problems import Solution
 from pyfmto.utilities import save_yaml, load_yaml
-from pyfmto.utilities.loaders import LauncherConfig, ReporterConfig
+from pyfmto.utilities.loaders import ReporterConfig
 from pyfmto.utilities.schemas import STPConfig
 
 
-def gen_algorithm(name: str):
-    alg_dir = Path('algorithms') / name
-    alg_dir.mkdir(parents=True, exist_ok=True)
-    with open(Path(__file__).parent / 'alg_template.py', 'r') as f1:
-        template = f1.read().replace('NameAlg', name.title())
-        with open(alg_dir / '__init__.py', 'w') as f2:
-            f2.write(template)
+def gen_algorithm(names: Union[str, list[str]]):
+    names = names if isinstance(names, list) else [names]
+    for name in names:
+        alg_dir = Path('algorithms') / name
+        alg_dir.mkdir(parents=True, exist_ok=True)
+        with open(Path(__file__).parent / 'alg_template.py', 'r') as f1:
+            template = f1.read().replace('NameAlg', name.title())
+            with open(alg_dir / '__init__.py', 'w') as f2:
+                f2.write(template)
 
 
-def gen_problem(name: str):
-    root = Path('problems')
-    root.mkdir(parents=True, exist_ok=True)
-    with open(Path(__file__).parent / 'prob_template.py', 'r') as f1:
-        template = f1.read().replace('NameProb', name)
-        with open(root / f"{name.lower()}.py", 'w') as f2:
-            f2.write(template)
-        with open(root / '__init__.py', 'a') as f3:
-            f3.write(f"from .{name.lower()} import {name}\n")
-    print(f'Problem {name} created successfully.')
+def gen_problem(names: Union[str, list[str]]):
+    names = names if isinstance(names, list) else [names]
+    for name in names:
+        root = Path('problems')
+        root.mkdir(parents=True, exist_ok=True)
+        with open(Path(__file__).parent / 'prob_template.py', 'r') as f1:
+            template = f1.read().replace('NameProb', name)
+            with open(root / f"{name.lower()}.py", 'w') as f2:
+                f2.write(template)
+            with open(root / '__init__.py', 'a') as f3:
+                f3.write(f"from .{name.lower()} import {name}\n")
 
 
 class ExpDataGenerator:
@@ -92,28 +94,6 @@ def save_config(name: str, data, mode: str = 'new'):
         return Path('config.yaml')
 
 
-def export_launcher_config(
-        results: str = 'out/results',
-        repeat: int = 1,
-        save: bool = True,
-        seed: int = 42,
-        backup: bool = True,
-        algs: Union[tuple[str, ...], list[str]] = ('BO', 'FMTBO'),
-        probs: Union[tuple[str, ...], list[str]] = ('tetci2019', 'arxiv2017'),
-        mode: Literal['new', 'update'] = 'new',
-):
-    data = LauncherConfig(
-        results=results,
-        repeat=repeat,
-        save=save,
-        seed=seed,
-        backup=backup,
-        algorithms=algs,
-        problems=probs,
-    )
-    return save_config('launcher', data.model_dump(), mode)
-
-
 def export_reporter_config(
         results: str = 'out/results',
         algs: tuple[list[str], ...] = (['BO', 'FMTBO'], ),
@@ -127,37 +107,3 @@ def export_reporter_config(
         formats=['curve']
     )
     return save_config('reporter', data.model_dump(), mode)
-
-
-def export_algorithm_config(
-        algs: tuple[str, ...],
-        mode: Literal['new', 'update'] = 'new'
-):
-    all_algorithms = {}
-    for name in algs:
-        try:
-            from pyfmto import load_algorithm
-            curr = load_algorithm(name)
-            all_algorithms[name] = curr.params_default
-        except Exception as e:
-            print(e)
-    return save_config('algorithms', all_algorithms, mode)
-
-
-def export_problem_config(
-        probs: tuple[str, ...] = ('arxiv2017', 'tetci2019'),
-        mode: Literal['new', 'update'] = 'new'
-):
-    all_problems = {}
-    for name in probs:
-        try:
-            load_problem(name)
-            all_problems[name] = {
-                'dim': 10,
-                'seed': 123,
-                'np_per_dim': 1,
-                'random_ctrl': 'weak',
-            }
-        except Exception as e:
-            print(e)
-    return save_config('problems', all_problems, mode)

@@ -40,7 +40,9 @@ class StpD(SingleTaskProblem):
 
 
 class NameProb(MultiTaskProblem):
-
+    """
+    dim: 2
+    """
     def __init__(self, dim: int = 2, **kwargs):
         super().__init__(dim, **kwargs)
 
