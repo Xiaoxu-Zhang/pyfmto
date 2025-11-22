@@ -97,7 +97,8 @@ dev = [
     "pyparsing",
     "joblib",
     "python-dateutil",
-    "starlette"
+    "starlette",
+    'deepdiff',
 ]
 
 [project.scripts]
@@ -135,12 +136,12 @@ directory = "coverage/html"
 
 [tool.mypy]
 files = ["src/"]
-exclude = ["src/pyfmto/problems/benchmarks/"]
+exclude = ["src/pyfmto/problems/benchmarks/", "problems/*", "algorithms/*"]
 follow_imports = "skip"
 ignore_missing_imports = true
 check_untyped_defs = true
 
 [tool.flake8]
-exclude = ["*temp*"]
+exclude = ["*temp*", "problems/*", "algorithms/*"]
 max-line-length = 120
 count = true
