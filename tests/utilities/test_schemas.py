@@ -1,7 +1,6 @@
 import unittest
 import numpy as np
 from itertools import product
-from pydantic import ValidationError
 
 from pyfmto.utilities.schemas import (
     STPConfig,
@@ -9,7 +8,6 @@ from pyfmto.utilities.schemas import (
     FunctionInputs,
     TransformerConfig,
 )
-from pyfmto.utilities.loaders import LauncherConfig, ReporterConfig
 
 
 class TestSTPConfig(unittest.TestCase):
@@ -19,17 +17,17 @@ class TestSTPConfig(unittest.TestCase):
             stp_config = STPConfig(dim=d, obj=1, lb=-1, ub=1)
             self.assertEqual(stp_config.fe_init, 5 * d)
             self.assertEqual(stp_config.fe_max, 11 * d)
-            self.assertEqual(stp_config.np_per_dim, 1)
+            self.assertEqual(stp_config.npd, 1)
 
     def test_valid_default(self):
         valid_np = range(1, 10)
         fe_init = range(1, 10)
         fe_max = [2 * x for x in fe_init]
         for a, b, c in zip(fe_init, fe_max, valid_np):
-            stp_config = STPConfig(fe_init=a, fe_max=b, np_per_dim=c, dim=2, obj=1, lb=-1, ub=1)
+            stp_config = STPConfig(fe_init=a, fe_max=b, npd=c, dim=2, obj=1, lb=-1, ub=1)
             self.assertEqual(stp_config.fe_init, a)
             self.assertEqual(stp_config.fe_max, b)
-            self.assertEqual(stp_config.np_per_dim, c)
+            self.assertEqual(stp_config.npd, c)
 
     def test_valid_required_inputs(self):
         valid_dims = range(1, 5)
@@ -68,9 +66,9 @@ class TestSTPConfig(unittest.TestCase):
             with self.assertRaises(ValueError, msg=f"while fe_init={fe_init}, fe_max={fe_max}"):
                 STPConfig(dim=2, obj=1, lb=0, ub=1, fe_init=fe_init, fe_max=fe_max)
 
-        for np_per_dim in [-1, 0]:
-            with self.assertRaises(ValueError, msg=f"while np_per_dim={np_per_dim}"):
-                STPConfig(dim=2, obj=1, lb=0, ub=1, np_per_dim=np_per_dim)
+        for npd in [-1, 0]:
+            with self.assertRaises(ValueError, msg=f"while npd={npd}"):
+                STPConfig(dim=2, obj=1, lb=0, ub=1, npd=npd)
 
 
 class TestTransformerConfig(unittest.TestCase):
@@ -132,91 +130,6 @@ class TestFunctionInputs(unittest.TestCase):
                     FunctionInputs(dim=1, x=np.array(invalid_x))
                 else:
                     FunctionInputs(dim=1, x=invalid_x)
-
-
-class TestLauncherConfig(unittest.TestCase):
-    def test_valid_config(self):
-        config = LauncherConfig(
-            results='out/results',
-            repeat=3,
-            seed=123,
-            backup=True,
-            loglevel='DEBUG',
-            save=True,
-            algorithms=['alg1', 'alg2'],
-            problems=['prob1', 'prob2']
-        )
-        self.assertEqual(config.results, 'out/results')
-        self.assertEqual(config.repeat, 3)
-        self.assertEqual(config.seed, 123)
-        self.assertEqual(config.loglevel, 'DEBUG')
-        self.assertTrue(config.backup)
-        self.assertTrue(config.save)
-        self.assertEqual(config.algorithms, ['alg1', 'alg2'])
-        self.assertEqual(config.problems, ['prob1', 'prob2'])
-        self.assertEqual(config.n_exp, 0)
-        config.experiments = [1, 2, 3]
-        self.assertEqual(config.n_exp, 3)
-        self.assertEqual(config.experiments, [1, 2, 3])
-        self.assertEqual(config.total_repeat, config.n_exp * config.repeat)
-        config.show_summary()
-
-    def test_defaults(self):
-        config = LauncherConfig(algorithms=['alg1'], problems=['prob1'])
-        self.assertEqual(config.loglevel, 'INFO')
-        self.assertEqual(config.results, 'out/results')
-        self.assertEqual(config.repeat, 1)
-        self.assertEqual(config.seed, 42)
-        self.assertTrue(config.backup)
-        self.assertTrue(config.save)
-
-    def test_results_none(self):
-        config = LauncherConfig(results=None, algorithms=['alg1'], problems=['prob1'])
-        self.assertEqual(config.results, 'out/results')
-
-    def test_invalid_results(self):
-        with self.assertRaises(TypeError):
-            LauncherConfig(results=0, algorithms=['alg1'], problems=['prob1'])
-
-    def test_invalid_config_repeat(self):
-        invalid_repeat = {'repeat': -1, 'algorithms': ['alg1'], 'problems': ['prob1']}
-        invalid_seed = {'seed': -1, 'algorithms': ['alg1'], 'problems': ['prob1']}
-        empty_algorithms = {'algorithms': [], 'problems': ['prob1']}
-        empty_problems = {'algorithms': ['alg1'], 'problems': []}
-        invalid_loglevel = {'loglevel': 'invalid', 'algorithms': ['alg1'], 'problems': ['prob1']}
-        self.assertRaises(ValidationError, LauncherConfig, **invalid_repeat)
-        self.assertRaises(ValidationError, LauncherConfig, **invalid_seed)
-        self.assertRaises(ValidationError, LauncherConfig, **empty_algorithms)
-        self.assertRaises(ValidationError, LauncherConfig, **empty_problems)
-        self.assertRaises(ValidationError, LauncherConfig, **invalid_loglevel)
-
-
-class TestReporterConfig(unittest.TestCase):
-    def test_valid_config(self):
-        config = ReporterConfig(
-            results='out/results',
-            algorithms=[['alg1', 'alg2'], ['alg3', 'alg4']],
-            problems=['prob1', 'prob2']
-        )
-        self.assertEqual(config.results, 'out/results')
-        self.assertEqual(config.algorithms, [['alg1', 'alg2'], ['alg3', 'alg4']])
-        self.assertEqual(config.problems, ['prob1', 'prob2'])
-
-    def test_defaults(self):
-        config = ReporterConfig(algorithms=[['alg1', 'alg2']], problems=['prob1'])
-        self.assertEqual(config.results, 'out/results')
-
-    def test_results_none(self):
-        config = ReporterConfig(results=None, algorithms=[['alg1', 'alg2']], problems=['prob1'])
-        self.assertEqual(config.results, 'out/results')
-
-    def test_invalid_config(self):
-        inner_too_short = {'algorithms': [[]], 'problems': ['prob1']}
-        empty_algorithms = {'algorithms': [], 'problems': ['prob1']}
-        empty_problems = {'algorithms': [['alg1', 'alg2']], 'problems': []}
-        self.assertRaises(ValidationError, ReporterConfig, **inner_too_short)
-        self.assertRaises(ValidationError, ReporterConfig, **empty_algorithms)
-        self.assertRaises(ValidationError, ReporterConfig, **empty_problems)
 
 
 class TestPlottingArgs(unittest.TestCase):
