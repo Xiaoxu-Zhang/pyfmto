@@ -16,7 +16,7 @@ class STPConfig(BaseModel):
     - ``ub``: finally a ndarray with shape (dim,)
     - ``fe_init``: a positive integer, default to ``5*dim``
     - ``fe_max``: a positive integer, default to ``11*dim``
-    - ``np_per_dim``: a positive integer, default to ``1``
+    - ``npd``: a positive integer, default to ``1``
 
     Notes
     -----
@@ -31,7 +31,7 @@ class STPConfig(BaseModel):
     ub: T_Bound
     fe_init: int = -1
     fe_max: int = -1
-    np_per_dim: int = 1
+    npd: int = 1
 
     @field_validator('dim', 'obj')
     def validate_positive_integer(cls, v):
@@ -39,10 +39,10 @@ class STPConfig(BaseModel):
             raise ValueError('dim and obj must be positive integers')
         return v
 
-    @field_validator('fe_init', 'fe_max', 'np_per_dim')
+    @field_validator('fe_init', 'fe_max', 'npd')
     def validate_positive_or_none(cls, v):
         if v < 1:
-            raise ValueError(f"Invalid value: {v} (fe_init, fe_max, and np_per_dim must be positive)")
+            raise ValueError(f"Invalid value: {v} (fe_init, fe_max, and npd must be positive)")
         return v
 
     @model_validator(mode='after')

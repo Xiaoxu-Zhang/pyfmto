@@ -23,7 +23,7 @@ class Solution:
     _obj: int
     _fe_init: int
     _fe_max: int
-    _np_per_dim: int
+    _npd: int
     _prev_size: int
     _lb: ndarray
     _ub: ndarray
@@ -74,7 +74,7 @@ class Solution:
         self._obj = config.obj
         self._fe_init = config.fe_init
         self._fe_max = config.fe_max
-        self._np_per_dim = config.np_per_dim
+        self._npd = config.npd
         self._lb = config.lb  # type: ignore
         self._ub = config.ub  # type: ignore
         self._x = np.array([])
@@ -157,8 +157,8 @@ class Solution:
         return self._fe_max
 
     @property
-    def np_per_dim(self) -> int:
-        return self._np_per_dim
+    def npd(self) -> int:
+        return self._npd
 
     @property
     @_only_single_obj

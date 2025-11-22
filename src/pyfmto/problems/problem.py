@@ -87,7 +87,7 @@ class SingleTaskProblem(ABC):
               Initial function evaluations.
             - fe_max : int, optional
               Maximum function evaluation budget.
-            - np_per_dim : int, default=1
+            - npd : int, default=1
               Number of partitions per dimension for non-IID simulation.
 
         Raises
@@ -102,7 +102,7 @@ class SingleTaskProblem(ABC):
         Notes
         -----
         - The actual bounds are stored in `self.x_lb` and `self.x_ub`.
-        - A partition can be generated if `np_per_dim > 1` to simulate non-IID scenarios.
+        - A partition can be generated if `npd > 1` to simulate non-IID scenarios.
         - The optimal solutions and Pareto Front (`self.optimum`, `self.PF`) are precomputed with default settings.
         """
         self._config = STPConfig(dim=dim, obj=obj, lb=lb, ub=ub, **kwargs)
@@ -133,13 +133,13 @@ class SingleTaskProblem(ABC):
 
     def init_partition(self):
         """
-        Set attribute 'partition' according to 'np_per_dim' to simulate the non-IID settings.
+        Set attribute 'partition' according to 'npd' to simulate the non-IID settings.
 
         Notes
         -----
-        It would do nothing if np_per_dim=1.
+        It would do nothing if npd=1.
 
-        - >>> Example of the bounds chosen process when dim=5 and np_per_dim=5
+        - >>> Example of the bounds chosen process when dim=5 and npd=5
         - [[0.0  0.2  0.4  0.6  0.8->1.0],
         -  [0.0  0.2->0.4  0.6  0.8  1.0],
         -  [0.0  0.2->0.4  0.6  0.8  1.0],
@@ -149,8 +149,8 @@ class SingleTaskProblem(ABC):
         - [[0.8 0.2 0.2 0.4 0.6]   <- lb
         -  [1.0 0.4 0.4 0.6 0.8]]  <- ub
         """
-        p_mat = [np.linspace(0, 1, self.np_per_dim + 1) for _ in range(self.dim)]
-        p_sampled = np.random.randint(0, self.np_per_dim, size=self.dim)
+        p_mat = [np.linspace(0, 1, self.npd + 1) for _ in range(self.dim)]
+        p_sampled = np.random.randint(0, self.npd, size=self.dim)
         lb = []
         ub = []
         for idx, p in zip(p_sampled, p_mat):
@@ -661,8 +661,8 @@ class SingleTaskProblem(ABC):
         return self.fe_max - self.solutions.size
 
     @property
-    def np_per_dim(self) -> int:
-        return self._config.np_per_dim
+    def npd(self) -> int:
+        return self._config.npd
 
     @property
     def solutions(self) -> Solution:
@@ -707,7 +707,7 @@ class MultiTaskProblem(ABC):
                 problem[i].set_id(i + 1)
 
     @abstractmethod
-    def _init_tasks(self, *args, **kwargs) -> Union[list[SingleTaskProblem], tuple[SingleTaskProblem]]: ...
+    def _init_tasks(self, *args, **kwargs) -> Union[list[SingleTaskProblem], tuple[SingleTaskProblem, ...]]: ...
 
     def __iter__(self):
         return iter(self._problem)
@@ -857,7 +857,7 @@ class MultiTaskProblem(ABC):
         Notes
         -----
         - The function normalizes all solution points to [0, 1] space for consistent visualization.
-        - Grid lines are shown according to the 'np_per_dim' setting to visualize partitions.
+        - Grid lines are shown according to the 'npd' setting to visualize partitions.
         - Each task is represented with a unique color and marker style.
         - The plot includes a legend indicating which color/marker corresponds to which task.
 
@@ -867,8 +867,8 @@ class MultiTaskProblem(ABC):
         #>>> problem.plot_distribution(dims=(1, 2), filename='distribution.png')
         """
         init_x: dict[str, ndarray] = {f"T{p.id:02}({p.name})": p.normalize_x(p.solutions.x) for p in self}
-        np_per_dim = self[0].np_per_dim
-        tick_interval = 1.0 / np_per_dim
+        npd = self[0].npd
+        tick_interval = 1.0 / npd
         ticks = np.arange(0, 1 + tick_interval, tick_interval)
         dim1 = min(dims)
         dim2 = max(dims)
@@ -884,7 +884,7 @@ class MultiTaskProblem(ABC):
         plt.figure(figsize=(w * s, h * s))
         sns.set(style=str(style))
         sns.scatterplot(data=pd.DataFrame(data), x='x', y='y', hue='problem', style='problem', s=80)
-        plt.title(f'Initial Solutions of Each Task (np_per_dim={np_per_dim})')
+        plt.title(f'Initial Solutions of Each Task (npd={npd})')
         plt.xlabel(f'X{dim1}')
         plt.ylabel(f'X{dim2}', rotation=0)
         plt.xticks(ticks)

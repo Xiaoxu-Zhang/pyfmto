@@ -45,7 +45,7 @@ class Launcher:
             problem = self.exp.problem.initialize()
             clt_params = self.exp.algorithm.params.get('client', {})
             clients = [self.exp.algorithm.client(p, **clt_params) for p in problem]
-            self._iid_info = problem[0].np_per_dim
+            self._iid_info = problem[0].npd
             self._num_clients = len(clients)
             self._show_progress()
 

@@ -78,7 +78,7 @@ class Client(ABC):
         param_dict['TaskName'].append(self.problem.name)
         param_dict['Dim'].append(str(self.problem.dim))
         param_dict['Obj'].append(str(self.problem.obj))
-        param_dict['IID'].append(str(self.problem.np_per_dim))
+        param_dict['IID'].append(str(self.problem.npd))
         param_dict['IniFE'].append(str(self.problem.fe_init))
         param_dict['MaxFE'].append(str(self.problem.fe_max))
         tab = titled_tabulate(
