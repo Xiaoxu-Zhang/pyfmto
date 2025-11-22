@@ -22,9 +22,10 @@ class ReporterTestBase(unittest.TestCase):
         self.filename = 'out/config.yaml'
         self.conf_dict: dict[str, Any] = {
             'launcher': {
-                'algorithms': ['ALG1', 'ALG2'],
+                'algorithms': ['ALG1', 'ALG2', 'ALG3', 'ALG4'],
                 'problems': ['PROB1'],
-            }
+            },
+            'problems': {'PROB1': {'dim': 20}},
         }
         save_yaml(self.conf_dict, self.filename)
         self.conf = ConfigLoader(self.filename).reporter

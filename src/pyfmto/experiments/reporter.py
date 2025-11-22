@@ -142,23 +142,19 @@ class TableGenerator(ReportGenerator, ABC):
             pvalue: float
     ):
         str_table, float_table = self._tabling(data, pvalue)
-        global_index_mat, solo_index_mat = self.utils.get_optimality_index_mat(float_table)
+        mask = self.utils.get_optimality_mask_mat(float_table)
 
-        global_counter = np.sum(global_index_mat, axis=0).reshape(1, -1)
-        solo_counter = np.sum(solo_index_mat, axis=0).reshape(1, -1)
+        global_counter = np.sum(mask, axis=0).reshape(1, -1)
 
         df = pd.DataFrame(str_table, index=None)
         columns = data.alg_names
         columns.insert(0, "Clients")
 
         global_counter_df = pd.DataFrame(global_counter, columns=columns, index=None)
-        solo_counter_df = pd.DataFrame(solo_counter, columns=columns, index=None)
         global_df = pd.concat([df, global_counter_df], ignore_index=True)
-        solo_df = pd.concat([df, solo_counter_df], ignore_index=True)
 
         global_df.iloc[-1, 0] = 'Sum'
-        solo_df.iloc[-1, 0] = 'Sum'
-        return global_df, solo_df, global_index_mat, solo_index_mat
+        return global_df, mask
 
     def _tabling(
             self,
@@ -221,10 +217,8 @@ class ExcelGenerator(TableGenerator):
             "style-font-italic": "font-style: italic",
             "style-font-underline": "text-decoration: underline"
         }
-        df_data = self._get_table_data(data, pvalue)
-        global_df, solo_df, global_index_mat, solo_index_mat = df_data
-        kwargs1 = {'opt_index_mat': global_index_mat, 'src_data': global_df}
-        kwargs2 = {'opt_index_mat': solo_index_mat, 'src_data': solo_df}
+        df, mask = self._get_table_data(data, pvalue)
+        kwargs1 = {'opt_index_mat': mask, 'src_data': df}
 
         def highlight_cells(val, opt_index_mat, src_data):
             style_str = ';'.join([style_map[s] for s in styles])
@@ -233,13 +227,11 @@ class ExcelGenerator(TableGenerator):
             is_opt = np.all(opt_index_mat[loc])
             return style_str if is_opt else ''
 
-        global_styled_df = global_df.style.map(highlight_cells, **kwargs1)
-        solo_styled_df = solo_df.style.map(highlight_cells, **kwargs2)
+        styled_df = df.style.map(highlight_cells, **kwargs1)
 
         writer: pd.ExcelWriter
         with pd.ExcelWriter(data.report_filename.with_suffix('.xlsx'), engine='openpyxl') as writer:
-            global_styled_df.to_excel(writer, index=False, sheet_name='Global')
-            solo_styled_df.to_excel(writer, index=False, sheet_name='Solo')
+            styled_df.to_excel(writer, index=False, sheet_name='Global')
 
 
 class ConsoleGenerator(TableGenerator):
@@ -265,23 +257,22 @@ class LatexGenerator(TableGenerator):
             *,
             pvalue: T_Fraction = 0.05
     ):
-        tab_data = self._get_table_data(data, pvalue)
-        data_df, _, hl_bool_mat, _ = tab_data
+        df, mask = self._get_table_data(data, pvalue)
 
         def highlight_cells(x):
             df_styles = pd.DataFrame('', index=x.index, columns=x.columns)
-            for i in range(hl_bool_mat.shape[0]):
-                for j in range(hl_bool_mat.shape[1]):
-                    if hl_bool_mat[i, j]:
+            for i in range(mask.shape[0]):
+                for j in range(mask.shape[1]):
+                    if mask[i, j]:
                         df_styles.iloc[i, j] = 'background-color: gray'
             return df_styles
 
-        styled_df = data_df.style.apply(highlight_cells, axis=None)
+        styled_df = df.style.apply(highlight_cells, axis=None)
         alg_str = ','.join(data.alg_names[:-1]) + ' and ' + data.alg_names[-1]
         caption = (f"The average/mean best optimum obtained by {alg_str}, {len(data.alg_names)} "
                    f"algorithms under comparison, in handling {data.dim}-dimensional MaTOP problems with "
                    f"$NPD={data.npd}$ over {data.num_runs} independent runs.")
-        latex_code = styled_df.to_latex(column_format='c' * len(data_df.columns),
+        latex_code = styled_df.to_latex(column_format='c' * len(df.columns),
                                         environment='table',
                                         caption=caption,
                                         label=f"tab:{data.problem}_{data.npd}",
