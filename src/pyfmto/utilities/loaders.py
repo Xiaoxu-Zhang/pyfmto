@@ -3,12 +3,14 @@ import importlib
 import inspect
 import os
 import textwrap
+from deepdiff import DeepDiff
 from importlib import import_module
 from itertools import product
 from pathlib import Path
-from pydantic import BaseModel, field_validator, ConfigDict
-from typing import Type, Any, Union, Optional
+from pydantic import BaseModel, ConfigDict
 from ruamel.yaml import CommentedMap
+from textwrap import indent
+from typing import Type, Any, Union, Literal
 
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
@@ -32,16 +34,16 @@ __all__ = [
 ]
 
 
-def recursive_to_pure_dict(data: Union[dict, CommentedMap]) -> dict[str, Any]:
+def recursive_to_pure_dict(data: Any) -> dict[str, Any]:
     """
     Recursively convert nested dict and CommentedMap objects to a pure Python
     dictionary to avoid YAML serialization issues.
     """
-    if not isinstance(data, (dict, CommentedMap)):
+    if isinstance(data, (dict, CommentedMap)):
+        for k, v in data.items():
+            data[k] = recursive_to_pure_dict(v)
+    else:
         return data
-    for k, v in data.items():
-        if isinstance(v, (dict, CommentedMap)):
-            data[k] = recursive_to_pure_dict(dict(v))
     return data
 
 
@@ -64,6 +66,7 @@ def list_algorithms(print_it=False):
         folders = os.listdir(alg_dir)
         alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
     else:
+        logger.error(f"'algorithms' folder not found in {alg_dir.parent}.")
         alg_names = []
 
     algorithms: dict[str, AlgorithmData] = {}
@@ -114,7 +117,7 @@ def load_algorithm(name: str) -> 'AlgorithmData':
 
 def init_problem(name: str, **kwargs) -> MultiTaskProblem:
     prob = load_problem(name)
-    prob.set_params_update(kwargs)
+    prob.params_update = kwargs
     return prob.initialize()
 
 
@@ -135,7 +138,7 @@ def list_problems(print_it=False) -> dict[str, 'ProblemData']:
     if prob_dir.exists():
         problems.update(collect_problems(import_module('problems')))
     if print_it:
-        print("Available problems:")
+        print(f"Found {len(problems)} available problems:")
         print(textwrap.indent('\n'.join(list(problems.keys())), ' ' * 4))
     return problems
 
@@ -170,31 +173,26 @@ class AlgorithmData:
         if s_args:
             self.params_default.update({'server': s_args})
 
-    def set_params_update(self, params_update: dict[str, dict[str, Any]]):
-        self.params_update.update(params_update)
-
-    def set_name_alias(self, alias: str):
-        self.name_alias = alias
-
     def copy(self) -> 'AlgorithmData':
         return copy.deepcopy(self)
 
     @property
     def params(self) -> dict[str, dict[str, Any]]:
-        kwargs = self.params_default.copy()
-        for k, v in self.params_update.items():
-            if k in kwargs:
-                kwargs[k].update(v)
-            else:
-                kwargs.update({k: v})
+        kwargs = copy.deepcopy(self.params_default)
+        for k in ['client', 'server']:
+            for k2, v2 in self.params_update.get(k, {}).items():
+                if k not in kwargs:
+                    kwargs[k] = {}
+                kwargs[k][k2] = v2
         return kwargs
 
+    @property
     def params_diff(self) -> str:
-        raise NotImplementedError
+        return DeepDiff(self.params_default, self.params).pretty()
 
     @property
     def name(self) -> str:
-        return self.name_orig if self.name_alias == '' else self.name_alias
+        return self.name_orig if not self.name_alias else self.name_alias
 
     @property
     def params_yaml(self) -> str:
@@ -209,7 +207,7 @@ class ProblemData:
     def __init__(self, problem: Type[MultiTaskProblem]):
         self.problem: Type[MultiTaskProblem] = problem
         self.params_default: dict[str, Any] = {
-            'np_per_dim': 1,
+            'npd': 1,
             'random_ctrl': 'weak',
             'seed': 123,
         }
@@ -219,45 +217,45 @@ class ProblemData:
     def __parse_default_params(self):
         p_doc = self.problem.__doc__
         self.params_default.update(parse_yaml(p_doc))
-        if self.dim > 0:
-            self.params_default.update(
-                fe_init=5 * self.dim,
-                fe_max=11 * self.dim,
-            )
 
     def copy(self) -> 'ProblemData':
         return copy.deepcopy(self)
 
-    def set_params_update(self, params_update: dict[str, dict[str, Any]]):
-        self.params_update.update(params_update)
-
     @property
     def params(self) -> dict[str, Any]:
-        params = self.params_default.copy()
+        params = copy.deepcopy(self.params_default)
         params.update(self.params_update)
+        dim = params.get('dim', 0)
+        if dim > 0:
+            if 'fe_init' not in params:
+                params.update(fe_init=5 * dim)
+            if 'fe_max' not in params:
+                params.update(fe_max=11 * dim)
         return params
+
+    @property
+    def params_diff(self) -> str:
+        return DeepDiff(self.params_default, self.params).pretty()
 
     def initialize(self) -> MultiTaskProblem:
         return self.problem(**self.params)
 
     @property
     def name(self) -> str:
-        return self.problem.__name__
+        base_name = self.problem.__name__
+        return f"{base_name}_{self.dim_str}" if self.dim > 0 else base_name
 
     @property
     def npd(self) -> int:
-        return self.params['np_per_dim']
+        return self.params.get('npd', 0)
 
     @property
     def npd_str(self) -> str:
-        return f"NPD{self.npd}"
+        return f"NPD{self.npd}" if self.npd > 0 else ""
 
     @property
     def dim(self) -> int:
-        if 'dim' in self.params_default:
-            return self.params_default['dim']
-        else:
-            return 0
+        return self.params.get('dim', 0)
 
     @property
     def dim_str(self) -> str:
@@ -288,11 +286,7 @@ class ExperimentConfig:
 
     @property
     def root(self) -> Path:
-        if self.problem.dim > 0:
-            problem = f"{self.problem.name}_{self.problem.dim_str}"
-        else:
-            problem = self.problem.name
-        return self._root / self.algorithm.name / problem / self.problem.npd_str
+        return self._root / self.algorithm.name / self.problem.name / self.problem.npd_str
 
     @property
     def prefix(self) -> str:
@@ -309,6 +303,8 @@ class ExperimentConfig:
 
     @property
     def num_results(self) -> int:
+        if not self.root.exists():
+            return 0
         prefix = self.result_name(0).name.split('Rep')[0]
         suffix = '.msgpack'
         results = [f for f in os.listdir(self.root) if f.startswith(prefix) and f.endswith(suffix)]
@@ -333,7 +329,8 @@ class ExperimentConfig:
         return recursive_to_pure_dict(data)
 
     def backup_params(self):
-        save_yaml(self.params_dict, self.root.parent / "exp_conf.yaml")
+        self.root.parent.mkdir(parents=True, exist_ok=True)
+        save_yaml(self.params_dict, self.root.parent / "parameters.yaml")
 
     def init_root(self):
         self.root.mkdir(parents=True, exist_ok=True)
@@ -342,7 +339,7 @@ class ExperimentConfig:
         info = [
             f"alg: {self.algorithm.name}"
             f"prob: {self.problem.name}"
-            f"  prob.npd: {self.problem.params['np_per_dim']}"
+            f"  prob.npd: {self.problem.params['npd']}"
             f"  prob.dim: {self.problem.params.get('dim', 'unknown')}"
         ]
         return '\n'.join(info)
@@ -350,40 +347,15 @@ class ExperimentConfig:
 
 class LauncherConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    results: str = 'out/results'
-    repeat: int = 1
-    seed: int = 42
-    backup: bool = True
-    save: bool = True
-    loglevel: str = 'INFO'
+    results: str
+    repeat: int
+    seed: int
+    backup: bool
+    save: bool
+    loglevel: str
     algorithms: list[str]
     problems: list[str]
     experiments: list[ExperimentConfig] = []
-
-    @field_validator('results', mode='before')
-    def results_must_be_not_none(cls, v):
-        if not isinstance(v, (str, type(None))):
-            raise TypeError(f'results must be a string or None, got {type(v)} instead')
-        return v if v is not None else 'out/results'
-
-    @field_validator('loglevel')
-    def loglevel_must_be_valid(cls, v):
-        valid_values = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-        if v not in valid_values:
-            raise ValueError(f'loglevel must be one of {valid_values}, got {v} instead')
-        return v
-
-    @field_validator('repeat', 'seed')
-    def integer_must_be_positive(cls, v):
-        if v < 1:
-            raise ValueError('repeat must be >= 1')
-        return v
-
-    @field_validator('algorithms', 'problems')
-    def lists_must_not_be_empty(cls, v):
-        if len(v) < 1:
-            raise ValueError('list must have at least 1 element')
-        return v
 
     def show_summary(self):
         colored_tab, _ = show_in_table(
@@ -403,6 +375,7 @@ class LauncherConfig(BaseModel):
 
 
 class ReporterConfig(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     results: str
     algorithms: list[list[str]]
     problems: list[str]
@@ -410,19 +383,6 @@ class ReporterConfig(BaseModel):
     params: dict[str, Any] = {}
     experiments: list[ExperimentConfig] = []
     groups: list[tuple[list[str], str, str]] = []
-
-    @field_validator('algorithms')
-    def inner_lists_must_have_min_length(cls, v):
-        for inner_list in v:
-            if len(inner_list) < 1:
-                raise ValueError('inner lists must have at least 1 elements')
-        return v
-
-    @field_validator('problems', 'algorithms')
-    def outer_list_must_not_be_empty(cls, v):
-        if len(v) < 1:
-            raise ValueError('problems list must have at least 1 element')
-        return v
 
     @property
     def root(self) -> Path:
@@ -434,7 +394,9 @@ class ConfigLoader:
     launcher:
         results: out/results  # [optional] save results to this directory
         repeat: 2             # [optional] repeat each experiment for this number of times
+        seed: 123             # [optional] random seed
         save: true            # [optional] save results to disk
+        backup: false          # [optional] backup parameters to disk
         loglevel: INFO        # [optional] log level [CRITICAL, ERROR, WARNING, INFO, DEBUG], default INFO
         algorithms: []        # run these algorithms
         problems: []          # run each algorithm on these problems
@@ -445,38 +407,42 @@ class ConfigLoader:
     def __init__(self, config: str = 'config.yaml'):
         self.config_default = parse_yaml(self.__class__.__doc__)
         self.config_update = load_yaml(config)
-        self.config = self.preprocess()
+        self.config = copy.deepcopy(self.config_default)
 
-    def preprocess(self) -> dict[str, Any]:
-        config = self.config_default.copy()
+        self.merge_global_config_from_updates()
+        self.fill_launcher_config_from_reporter()
 
-        # Update config with values in config file
+    def merge_global_config_from_updates(self):
         for key, value in self.config_update.items():
-            if key in config:
-                config[key].update(value)
+            if key in self.config:
+                self.config[key].update(value)
             else:
-                config[key] = value
+                self.config[key] = value
 
-        # Use values in launcher if not specified in reporter
+    def fill_launcher_config_from_reporter(self) -> None:
+        launcher_params = self.config['launcher']
         for key in ['results', 'problems', 'algorithms']:
-            if key in config['reporter']:
+            if key in self.config['reporter']:
                 continue
             if key == 'algorithms':
-                config['reporter'][key] = [config['launcher'][key]]
+                self.config['reporter'][key] = [launcher_params[key]]
             else:
-                config['reporter'][key] = config['launcher'][key]
-        return config
+                self.config['reporter'][key] = launcher_params[key]
 
     @property
     def launcher(self) -> LauncherConfig:
+        self.check_config_issues('launcher')
         conf = LauncherConfig(**self.config['launcher'])
         algorithms = self.gen_alg_list(conf.algorithms)
         problems = self.gen_prob_list(conf.problems)
+        logger.debug(f"algorithms: {[alg.name for alg in algorithms]}")
+        logger.debug(f"problems: {[prob.name for prob in problems]}")
         conf.experiments = [ExperimentConfig(alg, prob, conf.results) for alg, prob in product(algorithms, problems)]
         return conf
 
     @property
     def reporter(self) -> ReporterConfig:
+        self.check_config_issues('reporter')
         conf = ReporterConfig(**self.config['reporter'])
         algorithms = self.gen_alg_list(list(set(sum(conf.algorithms, []))))
         problems = self.gen_prob_list(conf.problems)
@@ -500,23 +466,71 @@ class ConfigLoader:
                 logger.error(f"Algorithm {alg_name} is not available.")
                 continue
             alg_data = available_algs[alg_name].copy()
-            alg_data.set_name_alias(name_alias)
-            alg_data.set_params_update(alg_params)
+            alg_data.name_alias = name_alias
+            alg_data.params_update = alg_params
             algorithms.append(alg_data)
         return algorithms
 
     def gen_prob_list(self, names: list[str]) -> list[ProblemData]:
         available_probs = list_problems()
-        lower_case_map = {n.lower(): n for n in available_probs.keys()}
         problems: list[ProblemData] = []
-        for prob_name in names:
-            if prob_name not in lower_case_map:
-                logger.error(f"Problem {prob_name} is not available.")
+        for n in names:
+            if n not in available_probs:
+                logger.error(f"Problem {n} is not available.")
                 continue
-            prob_params = self.config.get('problems', {}).get(prob_name, {})
+            prob_params = self.config.get('problems', {}).get(n, {})
             params_variations = combine_params(prob_params)
             for params in params_variations:
-                prob_data = available_probs[lower_case_map[prob_name]].copy()
-                prob_data.set_params_update(params)
+                prob_data = available_probs[n].copy()
+                prob_data.params_update = params
                 problems.append(prob_data)
         return problems
+
+    def check_config_issues(self, name: Literal['launcher', 'reporter']) -> None:
+        logger.debug(f"Checking {name} configuration...")
+        if name == 'launcher':
+            issues = self.check_launcher_config()
+        else:
+            issues = self.check_reporter_config()
+        if issues:
+            detail = indent('\n'.join(issues), ' ' * 4)
+            msg = f"{name.title()} configuration issues:\n{detail}"
+            logger.error(msg)
+            raise ValueError(msg)
+
+    def check_launcher_config(self) -> list[str]:
+        issues = []
+        launcher = self.config['launcher']
+        loglevel = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
+        if not launcher.get('results'):
+            issues.append("No results directory specified in launcher.")
+        if launcher.get('repeat') <= 0:
+            issues.append("Invalid repeat number specified in launcher. Must be greater than 0.")
+        if not isinstance(launcher.get('save'), bool):
+            issues.append("Invalid save option specified in launcher. Must be True or False.")
+        if launcher.get('loglevel') not in loglevel:
+            issues.append(f"Invalid log level specified in launcher. Choices: {loglevel}")
+        if not launcher.get('algorithms'):
+            issues.append("No algorithms specified in launcher.")
+        if not launcher.get('problems'):
+            issues.append("No problems specified in launcher.")
+        return issues
+
+    def check_reporter_config(self) -> list[str]:
+        issues = []
+        reporter = self.config['reporter']
+        if not reporter.get('results'):
+            issues.append("No results directory specified in reporter or launcher.")
+        if not reporter.get('algorithms', []):
+            issues.append("No algorithms specified in reporter or launcher.")
+        else:
+            validate_values: list[list[str]] = []
+            for item in reporter['algorithms']:
+                if isinstance(item, str) and item:
+                    validate_values.append([item])
+                elif isinstance(item, list) and item:
+                    validate_values.append(item)
+                else:
+                    issues.append(f"Invalid value [type:{type(item)}, value:{item}] specified in reporter.")
+                reporter['algorithms'] = validate_values
+        return issues
