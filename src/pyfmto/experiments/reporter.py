@@ -4,9 +4,7 @@ import numpy as np
 import pandas as pd
 import scienceplots  # Do not remove this import
 import seaborn
-import time
 from abc import ABC, abstractmethod
-from pathlib import Path
 from pydantic import validate_call, Field
 from pyfmto.utilities import SeabornPalettes, logger
 from tqdm import tqdm
@@ -19,6 +17,8 @@ _ = scienceplots.stylesheets  # This is to suppress the 'unused import' warning
 T_Suffix = Literal['.png', '.jpg', '.jpeg', '.svg', '.pdf']
 T_Fraction = Annotated[float, Field(ge=0., le=1.)]
 T_Levels10 = Annotated[int, Field(ge=1, le=10)]
+
+logger.setLevel('DEBUG')
 
 __all__ = [
     'Reports',
@@ -84,7 +84,7 @@ class CurveGenerator(ReportGenerator):
         colors = seaborn.color_palette(str(palette), data.alg_num - 1).as_hex()
         colors.append("#ff0000")
         with plt.style.context(styles):
-            filedir = data.filedir.parent / f"{data.filedir.name} curve{log_tag}"
+            filedir = data.report_filename.parent / f"{data.report_filename.name} curve{log_tag}"
             filedir.mkdir(parents=True, exist_ok=True)
             for c_name in data.clt_names:
                 plt.figure(figsize=_figsize, **_quality)
@@ -119,7 +119,7 @@ class ViolinGenerator(ReportGenerator):
             merge: bool = True,
             clear: bool = True
     ):
-        filedir = data.filedir.parent / f"{data.filedir.name} violin"
+        filedir = data.report_filename.parent / f"{data.report_filename.name} violin"
         filedir.mkdir(parents=True, exist_ok=True)
         w, h, s = figsize
         _suffix = self.utils.check_suffix(suffix, merge)
@@ -237,7 +237,7 @@ class ExcelGenerator(TableGenerator):
         solo_styled_df = solo_df.style.map(highlight_cells, **kwargs2)
 
         writer: pd.ExcelWriter
-        with pd.ExcelWriter(data.filedir.with_suffix('.xlsx'), engine='openpyxl') as writer:
+        with pd.ExcelWriter(data.report_filename.with_suffix('.xlsx'), engine='openpyxl') as writer:
             global_styled_df.to_excel(writer, index=False, sheet_name='Global')
             solo_styled_df.to_excel(writer, index=False, sheet_name='Solo')
 
@@ -280,11 +280,11 @@ class LatexGenerator(TableGenerator):
         alg_str = ','.join(data.alg_names[:-1]) + ' and ' + data.alg_names[-1]
         caption = (f"The average/mean best optimum obtained by {alg_str}, {len(data.alg_names)} "
                    f"algorithms under comparison, in handling {data.dim}-dimensional MaTOP problems with "
-                   f"$NPD={data.npd_name}$ over {data.num_runs} independent runs.")
+                   f"$NPD={data.npd}$ over {data.num_runs} independent runs.")
         latex_code = styled_df.to_latex(column_format='c' * len(data_df.columns),
                                         environment='table',
                                         caption=caption,
-                                        label=f"tab:{data.problem}_{data.npd_name}",
+                                        label=f"tab:{data.problem}_{data.npd}",
                                         position_float='centering',
                                         hrules=True,
                                         position='htbp')
@@ -292,7 +292,7 @@ class LatexGenerator(TableGenerator):
         latex_code = latex_code.replace('background-colorgray', 'cellcolor{gray!30}')
         latex_code = latex_code.replace('≈', r'$\approx$')
         latex_code = latex_code.replace('_', r'\_')
-        with open(data.filedir.with_suffix('.txt'), 'w') as f:
+        with open(data.report_filename.with_suffix('.txt'), 'w') as f:
             f.write(latex_code)
 
 
@@ -305,11 +305,16 @@ class Reporter:
 
     def _load_data(self):
         for exp in self.conf.experiments:
-            key = '/'.join(exp.root.parts[-3:])
+            alg, prob, npd = exp.root.parts[-3:]
+            key = f"{alg}/{prob}/{npd}"
             if key not in self._cache:
+                logger.debug(f"Processing data [alg:{alg}] on [prob:{prob}] with [NPD:{npd}]")
                 runs_data = ReporterUtils.load_runs_data(exp.root, prefix=exp.prefix)
                 if runs_data:
                     self._cache[key] = MergedResults(runs_data)
+                    logger.debug(f"Cached data for key '{key}'")
+                else:
+                    logger.warning(f"No data found for key '{key}'")
 
     def register_generator(self, name: str, generator: ReportGenerator):
         self._generators[name] = generator
@@ -322,19 +327,16 @@ class Reporter:
 
     def _prepare_data(self, algorithms: list[str], problem: str, npd_name: str) -> MetaData:
         data: dict[str, MergedResults] = {}
+        logger.debug(f"Loading data for [alg:{algorithms}] on [prob:{problem}] with [NPD:{npd_name}]")
         for algorithm in algorithms:
             cache_key = f"{algorithm}/{problem}/{npd_name}"
             merged_res = self._cache.get(cache_key)
             if merged_res:
                 data[algorithm] = merged_res
-        filedir = self._get_output_dir(list(data.keys()), problem, npd_name)
-        return MetaData(data, problem, npd_name, filedir)
-
-    def _get_output_dir(self, algorithms: list[str], problem: str, npd_name: str) -> Path:
-        filedir = self.conf.root / f"{time.strftime('%Y-%m-%d')}" / f"{algorithms[-1]}" / f"{problem}"
-        filedir.mkdir(parents=True, exist_ok=True)
-        file_name = filedir / f"{npd_name}"
-        return file_name
+                logger.debug(f"Data of key '{cache_key}' found in cache")
+            else:
+                logger.warning(f"Data of key '{cache_key}' not found in cache")
+        return MetaData(data, problem, npd_name, self.conf.root)
 
 
 class Reports:
@@ -482,7 +484,11 @@ class Reports:
         """
         for comb in self.conf.groups:
             try:
-                self.reporter.generate_report('to_latex', *comb, pvalue=pvalue)
+                self.reporter.generate_report(
+                    'to_latex',
+                    *comb,
+                    pvalue=pvalue
+                )
             except Exception as e:
                 logger.error(traceback.format_exc())
                 print(e)
@@ -503,7 +509,11 @@ class Reports:
         """
         for comb in self.conf.groups:
             try:
-                self.reporter.generate_report('to_console', *comb, pvalue=pvalue)
+                self.reporter.generate_report(
+                    'to_console',
+                    *comb,
+                    pvalue=pvalue
+                )
             except Exception as e:
                 logger.error(traceback.format_exc())
                 print(e)
