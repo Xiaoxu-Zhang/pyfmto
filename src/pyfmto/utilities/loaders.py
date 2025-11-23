@@ -123,9 +123,8 @@ def init_problem(name: str, **kwargs) -> MultiTaskProblem:
 
 def load_problem(name: str) -> 'ProblemData':
     problems = list_problems()
-    lowercase_map = {n.lower(): n for n in problems.keys()}
-    if name.lower() in lowercase_map:
-        return problems[lowercase_map[name.lower()]]
+    if name in problems.keys():
+        return problems[name]
     else:
         raise ValueError(f"Problem '{name}' not found, use 'pyfmto show problems' to see available problems.")
 
