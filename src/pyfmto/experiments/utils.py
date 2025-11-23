@@ -438,6 +438,18 @@ class ReporterUtils:
         data_mat = df.to_numpy()
         mat_shape = data_mat.shape[0], data_mat.shape[1]
         mask = np.zeros(shape=mat_shape, dtype=bool)
+
+        row, col = mask.shape
+        min_idx = np.argmin(data_mat, axis=1)
+        for i in range(row):
+            mask[i, min_idx[i]] = True
+
+        # row+1: the last row is the count of best solution of each algorithm
+        # col+1: the first col is the index of Client
+        add_row = np.zeros(shape=mask.shape[1], dtype=bool)
+        mask = np.vstack((mask, add_row))
+        add_col = np.zeros(shape=mask.shape[0], dtype=bool).reshape(-1, 1)
+        mask = np.hstack((add_col, mask))
         return mask
 
     @staticmethod

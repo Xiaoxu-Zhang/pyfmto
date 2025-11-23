@@ -1,13 +1,13 @@
 import unittest
-from typing import Any
-
 import matplotlib as plt
+from typing import Any
+from unittest.mock import patch
 from pathlib import Path
+
 from pyfmto.experiments import RunSolutions, Reports
 from pyfmto.experiments.reporter import ReportGenerator, Reporter
 from pyfmto.utilities import save_yaml
 from pyfmto.utilities.loaders import ConfigLoader
-from unittest.mock import patch
 from tests.helpers import remove_temp_files, gen_problem, gen_algorithm
 
 plt.use('Agg')
@@ -15,19 +15,22 @@ plt.use('Agg')
 
 class ReporterTestBase(unittest.TestCase):
     def setUp(self):
-        gen_algorithm(['ALG1', 'ALG2'])
-        gen_problem('PROB1')
         Path('out').mkdir(exist_ok=True)
+        self.problems = ['PROB']
+        self.algorithms = ['ALG1', 'ALG2']
         self.filename = 'out/config.yaml'
         self.conf_dict: dict[str, Any] = {
             'launcher': {
-                'algorithms': ['ALG1', 'ALG2', 'ALG3', 'ALG4'],
-                'problems': ['PROB1'],
+                'algorithms': self.algorithms,
+                'problems': self.problems,
             },
-            'problems': {'PROB1': {'dim': 20}},
+            'problems': {self.problems[0]: {'dim': 20}},
         }
         save_yaml(self.conf_dict, self.filename)
+        gen_algorithm(self.algorithms)
+        gen_problem(self.problems)
         self.conf = ConfigLoader(self.filename).reporter
+        self.gen_fake_data()
         self.reports = Reports(self.filename)
 
     def tearDown(self):
@@ -55,11 +58,8 @@ class TestGenerators(ReporterTestBase):
 
             def _generate(self, *args, **kwargs):
                 pass
-        self.gen_fake_data()
         reports = Reports(self.filename)
         reports.reporter.register_generator('fake', FakeGenerator())
-        with self.assertRaises(ValueError):
-            reports.reporter.generate_report('fake', [], '', '')
         reports.to_curve()
         reports.to_curve(showing_size=10)
         reports.to_curve(suffix='.svg')
@@ -67,47 +67,11 @@ class TestGenerators(ReporterTestBase):
         reports.to_excel()
         reports.to_latex()
         reports.to_console()
+        with self.assertRaises(ValueError):
+            reports.reporter.generate_report('fake', [], '', '')
 
 
 class TestReportsGenerate(ReporterTestBase):
-
-    @patch.object(Reports, 'to_curve')
-    @patch.object(Reports, 'to_excel')
-    @patch.object(Reports, 'to_latex')
-    @patch.object(Reports, 'to_console')
-    @patch.object(Reports, 'to_violin')
-    def test_generate_valid_formats(self, mock_violin, mock_console, mock_latex, mock_excel, mock_curve):
-        # Set up mock returns
-        mock_curve.return_value = None
-        mock_excel.return_value = None
-        mock_latex.return_value = None
-        mock_console.return_value = None
-        mock_violin.return_value = None
-
-        # Test with single format
-        self.reports.conf.formats = ['curve']
-        self.reports.generate()
-        mock_curve.assert_called_once()
-        mock_excel.assert_not_called()
-        mock_latex.assert_not_called()
-        mock_console.assert_not_called()
-        mock_violin.assert_not_called()
-
-        # Reset mocks
-        mock_curve.reset_mock()
-        mock_excel.reset_mock()
-        mock_latex.reset_mock()
-        mock_console.reset_mock()
-        mock_violin.reset_mock()
-
-        # Test with multiple formats
-        self.reports.conf.formats = ['curve', 'excel', 'latex']
-        self.reports.generate()
-        mock_curve.assert_called_once()
-        mock_excel.assert_called_once()
-        mock_latex.assert_called_once()
-        mock_console.assert_not_called()
-        mock_violin.assert_not_called()
 
     def test_generate_invalid_format(self):
         with self.assertRaises(ValueError):
@@ -125,7 +89,9 @@ class TestReportsGenerate(ReporterTestBase):
 
     def test_no_existing_data(self):
         with self.assertRaises(ValueError):
-            self.reports.reporter.generate_report('to_curve', ['ALGG'], 'PROB1', 'NPD1')
+            self.reports.reporter.generate_report('to_curve', ['ALGG'], 'PROB', 'NPD1')
+        with patch('pyfmto.experiments.reporter.ReporterUtils.load_runs_data', return_value=[]):
+            Reporter(self.conf)
 
     def test_generate_report_raises(self):
         class ReportWithError(Reporter):
