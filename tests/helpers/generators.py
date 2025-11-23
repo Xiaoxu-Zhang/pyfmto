@@ -1,28 +1,32 @@
 import numpy as np
 from pathlib import Path
-from typing import Union, Literal
+from typing import Union
 from pyfmto.experiments import RunSolutions
 from pyfmto.experiments.utils import MergedResults, MetaData
 from pyfmto.problems import Solution
-from pyfmto.utilities import save_yaml, load_yaml
-from pyfmto.utilities.loaders import ReporterConfig
 from pyfmto.utilities.schemas import STPConfig
 
 
+__all__ = ['gen_algorithm', 'gen_problem', 'ExpDataGenerator']
+
+
 def gen_algorithm(names: Union[str, list[str]]):
-    names = names if isinstance(names, list) else [names]
-    for name in names:
+    name_lst = names if isinstance(names, list) else [names]
+    for name in name_lst:
         alg_dir = Path('algorithms') / name
         alg_dir.mkdir(parents=True, exist_ok=True)
         with open(Path(__file__).parent / 'alg_template.py', 'r') as f1:
             template = f1.read().replace('NameAlg', name.title())
             with open(alg_dir / '__init__.py', 'w') as f2:
                 f2.write(template)
+        print(f"Successfully generated algorithm {name}")
 
 
 def gen_problem(names: Union[str, list[str]]):
-    names = names if isinstance(names, list) else [names]
-    for name in names:
+    from .cleaners import clear_problems_cache
+    clear_problems_cache()
+    name_lst = names if isinstance(names, list) else [names]
+    for name in name_lst:
         root = Path('problems')
         root.mkdir(parents=True, exist_ok=True)
         with open(Path(__file__).parent / 'prob_template.py', 'r') as f1:
@@ -31,6 +35,7 @@ def gen_problem(names: Union[str, list[str]]):
                 f2.write(template)
             with open(root / '__init__.py', 'a') as f3:
                 f3.write(f"from .{name.lower()} import {name}\n")
+        print(f"Successfully generated problem {name}")
 
 
 class ExpDataGenerator:
@@ -67,43 +72,3 @@ class ExpDataGenerator:
     def gen_metadata(self, algs: list[str], prob: str, npd: str, n_tasks: int, n_runs: int):
         data = {alg: self.gen_merged_data(n_tasks, n_runs) for alg in algs}
         return MetaData(data, prob, npd, Path('tmp/reports'))
-
-
-def save_config(name: str, data, mode: str = 'new'):
-    if mode == 'new':
-        number = 1
-        path = Path(f'config_{name}{number}.yaml')
-        while True:
-            if not path.exists():
-                break
-            number += 1
-            path = Path(f'config_{name}{number}.yaml')
-        if data:
-            save_yaml({name: data}, path)
-            return Path(f'config_{name}{number}.yaml')
-    else:
-        try:
-            old = load_yaml('config.yaml')
-        except FileNotFoundError:
-            old = {}
-        if data:
-            old.update({name: data})
-        key_order = ['launcher', 'reporter', 'algorithms', 'problems']
-        old = {k: old[k] for k in key_order if k in old}
-        save_yaml(old, 'config.yaml')
-        return Path('config.yaml')
-
-
-def export_reporter_config(
-        results: str = 'out/results',
-        algs: tuple[list[str], ...] = (['BO', 'FMTBO'], ),
-        probs: tuple[str, ...] = ('tetci2019', 'arxiv2017'),
-        mode: Literal['new', 'update'] = 'new',
-):
-    data = ReporterConfig(
-        results=results,
-        algorithms=list(algs),
-        problems=list(probs),
-        formats=['curve']
-    )
-    return save_config('reporter', data.model_dump(), mode)
