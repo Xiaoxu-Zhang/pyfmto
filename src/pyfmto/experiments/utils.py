@@ -425,11 +425,6 @@ class ReporterUtils:
             ]
             return [RunSolutions(load_msgpack(p)) for p in filenames]
         else:
-            print(
-                f"{colored('Result file not found:', 'red')}\n"
-                f"    FileRoot: {colored(str(file_dir), 'green')}\n"
-                f"    NameRule: {prefix}{colored('Any', 'green')}{suffix}\n"
-            )
             return []
 
     @staticmethod

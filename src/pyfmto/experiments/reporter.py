@@ -305,7 +305,12 @@ class Reporter:
                     self._cache[key] = MergedResults(runs_data)
                     logger.debug(f"Cached data for key '{key}'")
                 else:
-                    logger.warning(f"No data found for key '{key}'")
+                    logger.warning(
+                        "\nResult file not found:\n"
+                        f"    CacheKey: {key}\n"
+                        f"    FileRoot: {exp.root}\n"
+                        f"    NameRule: {exp.prefix}[{'Any'}].msgpack\n"
+                    )
 
     def register_generator(self, name: str, generator: ReportGenerator):
         self._generators[name] = generator

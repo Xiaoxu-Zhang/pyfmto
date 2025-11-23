@@ -128,6 +128,9 @@ class TestReporterUtils(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(Path('out'), ignore_errors=True)
 
+    def test_load_runs_data(self):
+        self.assertEqual(self.utils.load_runs_data(Path('out')), [])
+
     def test_get_t_test_suffix(self):
         test_cases = [
             {
