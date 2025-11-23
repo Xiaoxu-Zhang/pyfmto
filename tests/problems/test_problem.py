@@ -46,7 +46,7 @@ class TestProblemBase(unittest.TestCase):
             self.assertEqual(prob.solutions.size, 0)
             self.assertEqual(prob.fe_available, 11*dim,
                              f"fe_init={prob.fe_init}, size={prob.solutions.size}, fe_max={prob.fe_max}")
-            self.assertEqual(prob.np_per_dim, 1)
+            self.assertEqual(prob.npd, 1)
             self.assertTrue(np.all(prob.lb == -5))
             self.assertTrue(np.all(prob.ub == 5))
             self.assertTrue(np.all(prob.shift == 0))
@@ -57,7 +57,7 @@ class TestProblemBase(unittest.TestCase):
 
     def test_init_partition(self):
         for dim, np_value in product(self.dims, [1, 2, 4, 6]):
-            prob = ConstantProblem(dim=dim, obj=1, lb=-5, ub=5, **{'np_per_dim': np_value})
+            prob = ConstantProblem(dim=dim, obj=1, lb=-5, ub=5, **{'npd': np_value})
             self.assertTrue(prob.no_partition)
             prob.init_partition()
             self.assertFalse(prob.no_partition)
@@ -86,7 +86,7 @@ class TestProblemBase(unittest.TestCase):
 
     def test_init_solutions(self):
         for np_value in [1, 2, 4, 6]:
-            prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1, **{'np_per_dim': np_value})
+            prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1, **{'npd': np_value})
             self.assertTrue(prob.no_partition)
             prob.init_solutions()
             prob.init_partition()
@@ -188,7 +188,7 @@ class TestProblemBase(unittest.TestCase):
         # We don't test np_value=1 which is equal to no partition,
         # it will cause failure when we test np.any(x < partition[0]).
         for np_value in [2, 3, 4, 5]:
-            prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1, **{'np_per_dim': np_value})
+            prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1, **{'npd': np_value})
             prob.init_partition()
             x: ndarray = prob.random_uniform_x(size=n_points)
             self.assertEqual(x.shape[0], n_points)

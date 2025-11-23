@@ -32,8 +32,8 @@ class TestSolution(unittest.TestCase):
         return self.conf.fe_max
 
     @property
-    def np_per_dim(self):
-        return self.conf.np_per_dim
+    def npd(self):
+        return self.conf.npd
 
     def test_empty_solutions_attributes(self):
         """Test that solution initialization sets correct attributes."""
@@ -41,7 +41,7 @@ class TestSolution(unittest.TestCase):
         self.assertEqual(self.solution_empty.obj, self.obj)
         self.assertEqual(self.solution_empty.fe_init, self.fe_init)
         self.assertEqual(self.solution_empty.fe_max, self.fe_max)
-        self.assertEqual(self.solution_empty.np_per_dim, self.np_per_dim)
+        self.assertEqual(self.solution_empty.npd, self.npd)
         self.assertEqual(self.solution_empty.size, 0)
         self.assertEqual(self.solution_empty.x.size, 0)
         self.assertEqual(self.solution_empty.y.size, 0)
