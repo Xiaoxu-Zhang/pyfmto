@@ -5,7 +5,7 @@ from pyfmto import init_problem
 
 class TestTevc2024(unittest.TestCase):
     def test_init(self):
-        problems = init_problem('tevc2024', _init_solutions=False)
+        problems = init_problem('Tevc2024', _init_solutions=False)
         prob = problems[0]
         self.assertEqual(prob.dim, 10)
         self.assertEqual(prob.obj, 1)
@@ -14,9 +14,9 @@ class TestTevc2024(unittest.TestCase):
     def test_rasis(self):
         raise_type = {'src_problem': 5}
         raise_value = {'src_problem': 'Ackleys'}
-        self.assertRaises(TypeError, init_problem, 'tevc2024', **raise_type)
-        self.assertRaises(ValueError, init_problem, 'tevc2024', **raise_value)
+        self.assertRaises(TypeError, init_problem, 'Tevc2024', **raise_type)
+        self.assertRaises(ValueError, init_problem, 'Tevc2024', **raise_value)
 
     def test_not_rasis(self):
-        problems = init_problem('tevc2024')
+        problems = init_problem('Tevc2024')
         self.assertTrue(problems.name in str(problems))
