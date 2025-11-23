@@ -48,8 +48,6 @@ class Arxiv2017(Mtp):
     ]
 
     def __init__(self, dim=10, **kwargs):
-        if dim is None:
-            raise ValueError("dim did not specified")
         if not 1 <= dim <= 50:
             raise ValueError(f"dim must be in [1, 50], but got {dim}")
         super().__init__(dim, **kwargs)
