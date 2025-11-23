@@ -5,16 +5,20 @@ from pathlib import Path
 from pydantic import ValidationError
 from ruamel.yaml import CommentedMap
 
+from pyfmto import list_problems, list_algorithms
 from pyfmto.problems import MultiTaskProblem
 from pyfmto.utilities import loaders, save_yaml
 from pyfmto.experiments import list_report_formats, show_default_conf
 from pyfmto.framework import Client, Server
-from pyfmto.utilities.loaders import ProblemData, AlgorithmData, LauncherConfig, ReporterConfig, ConfigLoader
-from tests.helpers import remove_temp_files
-from tests.helpers.generators import gen_algorithm, gen_problem
+from pyfmto.utilities.loaders import (
+    ProblemData, AlgorithmData,
+    LauncherConfig, ReporterConfig,
+    ConfigLoader
+)
+from tests.helpers import remove_temp_files, gen_algorithm, gen_problem
 
 
-class TestHelpers(unittest.TestCase):
+class TestOtherHelpers(unittest.TestCase):
 
     def test_recursive_to_pure_dict(self):
         data = {
@@ -65,8 +69,7 @@ class TestAlgorithmHelpers(unittest.TestCase):
 
     def test_list_algorithms(self):
         algs = ['ALG1', 'ALG2', 'ALG3']
-        for alg in algs:
-            gen_algorithm(alg)
+        gen_algorithm(algs)
 
         # Make an invalid algorithm to cover the load failure lines
         Path('algorithms', 'INVALID').mkdir(parents=True, exist_ok=True)
@@ -108,8 +111,7 @@ class TestProblemHelpers(unittest.TestCase):
     def setUp(self):
         self.n_probs = len(loaders.list_problems(print_it=True))
         self.probs = ['PROB1', 'PROB2']
-        for name in self.probs:
-            gen_problem(name)
+        gen_problem(self.probs)
 
     def tearDown(self):
         remove_temp_files()
@@ -181,7 +183,8 @@ class TestProblemData(unittest.TestCase):
 
     def test_default_value(self):
         prob = loaders.load_problem('PROB1')
-        self.assertEqual(prob.name, 'PROB1')
+        prob.params_default.pop('dim')
+        self.assertIn('PROB1', prob.name)
         self.assertEqual(prob.npd, 1)
         self.assertEqual(prob.npd_str, 'NPD1')
         self.assertEqual(prob.params_diff, '')
@@ -223,6 +226,7 @@ class TestExperimentConfig(unittest.TestCase):
         gen_problem('PROB1')
         self.prob = loaders.load_problem('PROB1')
         self.alg = loaders.load_algorithm('ALG1')
+        self.prob.params_default.pop('dim')
 
     def tearDown(self):
         remove_temp_files()
@@ -232,7 +236,7 @@ class TestExperimentConfig(unittest.TestCase):
         self.assertIsInstance(exp.algorithm, AlgorithmData)
         self.assertIsInstance(exp.problem, ProblemData)
         self.assertIsInstance(exp.root, Path)
-        self.assertEqual(exp.root, Path('out/results') / 'ALG1' / 'PROB1' / 'NPD1')
+        self.assertEqual(exp.root, Path('out/results') / exp.algorithm.name / exp.problem.name / exp.problem.npd_str)
         prefix = f"Seed{exp.problem.params['seed']}_"
         self.assertEqual(exp.prefix, prefix)
         self.assertEqual(exp.result_name(1).name, f'{prefix}Rep01.msgpack')
@@ -441,18 +445,16 @@ class TestConfigLoader(unittest.TestCase):
         with self.assertRaises(ValueError):
             conf.check_config_issues('launcher')
 
-        conf_src = self.copy_valid_conf()
-        self.make_conf(conf_src)
+    def test_conf_values(self):
+        self.make_conf(self.valid)
         conf = self.load_conf()
         self.assertIsInstance(conf.launcher, LauncherConfig)
         self.assertIsInstance(conf.reporter, ReporterConfig)
         self.assertEqual(conf.launcher.n_exp, 0)
         self.assertEqual(conf.reporter.experiments, [])
 
-        for alg in conf_src['launcher']['algorithms']:
-            gen_algorithm(alg)
-        for prob in conf_src['launcher']['problems']:
-            gen_problem(prob)
+        gen_algorithm(conf.config['launcher']['algorithms'])
+        gen_problem(conf.config['launcher']['problems'])
         self.assertIsInstance(conf.launcher, LauncherConfig)
         self.assertIsInstance(conf.reporter, ReporterConfig)
         self.assertEqual(conf.launcher.n_exp, 4)

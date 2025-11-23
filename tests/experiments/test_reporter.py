@@ -7,9 +7,8 @@ from pyfmto.experiments import RunSolutions, Reports
 from pyfmto.experiments.reporter import ReportGenerator, Reporter
 from pyfmto.utilities import save_yaml
 from pyfmto.utilities.loaders import ConfigLoader
-from ..helpers import remove_temp_files
-from ..helpers.generators import gen_problem, gen_algorithm
 from unittest.mock import patch
+from tests.helpers import remove_temp_files, gen_problem, gen_algorithm
 
 plt.use('Agg')
 

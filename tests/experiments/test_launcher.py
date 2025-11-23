@@ -2,12 +2,9 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from pyfmto.experiments import Launcher
+from pyfmto.experiments import Launcher, Reports
 from pyfmto.utilities import save_yaml
-from ..helpers import remove_temp_files
-from ..helpers.generators import (
-    gen_algorithm, gen_problem
-)
+from tests.helpers import remove_temp_files, gen_algorithm, gen_problem
 
 
 class TestLauncher(unittest.TestCase):
@@ -31,6 +28,8 @@ class TestLauncher(unittest.TestCase):
     def test_default_conf(self):
         launcher = Launcher(self.conf_file)
         launcher.run()
+        reports = Reports(self.conf_file)
+        reports.to_excel()
 
     def test_not_save(self):
         self.conf['launcher'].update({'save': False, 'backup': True})
