@@ -14,7 +14,7 @@ T_SrcProblem = Literal[
 class Tevc2024(Mtp):
     """
     dim: 10  # 1 <= dim <= 10
-    src_problem: [Ackley]  # Options: Ackley, Griewank, Rastrigin, Rosenbrock, Schwefel, Sphere, Weierstrass
+    src_problem: Ackley  # Options: Ackley, Griewank, Rastrigin, Rosenbrock, Schwefel, Sphere, Weierstrass
     """
     is_realworld = False
     intro = """
