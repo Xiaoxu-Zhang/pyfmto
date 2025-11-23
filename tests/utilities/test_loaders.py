@@ -5,7 +5,6 @@ from pathlib import Path
 from pydantic import ValidationError
 from ruamel.yaml import CommentedMap
 
-from pyfmto import list_problems, list_algorithms
 from pyfmto.problems import MultiTaskProblem
 from pyfmto.utilities import loaders, save_yaml
 from pyfmto.experiments import list_report_formats, show_default_conf

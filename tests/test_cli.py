@@ -8,7 +8,7 @@ from unittest.mock import patch
 from pyfmto import list_problems, list_algorithms
 from pyfmto.experiments import list_report_formats
 from pyfmto.utilities.cli import update_path, main
-from tests.experiments import export_alg_template
+from tests.helpers import gen_algorithm
 
 
 class TestUpdatePath(unittest.TestCase):
@@ -121,8 +121,8 @@ class TestMainFunction(unittest.TestCase):
                     main()
 
     def test_show_command(self):
-        export_alg_template('ALG1')
-        export_alg_template('ALG2')
+        gen_algorithm('ALG1')
+        gen_algorithm('ALG2')
         options = {
             'prob': list(list_problems().keys()),
             'report': list_report_formats(),

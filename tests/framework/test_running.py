@@ -1,6 +1,7 @@
 import threading
 import time
 import unittest
+from pathlib import Path
 
 from pyfmto.experiments.utils import LauncherUtils
 from pyfmto.framework import Client, Server, ClientPackage
@@ -9,6 +10,7 @@ from tests.framework import (
     OfflineServer, OnlineClient, OnlineServer
 )
 from requests.exceptions import ConnectionError
+from tests.helpers import gen_problem, remove_temp_files
 
 N_CLIENTS = 2
 
@@ -16,8 +18,13 @@ N_CLIENTS = 2
 class TestClientSide(unittest.TestCase):
 
     def setUp(self):
-        self.problems = init_problem('tetci2019', dim=5, fe_init=20, fe_max=30)
+        Path('out', 'logs').mkdir(parents=True, exist_ok=True)
+        gen_problem('PROB')
+        self.problems = init_problem('PROB', dim=5, fe_init=20, fe_max=30)
         self.utils = LauncherUtils
+
+    def tearDown(self):
+        remove_temp_files()
 
     def test_valid_offline_client(self):
         """An offline client doesn't request the server"""
@@ -68,7 +75,7 @@ class TestClientSide(unittest.TestCase):
 
     def test_valid_server(self):
         server = OnlineServer()
-        problems = init_problem('tetci2019', dim=5, fe_init=20, fe_max=30)
+        problems = init_problem('PROB', dim=5, fe_init=20, fe_max=30)
         clients = [OnlineClient(prob) for prob in problems[:N_CLIENTS]]
         thread = threading.Thread(target=server.start)
         thread.start()

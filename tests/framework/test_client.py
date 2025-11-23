@@ -5,11 +5,17 @@ from itertools import product
 from pyfmto.framework import Client
 from pyfmto import init_problem
 from pyfmto.utilities import parse_yaml
+from tests.helpers import gen_problem
 
 
 class TestClient(unittest.TestCase):
     def setUp(self):
-        self.problems = init_problem('tetci2019')
+        gen_problem('PROB')
+        self.problems = init_problem('PROB')
+
+    def tearDown(self):
+        from tests.helpers import remove_temp_files
+        remove_temp_files()
 
     def test_empty_client_attributes(self):
 
