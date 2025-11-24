@@ -4,7 +4,7 @@ import shutil
 import unittest
 import pyvista
 from itertools import product
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 from numpy import ndarray
@@ -130,7 +130,7 @@ class TestProblemBase(unittest.TestCase):
         prob.plot_3d(n_points=10, filename=self.tmp_dir / 'tmp3d.png')
         self.assertTrue((self.tmp_dir / 'tmp2d.png').exists())
         self.assertTrue((self.tmp_dir / 'tmp3d.png').exists())
-        with patch.object(pyvista.Plotter, 'show'):
+        with patch('pyvista.Plotter', MagicMock()):
             prob.iplot_3d(n_points=10)
             plotter = pyvista.Plotter()
             prob.iplot_3d(n_points=10, plotter=plotter, color='red')
@@ -260,7 +260,7 @@ class TestMultiTaskProblem(unittest.TestCase):
         mtp.plot_similarity_heatmap(triu='upper')
         mtp.plot_similarity_heatmap(filename=self.tmp_dir / 'test_show.png')
         self.assertTrue((self.tmp_dir / 'test_show.png').exists())
-        with patch.object(pyvista.Plotter, 'show'):
+        with patch('pyvista.Plotter', MagicMock()):
             mtp.iplot_tasks_3d(tasks_id=(1, 2), shape=(1, 2))
         with self.assertRaises(ValueError):
             mtp.plot_similarity_heatmap(method='not_support')
