@@ -1,6 +1,5 @@
 import argparse
 import sys
-import textwrap
 from pathlib import Path
 
 from .tools import matched_str_head
@@ -36,8 +35,7 @@ def main():
     # List command
     list_parser = subparsers.add_parser('list', help='List available options')
     list_parser.add_argument(
-        'name', type=str, choices=['problems', 'algorithms', 'reports'],
-        help='Name of the option to list'
+        'name', type=str, help='Name of the option to list'
     )
 
     # Show command
@@ -58,7 +56,7 @@ def main():
     elif args.command == 'list':
         full_name = matched_str_head(args.name, ['problems', 'algorithms', 'reports'])
         if full_name == 'problems':
-            print(textwrap.indent('\n'.join(list_problems()), ' ' * 4))
+            list_problems(print_it=True)
         elif full_name == 'algorithms':
             list_algorithms(print_it=True)
         elif full_name == 'reports':

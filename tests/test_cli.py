@@ -121,8 +121,8 @@ class TestMainFunction(unittest.TestCase):
                     main()
 
     def test_show_command(self):
-        gen_algorithm('ALG1')
-        gen_algorithm('ALG2')
+        gen_algorithm('Alg')
+        gen_algorithm('ALG')
         options = {
             'prob': list(list_problems().keys()),
             'report': list_report_formats(),
