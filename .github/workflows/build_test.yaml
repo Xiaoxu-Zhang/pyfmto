@@ -41,6 +41,8 @@ jobs:
         pip uninstall pyfmto -y
         pip install dist/*.whl
         python -m unittest
+      env:
+        TERM: xterm
     - name: Build dist and test with unittest on Windows
       if: matrix.os == 'windows-latest'
       run: |
