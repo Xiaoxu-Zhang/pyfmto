@@ -12,6 +12,13 @@
 
 # PyFMTO
 
+[![build](https://github.com/Xiaoxu-Zhang/pyfmto/workflows/build/badge.svg)](https://github.com/Xiaoxu-Zhang/pyfmto/actions?query=workflow%3Abuild)
+[![coverage](https://img.shields.io/codecov/c/github/Xiaoxu-Zhang/pyfmto)](https://codecov.io/gh/Xiaoxu-Zhang/pyfmto)
+[![pypi](https://img.shields.io/pypi/v/pyfmto.svg)](https://pypi.org/project/pyfmto/)
+[![support-version](https://img.shields.io/pypi/pyversions/pyfmto)](https://img.shields.io/pypi/pyversions/pyfmto)
+[![license](https://img.shields.io/github/license/Xiaoxu-Zhang/pyfmto)](https://github.com/Xiaoxu-Zhang/pyfmto/blob/master/LICENSE)
+[![commit](https://img.shields.io/github/last-commit/Xiaoxu-Zhang/pyfmto)](https://github.com/Xiaoxu-Zhang/pyfmto/commits/main)
+
 **PyFMTO** is a pure Python library for federated many-task optimization research
 
 <table align="center">
