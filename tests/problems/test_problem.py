@@ -130,9 +130,10 @@ class TestProblemBase(unittest.TestCase):
         prob.plot_3d(n_points=10, filename=self.tmp_dir / 'tmp3d.png')
         self.assertTrue((self.tmp_dir / 'tmp2d.png').exists())
         self.assertTrue((self.tmp_dir / 'tmp3d.png').exists())
-        prob.iplot_3d(n_points=10)
-        plotter = pyvista.Plotter()
-        prob.iplot_3d(n_points=10, plotter=plotter, color='red')
+        with patch.object(pyvista.Plotter, 'show'):
+            prob.iplot_3d(n_points=10)
+            plotter = pyvista.Plotter()
+            prob.iplot_3d(n_points=10, plotter=plotter, color='red')
 
         with patch.dict('sys.modules', {'pyvista': None}):
             prob.iplot_3d(n_points=10)
@@ -259,7 +260,8 @@ class TestMultiTaskProblem(unittest.TestCase):
         mtp.plot_similarity_heatmap(triu='upper')
         mtp.plot_similarity_heatmap(filename=self.tmp_dir / 'test_show.png')
         self.assertTrue((self.tmp_dir / 'test_show.png').exists())
-        mtp.iplot_tasks_3d(tasks_id=(1, 2), shape=(1, 2))
+        with patch.object(pyvista.Plotter, 'show'):
+            mtp.iplot_tasks_3d(tasks_id=(1, 2), shape=(1, 2))
         with self.assertRaises(ValueError):
             mtp.plot_similarity_heatmap(method='not_support')
         with self.assertRaises(ValueError):
