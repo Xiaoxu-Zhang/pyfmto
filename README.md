@@ -31,7 +31,12 @@ width="95%"/><br>
 
 ## Requirements
 
-Python 3.9+
+- Linux or macOS
+- Python 3.10+
+
+> **Note**
+>
+> PyFMTO is developed and tested on Linux and macOS. It may not work well on Windows.
 
 ## Usage
 
