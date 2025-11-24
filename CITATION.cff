@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+title: >-
+  PyFMTO - A Python library for federated many-task
+  optimization research
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Xiaoxu
+    family-names: Zhang
+    email: xxzhang_official@163.com
+    orcid: 'https://orcid.org/0009-0003-2682-8738'
+repository-code: 'https://github.com/Xiaoxu-Zhang/pyfmto'
+license: Apache-2.0
