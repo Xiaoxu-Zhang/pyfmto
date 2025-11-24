@@ -20,7 +20,6 @@ dependencies = [
     "opfunu",
     "pandas",
     "pillow",
-    "pydacefit",
     "pydantic",
     "pydantic_core",
     "pyDOE",
