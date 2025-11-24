@@ -175,9 +175,8 @@ includes the following components:
 - A template problem named "PROB" that you can use as a basis for implementing your own problem.
 
 The `config.yaml`, `ALG` and `PROB` provided detailed instructions, you can even start your 
-research without additional documentation.
-The fmto repository is currently in the early stages of development. We are actively working 
-on improving existing algorithms and adding new algorithms.
+research without additional documentation. The fmto repository is currently in the early stages 
+of development. I'm actively working on improving existing algorithms and adding new algorithms.
 
 ## Algorithm's Components
 
@@ -244,7 +243,7 @@ class MyMTP(MultiTaskProblem):
         super().__init__(dim, **kwargs)
     
     def _init_tasks(self, dim, **kwargs) -> list[SingleTaskProblem]:
-        # We duplicate MySTP for 10 here as an example
+        # Duplicate MySTP for 10 here as an example
         return [MySTP(dim=dim, **kwargs) for _ in range(10)]
   ```
 
@@ -326,3 +325,49 @@ Copyright (c) 2025 Xiaoxu Zhang
 
 Distributed under the terms of the
 [Apache 2.0 license](https://github.com/Xiaoxu-Zhang/pyfmto/blob/main/LICENSE).
+
+## Acknowledgements
+
+### Foundations
+This project is supported, in part, by the National Natural Science Foundation of China under 
+Grant 62006143; the Natural Science Foundation of Shandong Province under Grants ZR2025MS1012 
+and ZR2020MF152. I would like to express our sincere gratitude to Smart Healthcare and Big Data 
+Laboratory, Shandong Women's University, for providing research facilities and technical support.
+
+
+### Mentorship and Team Support  
+I would like to express my sincere gratitude to the **Computational Intelligence and 
+Applications Group** for their invaluable help, encouragement, and collaboration throughout the 
+development of this project.  
+
+Special thanks go to my mentor, [Jie Tian](https://github.com/Jetina), whose insightful guidance 
+and constructive feedback were crucial in refining and improving the work at every stage.
+
+### Open Source Contributions  
+This project would not have been possible without the outstanding contributions of the 
+open-source community. I am deeply grateful to the maintainers and contributors of the following 
+projects:  
+
+- **[FastAPI](https://fastapi.tiangolo.com)** – A high-performance web framework that made 
+  building APIs both fast and efficient.  
+- **[NumPy](https://numpy.org)** – The fundamental package for scientific computing in Python, 
+  enabling high-speed numerical operations.  
+- **[Pandas](https://pandas.pydata.org)** – Powerful data structures and tools that formed the 
+  backbone of data analysis in this work.  
+- **[Matplotlib](https://matplotlib.org)** and **[Seaborn](https://seaborn.pydata.org)** – 
+  Essential for producing high-quality, publication-ready visualizations.  
+- **[PyVista](https://docs.pyvista.org)** – An intuitive, high-level 3D plotting and mesh 
+  analysis interface, making scientific visualization seamlessly integrated into PyFMTO.  
+- **[Scikit-learn](https://scikit-learn.org)** – An extensive set of machine learning algorithms 
+  and utilities.  
+- **[SciPy](https://scipy.org)** – Fundamental algorithms and mathematical functions critical to 
+  scientific computing.  
+
+I would also like to acknowledge the maintainers and contributors of other open-source libraries 
+that supported this work, including:  
+`jinja2`, `msgpack`, `openpyxl`, `opfunu`, `pillow`, `pydantic`, `pydantic_core`, `pyDOE`, 
+`pyyaml`, `requests`, `ruamel-yaml`, `scienceplots`, `setproctitle`, `tabulate`, `tqdm`, 
+`uvicorn`, and `wrapt`.  
+
+Your dedication to building and maintaining these tools has made it possible for this project to 
+achieve both depth and breadth that would otherwise have been unattainable.  
