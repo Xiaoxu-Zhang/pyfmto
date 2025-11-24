@@ -1,0 +1,63 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      if: matrix.os != 'windows-latest'
+      run: |
+        python -m pip install --upgrade pip
+        pip install '.[dev]'
+    - name: Install dependencies on Windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+        if (Test-Path -Path '.\requirements.txt' -PathType Leaf) {pip install -r requirements.txt}
+    - name: Build dist and test with unittest
+      if: matrix.os != 'windows-latest'
+      run: |
+        python -m build
+        pip uninstall pyfmto -y
+        pip install dist/*.whl
+        python -m unittest
+    - name: Build dist and test with unittest on Windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        python -m build
+        if (Test-Path -Path '.\requirements-test.txt' -PathType Leaf) {pip install -r requirements-test.txt}
+        pip install (Get-ChildItem dist/*.whl)
+        python -m unittest
+    - name: Generate coverage report
+      run: |
+        coverage run -m unittest
+        coverage combine
+        coverage xml -i
+      env:
+        COVERAGE_RUN: True
+    - name: Upload report to Codecov
+      uses: codecov/codecov-action@v4.0.1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: Xiaoxu-Zhang/pyfmto
+        file: ./coverage.xml
