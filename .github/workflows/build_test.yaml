@@ -54,6 +54,7 @@ jobs:
         coverage combine
         coverage xml -i
       env:
+        TERM: xterm
         COVERAGE_RUN: True
     - name: Upload report to Codecov
       uses: codecov/codecov-action@v4.0.1
