@@ -104,7 +104,7 @@ pyfmto
     ```
     output:
     ```txt
-    Found 6 Algorithms:
+    Found 6 Available Algorithms:
     FDEMD
     ADDFBO
     BO
@@ -312,4 +312,17 @@ if __name__ == '__main__':
 
 ## Contributing
 
-see [contributing](CONTRIBUTING.md) for instructions on how to contribute to PyFMTO.
+See [contributing](https://github.com/Xiaoxu-Zhang/pyfmto/blob/main/CONTRIBUTING.md) for instructions on how to contribute to PyFMTO.
+
+## Bugs/Requests
+
+Please send bug reports and feature requests through
+[github issue tracker](https://github.com/Xiaoxu-Zhang/pyfmto/issues). PyFMTO is 
+currently under development now, and it's open to any constructive suggestions.
+
+## License
+
+Copyright (c) 2025 Xiaoxu Zhang
+
+Distributed under the terms of the
+[Apache 2.0 license](https://github.com/Xiaoxu-Zhang/pyfmto/blob/main/LICENSE).
