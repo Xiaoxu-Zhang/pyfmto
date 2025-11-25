@@ -143,8 +143,8 @@ if __name__ == '__main__':
     launcher = Launcher()
     launcher.run()
     
-    reporter = Reporter()
-    reporter.to_curve()
+    reports = Reports()
+    reports.to_curve()
     # reporter.to_ ...
 ```
 
@@ -277,7 +277,7 @@ from pyfmto.problems import init_problem
 _ = load_problem('Arxiv2017')
 
 # init a problem with customized args
-prob = init_problem('arxiv2017', dim=2, fe_init=20, fe_max=50, npd=5)
+prob = init_problem('Arxiv2017', dim=2, fe_init=20, fe_max=50, npd=5)
 
 # problem instance can be print
 print(prob)
@@ -330,8 +330,8 @@ Distributed under the terms of the
 ### Foundations
 This project is supported, in part, by the National Natural Science Foundation of China under 
 Grant 62006143; the Natural Science Foundation of Shandong Province under Grants ZR2025MS1012 
-and ZR2020MF152. I would like to express our sincere gratitude to Smart Healthcare and Big Data 
-Laboratory, Shandong Women's University, for providing research facilities and technical support.
+and ZR2020MF152. I would like to express our sincere gratitude to **Smart Healthcare and Big Data 
+Laboratory, Shandong Women's University**, for providing research facilities and technical support.
 
 
 ### Mentorship and Team Support  
