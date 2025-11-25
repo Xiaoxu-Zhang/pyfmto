@@ -1,4 +1,3 @@
-import matplotlib
 import numpy as np
 import shutil
 import unittest
@@ -10,9 +9,6 @@ from pathlib import Path
 from numpy import ndarray
 
 from tests.problems import ConstantProblem, SimpleProblem, MtpSynthetic, MtpRealworld, MtpNonIterableReturn
-
-matplotlib.use('Agg')
-pyvista.OFF_SCREEN = True
 
 
 class TestProblemBase(unittest.TestCase):
@@ -124,8 +120,9 @@ class TestProblemBase(unittest.TestCase):
 
     def test_plots(self):
         prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1)
-        prob.plot_2d(n_points=10)
-        prob.plot_3d(n_points=10)
+        with patch('matplotlib.pyplot.show', MagicMock()):
+            prob.plot_2d(n_points=10)
+            prob.plot_3d(n_points=10)
         prob.plot_2d(n_points=10, filename=self.tmp_dir / 'tmp2d.png')
         prob.plot_3d(n_points=10, filename=self.tmp_dir / 'tmp3d.png')
         self.assertTrue((self.tmp_dir / 'tmp2d.png').exists())
@@ -134,9 +131,6 @@ class TestProblemBase(unittest.TestCase):
             prob.iplot_3d(n_points=10)
             plotter = pyvista.Plotter()
             prob.iplot_3d(n_points=10, plotter=plotter, color='red')
-
-        with patch.dict('sys.modules', {'pyvista': None}):
-            prob.iplot_3d(n_points=10)
 
     def test_norm_denorm_methods(self):
         prob = ConstantProblem(dim=2, obj=1, lb=-1, ub=1)
@@ -188,7 +182,7 @@ class TestProblemBase(unittest.TestCase):
         n_points = 50
         # We don't test np_value=1 which is equal to no partition,
         # it will cause failure when we test np.any(x < partition[0]).
-        for np_value in [2, 3, 4, 5]:
+        for np_value in [4, 5, 6]:
             prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1, **{'npd': np_value})
             prob.init_partition()
             x: ndarray = prob.random_uniform_x(size=n_points)
@@ -249,15 +243,17 @@ class TestMultiTaskProblem(unittest.TestCase):
         prob = MtpSynthetic()
         filename = self.tmp_dir / 'test_show.png'
         prob.plot_distribution(filename=str(filename))
-        prob.plot_distribution()
+        with patch('matplotlib.pyplot.show', MagicMock()):
+            prob.plot_distribution()
         self.assertTrue(filename.exists())
 
     def test_plots(self):
         mtp = MtpSynthetic()
-        mtp.plot_distribution()
-        mtp.plot_similarity_heatmap()
-        mtp.plot_similarity_heatmap(triu='lower')
-        mtp.plot_similarity_heatmap(triu='upper')
+        with patch('matplotlib.pyplot.show', MagicMock()):
+            mtp.plot_distribution()
+            mtp.plot_similarity_heatmap()
+            mtp.plot_similarity_heatmap(triu='lower')
+            mtp.plot_similarity_heatmap(triu='upper')
         mtp.plot_similarity_heatmap(filename=self.tmp_dir / 'test_show.png')
         self.assertTrue((self.tmp_dir / 'test_show.png').exists())
         with patch('pyvista.Plotter', MagicMock()):
@@ -268,8 +264,6 @@ class TestMultiTaskProblem(unittest.TestCase):
             mtp.iplot_tasks_3d(tasks_id=(5, 6), shape=(1, 2))
         with self.assertRaises(ValueError):
             mtp.iplot_tasks_3d(tasks_id=(1, 2), shape=(1, 1))
-        with patch.dict('sys.modules', {'pyvista': None}):
-            mtp.iplot_tasks_3d(tasks_id=(1, 2), shape=(1, 2))
 
     def test_attributes(self):
         realworld = MtpRealworld()

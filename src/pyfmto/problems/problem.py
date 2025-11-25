@@ -13,7 +13,7 @@ from scipy.stats import kendalltau, spearmanr, pearsonr
 from tabulate import tabulate
 from typing import Union, Optional, Literal
 
-from pyfmto.utilities import StrColors, Cmaps, colored, SeabornStyles
+from pyfmto.utilities import StrColors, Cmaps, SeabornStyles
 from pyfmto.utilities.schemas import T_Bound, STPConfig, TransformerConfig, FunctionInputs, PlottingArgs
 from .solution import Solution
 
@@ -386,12 +386,8 @@ class SingleTaskProblem(ABC):
             The pyvista.Plotter object. If the plotter is not None, plot on it and return, else plot
             on a new created plotter and show.
         """
+        import pyvista as pv
         show = plotter is None
-        try:
-            import pyvista as pv
-        except ImportError:
-            print(f"Please install {colored('pyvista', 'red')} to use interactive plotting.")
-            return
         if plotter is None:
             plotter = pv.Plotter(shape=(1, 1))
             plotter.subplot(0, 0)
@@ -802,11 +798,7 @@ class MultiTaskProblem(ABC):
         if len(tasks_id) > shape[0] * shape[1]:
             raise ValueError(f"The number of clients {len(tasks_id)} is larger than "
                              f"the number of cells in grid {shape[0]}*{shape[1]}")
-        try:
-            import pyvista as pv
-        except ImportError:
-            print(f"Please install {colored('pyvista', 'red')} to use this function")
-            return
+        import pyvista as pv
         plotter = pv.Plotter(shape=shape)
         for index, tid in enumerate(tasks_id):
             row, col = index // shape[1], index % shape[1]
