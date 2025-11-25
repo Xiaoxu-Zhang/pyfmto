@@ -40,7 +40,7 @@ jobs:
         python -m build
         pip uninstall pyfmto -y
         pip install dist/*.whl
-        python -m unittest
+        pytest --cov=pyfmto --cov-report=xml
       env:
         TERM: xterm
     - name: Build dist and test with unittest on Windows
@@ -50,14 +50,6 @@ jobs:
         if (Test-Path -Path '.\requirements-test.txt' -PathType Leaf) {pip install -r requirements-test.txt}
         pip install (Get-ChildItem dist/*.whl)
         python -m unittest
-    - name: Generate coverage report
-      run: |
-        coverage run -m unittest
-        coverage combine || true
-        coverage xml -i
-      env:
-        TERM: xterm
-        COVERAGE_RUN: True
     - name: Upload report to Codecov
       uses: codecov/codecov-action@v4.0.1
       with:
