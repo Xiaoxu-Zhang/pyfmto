@@ -133,7 +133,7 @@ def timer(name: Optional[str] = None, where: Literal['log', 'console', 'both'] =
     """
 
     # noinspection PyUnusedLocal
-    @wrapt.decorator
+    @wrapt.decorator  # type: ignore  # wrapt.decorator lacks types in Python 3.9
     def wrapper(wrapped, instance, args, kwargs):
         start_time = time.time()
         result = wrapped(*args, **kwargs)
