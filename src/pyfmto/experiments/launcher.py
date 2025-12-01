@@ -1,11 +1,9 @@
 import time
 from setproctitle import setproctitle
 
-from pyfmto.problems import Solution
-from pyfmto.utilities import (
-    logger, reset_log, show_in_table, clear_console,
-    backup_log_to)
+from pyfmto.utilities import logger, show_in_table, clear_console, titled_tabulate, tabulate_formats as tf
 from .utils import LauncherUtils, RunSolutions
+from ..framework import Client
 from ..utilities.loaders import ExperimentConfig, ConfigLoader
 
 __all__ = ['Launcher']
@@ -16,7 +14,6 @@ class Launcher:
     exp: ExperimentConfig
 
     def __init__(self, conf_file: str = 'config.yaml'):
-        reset_log()
         clear_console()
         self.conf = ConfigLoader(conf_file).launcher
 
@@ -53,18 +50,28 @@ class Launcher:
             with LauncherUtils.running_server(self.exp.algorithm.server, **srv_params):
                 results = LauncherUtils.start_clients(clients)
             self._save_results(results)
-            self._backup_log()
+            self._save_rounds_info(results)
             self._update_repeat_id()
             clear_console()
             time.sleep(1)
 
-    def _backup_log(self):
-        reset_log()
+    def _save_rounds_info(self, results: list[Client]):
         if self.conf.backup:
+            tables = {clt.id: clt for clt in results}
+            info_str = ''
+            for cid in sorted(tables.keys()):
+                clt = tables[cid]
+                tab = titled_tabulate(
+                    f"{clt.name} {clt.problem.name}({clt.dim}D)",
+                    '=', clt.rounds_info, headers='keys', tablefmt=tf.rounded_grid
+                )
+                info_str = f"{info_str}{tab}\n"
             res_file = self.exp.result_name(self._repeat_id)
-            log_dir = res_file.with_name('logs')
+            log_dir = res_file.with_name('rounds_info')
             log_name = res_file.with_suffix('.log').name
-            backup_log_to(log_dir, log_name)
+            log_dir.mkdir(parents=True, exist_ok=True)
+            with open(log_dir / log_name, 'w') as f:
+                f.write(info_str)
 
     def _teardown(self):
         clear_console()
@@ -85,11 +92,11 @@ class Launcher:
         print(colored_tab)
         logger.info(f"\n{original_tab}")
 
-    def _save_results(self, results: list[tuple[int, Solution]]):
+    def _save_results(self, results: list[Client]):
         if self.conf.save:
             run_solutions = RunSolutions()
-            for cid, solution in results:
-                run_solutions.update(cid, solution)
+            for clt in results:
+                run_solutions.update(clt.id, clt.solutions)
             run_solutions.to_msgpack(self.exp.result_name(self._repeat_id))
 
     def _update_repeat_id(self):
