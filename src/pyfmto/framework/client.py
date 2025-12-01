@@ -43,7 +43,7 @@ class Client(ABC):
         self._url: str = ''
         self._conn_retry: int = -1
         self.problem = problem
-        self._round_info: dict[str, list[str]] = defaultdict(list)
+        self.rounds_info: dict[str, list[str]] = defaultdict(list)
 
         self.set_addr()
 
@@ -87,16 +87,8 @@ class Client(ABC):
         )
         logger.debug(tab)
 
-    def __logging_rounds_info(self):
-        if self._round_info:
-            tab = titled_tabulate(
-                f"{self.name} {self.problem.name}({self.dim}D)",
-                '=', self._round_info, headers='keys', tablefmt=tf.rounded_grid
-            )
-            logger.info(tab)
-
     def record_round_info(self, name: str, value: str):
-        self._round_info[name].append(value)
+        self.rounds_info[name].append(value)
 
     @final
     def start(self):
@@ -115,7 +107,6 @@ class Client(ABC):
                 self.optimize()
                 pbar.update(self.solutions.num_updated)
 
-            self.__logging_rounds_info()
             self.send_quit()
             logger.debug(f"{self.name} exit with available FE = {self.problem.fe_available}")
         except Exception:
@@ -126,7 +117,7 @@ class Client(ABC):
                       f"see {colored('out/logs/pyfmto.log', 'green')} for detail.")
             logger.info(f"{self.name} exit with available FE = {self.problem.fe_available}")
             raise
-        return self.id, self.solutions
+        return self
 
     @abstractmethod
     def optimize(self):
