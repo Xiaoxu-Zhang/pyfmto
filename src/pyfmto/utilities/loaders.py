@@ -443,7 +443,7 @@ class ConfigLoader:
     def reporter(self) -> ReporterConfig:
         self.check_config_issues('reporter')
         conf = ReporterConfig(**self.config['reporter'])
-        algorithms = self.gen_alg_list(list(set(sum(conf.algorithms, []))))
+        algorithms = self.gen_alg_list_fake(list(set(sum(conf.algorithms, []))))
         problems = self.gen_prob_list(conf.problems)
         conf.experiments = [
             ExperimentConfig(alg, prob, conf.results)
@@ -454,6 +454,14 @@ class ConfigLoader:
             for algs, prob in list(product(conf.algorithms, problems))
         ]
         return conf
+
+    @staticmethod
+    def gen_alg_list_fake(names: list[str]) -> list[AlgorithmData]:
+        algorithms: list[AlgorithmData] = []
+        for name_alias in names:
+            alg_data = AlgorithmData(name_alias, Client, Server)
+            algorithms.append(alg_data)
+        return algorithms
 
     def gen_alg_list(self, names: list[str]) -> list[AlgorithmData]:
         algorithms: list[AlgorithmData] = []
