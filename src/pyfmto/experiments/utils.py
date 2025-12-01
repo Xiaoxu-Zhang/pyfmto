@@ -312,7 +312,7 @@ class LauncherUtils:
             logger.debug("Server terminated.")
 
     @staticmethod
-    def start_clients(clients: list[Client]) -> list[tuple[int, Solution]]:
+    def start_clients(clients: list[Client]) -> list[Client]:
         """
         Start the client and submit to the threadpool.
 
