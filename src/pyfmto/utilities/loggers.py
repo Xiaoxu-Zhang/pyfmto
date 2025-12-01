@@ -4,24 +4,23 @@
 
 import logging.config
 import logging.handlers
-import shutil
+import time
 from pathlib import Path
+from logging.handlers import RotatingFileHandler
 
-__all__ = ['logger', 'reset_log', 'backup_log_to']
+__all__ = ['logger']
+Path('out', 'logs').mkdir(parents=True, exist_ok=True)
 
-LOG_HEAD = r"""
-                               ____                __
-            ____     __  __   / __/  ____ ___     / /_   ____
-           / __ \   / / / /  / /_   / __ `__ \   / __/  / __ \
-          / /_/ /  / /_/ /  / __/  / / / / / /  / /_   / /_/ /
-         / .___/   \__, /  /_/    /_/ /_/ /_/   \__/   \____/
-        /_/       /____/
 
-"""
-LOG_PATH = Path('out', 'logs')
-LOG_PATH.mkdir(parents=True, exist_ok=True)
-LOG_FILE = LOG_PATH / 'pyfmto.log'
-LOG_BACKUP = LOG_PATH / 'backup.log'
+class PyfmtoRotatingFileHandler(RotatingFileHandler):
+    def rotation_filename(self, default_name: str) -> str:
+        filename = Path(self.baseFilename)
+        base = filename.stem
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        new_name = filename.with_name(f"{base} {timestamp}.log")
+        return str(new_name)
+
+
 LOG_CONF = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -33,38 +32,22 @@ LOG_CONF = {
     },
     'handlers': {
         'pyfmto_handler': {
-            'class': 'logging.FileHandler',
+            '()': PyfmtoRotatingFileHandler,
             'level': 'DEBUG',
             'formatter': 'simpleFormatter',
-            'filename': str(LOG_FILE)
+            'filename': 'out/logs/pyfmto.log',
+            'maxBytes': 2 * 1024 * 1024,
+            'backupCount': 10
         }
     },
     'loggers': {
         'pyfmto': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'handlers': ['pyfmto_handler'],
             'propagate': 0
         }
     }
 }
-
-
-def reset_log():
-    LOG_PATH.mkdir(parents=True, exist_ok=True)
-    if LOG_FILE.exists():
-        shutil.copy(LOG_FILE, LOG_BACKUP)
-    with LOG_FILE.open('w', encoding='utf-8') as f:
-        f.write(LOG_HEAD)
-
-
-def backup_log_to(dest_dir: Path, filename: str = ''):
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    if filename:
-        dest_file = dest_dir / filename
-    else:
-        dest_file = dest_dir / LOG_BACKUP.name
-    if LOG_BACKUP.exists() and not dest_file.exists():
-        shutil.copy(LOG_BACKUP, dest_file)
 
 
 logging.config.dictConfig(LOG_CONF)

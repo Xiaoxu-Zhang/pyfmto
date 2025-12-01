@@ -1,8 +1,4 @@
-from .loggers import (
-    logger,
-    reset_log,
-    backup_log_to,
-)
+from .loggers import logger
 
 from .tools import (
     timer,
@@ -33,8 +29,6 @@ from .io import (
 
 __all__ = [
     'logger',
-    'reset_log',
-    'backup_log_to',
     'timer',
     'colored',
     'update_kwargs',
