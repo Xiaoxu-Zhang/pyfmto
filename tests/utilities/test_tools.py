@@ -1,21 +1,16 @@
-import shutil
 import unittest
-import time
-from pathlib import Path
 from unittest.mock import patch
 
 from pyfmto.utilities import tabulate_formats
-from pyfmto.utilities.tools import colored, timer, show_in_table, titled_tabulate, update_kwargs, clear_console
+from pyfmto.utilities.tools import colored, show_in_table, titled_tabulate, update_kwargs, clear_console
+
+from tests.helpers import remove_temp_files
 
 
 class TestTools(unittest.TestCase):
 
-    def setUp(self):
-        self.out_path = Path('out')
-
     def tearDown(self):
-        if self.out_path.exists():
-            shutil.rmtree(self.out_path)
+        remove_temp_files()
 
     def test_cross_platform_tools(self):
         with patch('os.system') as mock_system:
@@ -36,28 +31,6 @@ class TestTools(unittest.TestCase):
         self.assertIn('\033[32m', color_text)
         self.assertIn(text, color_text)
         self.assertRaises(ValueError, colored, text, 'invalid_color')
-
-    def test_timer(self):
-        @timer()
-        def dummy_func1():
-            time.sleep(0.1)
-
-        @timer(name='dummy_func', where='console')
-        def dummy_func2():
-            time.sleep(0.1)
-
-        @timer(where='log')
-        def dummy_func3():
-            time.sleep(0.1)
-
-        @timer(where='both')
-        def dummy_func4():
-            time.sleep(0.1)
-
-        dummy_func1()
-        dummy_func2()
-        dummy_func3()
-        dummy_func4()
 
     def test_show_in_table(self):
         settings = {
