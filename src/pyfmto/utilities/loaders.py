@@ -153,7 +153,7 @@ def collect_problems(module) -> dict[str, 'ProblemData']:
 
 class AlgorithmData:
 
-    def __init__(self, name: str, client: Type[Client], server: Type[Server]):
+    def __init__(self, name: str, client: Any = None, server: Any = None):
         self.name_orig = name
         self.name_alias = ''
         self.client: Type[Client] = client
@@ -163,8 +163,8 @@ class AlgorithmData:
         self.__parse_default_params()
 
     def __parse_default_params(self):
-        c_doc = self.client.__doc__
-        s_doc = self.server.__doc__
+        c_doc = self.client.__doc__ if self.client else None
+        s_doc = self.server.__doc__ if self.server else None
         c_args = parse_yaml(c_doc) if c_doc else {}
         s_args = parse_yaml(s_doc) if s_doc else {}
         if c_args:
@@ -443,7 +443,8 @@ class ConfigLoader:
     def reporter(self) -> ReporterConfig:
         self.check_config_issues('reporter')
         conf = ReporterConfig(**self.config['reporter'])
-        algorithms = self.gen_alg_list_fake(list(set(sum(conf.algorithms, []))))
+        alg_names = list(set(sum(conf.algorithms, [])))
+        algorithms = [AlgorithmData(name) for name in alg_names]
         problems = self.gen_prob_list(conf.problems)
         conf.experiments = [
             ExperimentConfig(alg, prob, conf.results)
@@ -454,14 +455,6 @@ class ConfigLoader:
             for algs, prob in list(product(conf.algorithms, problems))
         ]
         return conf
-
-    @staticmethod
-    def gen_alg_list_fake(names: list[str]) -> list[AlgorithmData]:
-        algorithms: list[AlgorithmData] = []
-        for name_alias in names:
-            alg_data = AlgorithmData(name_alias, Client, Server)
-            algorithms.append(alg_data)
-        return algorithms
 
     def gen_alg_list(self, names: list[str]) -> list[AlgorithmData]:
         algorithms: list[AlgorithmData] = []
