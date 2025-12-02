@@ -122,8 +122,10 @@ pyfmto
     ```
 - Show supported configurations:
     ```bash
-    pyfmto show ALG
-    # pyfmto will automatically find the name in 'algorithms', 'problems' and 'reports'
+    pyfmto show algorithms.ALG  # or pyfmto show problems.Cec2022
+    # 'algorithms', 'problems', and 'reports' can be replaced with any prefix of length ≥ 1. 
+    # pyfmto matches the prefix to the corresponding category.
+    # For example, 'algorithms.ALG' is equivalent to 'a.ALG' or 'al.ALG'
     ```
     output:
     ```txt
