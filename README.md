@@ -18,8 +18,7 @@
 [![support-version](https://img.shields.io/pypi/pyversions/pyfmto)](https://img.shields.io/pypi/pyversions/pyfmto)
 [![license](https://img.shields.io/github/license/Xiaoxu-Zhang/pyfmto)](https://github.com/Xiaoxu-Zhang/pyfmto/blob/master/LICENSE)
 [![commit](https://img.shields.io/github/last-commit/Xiaoxu-Zhang/pyfmto)](https://github.com/Xiaoxu-Zhang/pyfmto/commits/main)
-[![Linux Support](https://img.shields.io/badge/OS-Linux-green.svg)](https://www.kernel.org/)
-[![MacOS Support](https://img.shields.io/badge/OS-MacOS-green.svg)](https://www.apple.com/macos/)
+[![OS Support](https://img.shields.io/badge/OS-Linux%20%7C%20MacOS%20%7C%20Windows-green)](https://pypi.org/project/pyfmto/)
 
 
 **PyFMTO** is a pure Python library for federated many-task optimization research
