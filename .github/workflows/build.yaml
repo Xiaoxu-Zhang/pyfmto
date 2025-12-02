@@ -37,7 +37,7 @@ jobs:
       - name: Install built wheel
         run: |
           pip uninstall pyfmto -y || true
-          pip install dist/*.whl
+          python -c "import glob, subprocess; wheel = glob.glob('dist/*.whl')[0]; subprocess.run(['pip', 'install', wheel])"
 
       - name: Run tests
         run: |
