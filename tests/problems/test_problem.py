@@ -158,13 +158,14 @@ class TestProblemBase(unittest.TestCase):
     def test_y_norm_denorm_methods(self):
         prob = SimpleProblem(dim=5, obj=1, lb=-1, ub=1)
         prob.init_solutions()
-        y_test = np.random.uniform(
-            low=prob.solutions.y_min-abs(prob.solutions.y_min),
-            high=prob.solutions.y_max+abs(prob.solutions.y_max),
-            size=(100, 1)
-        )
-        self.assertTrue(np.any(y_test < prob.solutions.y_min))
-        self.assertTrue(np.any(y_test > prob.solutions.y_max))
+
+        y_range = prob.solutions.y_max - prob.solutions.y_min
+        margin = 0.5 * y_range
+
+        y_test, data_ok = self.gen_test_data(prob, margin)
+        while not data_ok:
+            y_test, data_ok = self.gen_test_data(prob, margin)
+
         y_norm = prob.normalize_y(y_test)
         self.assertTrue(np.all(y_norm <= 1.0))
         self.assertTrue(np.all(y_norm >= 0.0))
@@ -172,6 +173,18 @@ class TestProblemBase(unittest.TestCase):
         y_denorm = prob.denormalize_y(y_norm)
         self.assertTrue(np.all(y_denorm >= prob.solutions.y_min))
         self.assertTrue(np.all(y_denorm <= prob.solutions.y_max))
+
+    @staticmethod
+    def gen_test_data(prob, margin):
+        y_test = np.random.uniform(
+            low=prob.solutions.y_min - margin,
+            high=prob.solutions.y_max + margin,
+            size=(1000, 1)
+        )
+        lb_ok = np.any(y_test < prob.solutions.y_min)
+        ub_ok = np.any(y_test > prob.solutions.y_max)
+        data_ok = lb_ok and ub_ok
+        return y_test, data_ok
 
     def test_clip(self):
         prob = ConstantProblem(dim=5, obj=1, lb=-1, ub=1)
