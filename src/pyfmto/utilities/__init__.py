@@ -1,7 +1,6 @@
 from .loggers import logger
 
 from .tools import (
-    timer,
     colored,
     update_kwargs,
     clear_console,
