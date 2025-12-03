@@ -3,14 +3,13 @@ import time
 import unittest
 from pathlib import Path
 
-from pyfmto.experiments.utils import LauncherUtils
 from pyfmto.framework import Client, Server, ClientPackage
 from pyfmto import init_problem
 from tests.framework import (
     OfflineServer, OnlineClient, OnlineServer
 )
 from requests.exceptions import ConnectionError
-from tests.helpers import gen_problem, remove_temp_files
+from tests.helpers import gen_problem, remove_temp_files, running_server, start_clients
 
 N_CLIENTS = 2
 
@@ -21,7 +20,6 @@ class TestClientSide(unittest.TestCase):
         Path('out', 'logs').mkdir(parents=True, exist_ok=True)
         gen_problem('PROB')
         self.problems = init_problem('PROB', dim=5, fe_init=20, fe_max=30)
-        self.utils = LauncherUtils
 
     def tearDown(self):
         remove_temp_files()
@@ -35,23 +33,23 @@ class TestClientSide(unittest.TestCase):
                 y = self.problem.evaluate(x)
                 self.problem.solutions.append(x, y)
         clients = [OfflineClient(prob) for prob in self.problems[:N_CLIENTS]]
-        with self.utils.running_server(OfflineServer):
-            self.utils.start_clients(clients)
+        with running_server(OfflineServer):
+            start_clients(clients)
 
     def test_valid_online_client(self):
         clients = [OnlineClient(prob) for prob in self.problems[:N_CLIENTS]]
-        with self.utils.running_server(OfflineServer):
+        with running_server(OfflineServer):
             with self.assertRaises(ConnectionError):
-                self.utils.start_clients(clients)
+                start_clients(clients)
 
         clients = [OnlineClient(prob) for prob in self.problems[:N_CLIENTS]]
-        with self.utils.running_server(OnlineServer):
-            self.utils.start_clients(clients)
+        with running_server(OnlineServer):
+            start_clients(clients)
 
     def test_request_failed(self):
         client = OnlineClient(self.problems[0])
         with self.assertRaises(ConnectionError):
-            self.utils.start_clients([client])
+            start_clients([client])
 
     def test_invalid_clients(self):
 
@@ -64,14 +62,14 @@ class TestClientSide(unittest.TestCase):
                 self.request_server(None)
 
         clients = [ClientWithOptimizeErr(prob) for prob in self.problems[:N_CLIENTS]]
-        with self.utils.running_server(OnlineServer):
+        with running_server(OnlineServer):
             with self.assertRaises(RuntimeError):
-                self.utils.start_clients(clients)
+                start_clients(clients)
 
         clients = [ClientWithRequestErr(prob) for prob in self.problems[:N_CLIENTS]]
-        with self.utils.running_server(OnlineServer):
+        with running_server(OnlineServer):
             with self.assertRaises(ValueError):
-                self.utils.start_clients(clients)
+                start_clients(clients)
 
     def test_valid_server(self):
         server = OnlineServer()
@@ -82,7 +80,7 @@ class TestClientSide(unittest.TestCase):
         time.sleep(1)
         try:
             # This code can only run without error in a non-test environment
-            self.utils.start_clients(clients)
+            start_clients(clients)
         except ConnectionError:
             pass
         finally:

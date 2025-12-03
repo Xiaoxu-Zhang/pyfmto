@@ -3,19 +3,16 @@ import subprocess
 import numpy as np
 import shutil
 import unittest
-import yaml
 from itertools import product
 from pathlib import Path
 
 from pyfmto.problems import Solution
 from pyfmto.experiments.utils import (
-    RunSolutions, LauncherUtils, ReporterUtils, MetaData, MergedResults, ClientDataStatis
+    RunSolutions, ReporterUtils, MetaData, MergedResults, ClientDataStatis
 )
 from pyfmto.utilities.schemas import STPConfig
 from pyfmto.utilities import load_msgpack
-from unittest.mock import Mock
 from tests.helpers.generators import ExpDataGenerator
-from tests.framework import OnlineServer
 
 
 def process_is_running(process: subprocess.Popen) -> bool:
@@ -207,86 +204,6 @@ class TestReporterUtils(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ReporterUtils.find_grid_shape(0)
-
-
-class TestLauncherUtils(unittest.TestCase):
-
-    def setUp(self):
-        self.tmp_dir = Path('tmp')
-        self.tmp_server = Path('temp_server.py')
-        self.tmp_setting = Path('settings.yaml')
-        self.tmp_alg_dir = Path('algorithms')
-        self.utils = LauncherUtils
-        if not self.tmp_dir.exists():
-            self.tmp_dir.mkdir()
-
-        self.run_settings_ok = {
-            'launcher': {
-                'algorithms': ['FMTBO'],
-                'problems': ['CEC2022']
-            },
-            'reporter': {
-                'algorithms': [['FMTBO', 'FDEMD']],
-                'np_per_dim': [1, 2],
-                'problems': ['CEC2022'],
-            }
-        }
-        with open(self.tmp_setting, 'w') as f:
-            yaml.dump(self.run_settings_ok, f)
-
-    def tearDown(self):
-        if self.tmp_dir:
-            shutil.rmtree(self.tmp_dir)
-        if self.tmp_server.exists():
-            self.tmp_server.unlink()
-        if self.tmp_setting.exists():
-            self.tmp_setting.unlink()
-        if self.tmp_alg_dir.exists():
-            shutil.rmtree('algorithms')
-
-    def test_start_server(self):
-        with self.utils.running_server(OnlineServer) as s:
-            self.assertTrue(process_is_running(s))
-        self.assertFalse(process_is_running(s))
-
-    def test_terminate_popen_normal(self):
-        mock_process = Mock(spec=subprocess.Popen)
-        mock_process.stdout = Mock()
-        mock_process.stderr = Mock()
-        mock_process.wait = Mock()
-
-        LauncherUtils.terminate_popen(mock_process)
-
-        mock_process.stdout.close.assert_called_once()
-        mock_process.stderr.close.assert_called_once()
-
-        mock_process.terminate.assert_called_once()
-        mock_process.wait.assert_called_once_with(timeout=5)
-
-        mock_process.kill.assert_not_called()
-
-    def test_terminate_popen_timeout(self):
-        mock_process = Mock(spec=subprocess.Popen)
-        mock_process.stdout = Mock()
-        mock_process.stderr = Mock()
-
-        def wait_side_effect(*args, **kwargs):
-            if not hasattr(wait_side_effect, "called"):
-                wait_side_effect.called = True
-                raise subprocess.TimeoutExpired(cmd="cmd", timeout=5)
-            else:
-                return None
-
-        mock_process.wait = Mock(side_effect=wait_side_effect)
-
-        LauncherUtils.terminate_popen(mock_process)
-
-        mock_process.stdout.close.assert_called_once()
-        mock_process.stderr.close.assert_called_once()
-        mock_process.terminate.assert_called_once()
-        self.assertEqual(mock_process.wait.call_count, 2)
-        mock_process.wait.assert_any_call(timeout=5)
-        mock_process.kill.assert_called_once()
 
 
 class TestRunSolutions(unittest.TestCase):
