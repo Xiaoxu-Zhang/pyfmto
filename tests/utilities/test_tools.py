@@ -1,8 +1,16 @@
+import subprocess
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
-from pyfmto.utilities import tabulate_formats
-from pyfmto.utilities.tools import colored, show_in_table, titled_tabulate, update_kwargs, clear_console
+from pyfmto.utilities import (
+    colored,
+    show_in_table,
+    update_kwargs,
+    clear_console,
+    titled_tabulate,
+    terminate_popen,
+    tabulate_formats,
+)
 
 from tests.helpers import remove_temp_files
 
@@ -71,3 +79,42 @@ class TestTools(unittest.TestCase):
         self.assertEqual(empty2, {})
         self.assertTrue(res1 == {'a': 1, 'b': 2})
         self.assertTrue(res2 == {'a': 2, 'b': 2})
+
+    def test_terminate_popen_normal(self):
+        mock_process = Mock(spec=subprocess.Popen)
+        mock_process.stdout = Mock()
+        mock_process.stderr = Mock()
+        mock_process.wait = Mock()
+
+        terminate_popen(mock_process)
+
+        mock_process.stdout.close.assert_called_once()
+        mock_process.stderr.close.assert_called_once()
+
+        mock_process.terminate.assert_called_once()
+        mock_process.wait.assert_called_once_with(timeout=5)
+
+        mock_process.kill.assert_not_called()
+
+    def test_terminate_popen_timeout(self):
+        mock_process = Mock(spec=subprocess.Popen)
+        mock_process.stdout = Mock()
+        mock_process.stderr = Mock()
+
+        def wait_side_effect(*args, **kwargs):
+            if not hasattr(wait_side_effect, "called"):
+                wait_side_effect.called = True
+                raise subprocess.TimeoutExpired(cmd="cmd", timeout=5)
+            else:
+                return None
+
+        mock_process.wait = Mock(side_effect=wait_side_effect)
+
+        terminate_popen(mock_process)
+
+        mock_process.stdout.close.assert_called_once()
+        mock_process.stderr.close.assert_called_once()
+        mock_process.terminate.assert_called_once()
+        self.assertEqual(mock_process.wait.call_count, 2)
+        mock_process.wait.assert_any_call(timeout=5)
+        mock_process.kill.assert_called_once()

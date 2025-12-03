@@ -1,5 +1,7 @@
 import os
 import platform
+import subprocess
+
 from pyfmto.utilities import logger
 from tabulate import tabulate
 from typing import Literal
@@ -12,6 +14,7 @@ __all__ = [
     'titled_tabulate',
     'tabulate_formats',
     'matched_str_head',
+    'terminate_popen',
 ]
 
 
@@ -44,6 +47,20 @@ class TabulatesFormats:
 
 
 tabulate_formats = TabulatesFormats()
+
+
+def terminate_popen(process: subprocess.Popen):
+    if process.stdout:
+        process.stdout.close()
+    if process.stderr:
+        process.stderr.close()
+
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
 
 
 def colored(text: str, color: Literal['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'reset']):

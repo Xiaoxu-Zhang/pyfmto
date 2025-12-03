@@ -8,6 +8,7 @@ from .tools import (
     titled_tabulate,
     tabulate_formats,
     matched_str_head,
+    terminate_popen,
 )
 
 from .stroptions import (
@@ -28,11 +29,11 @@ from .io import (
 
 __all__ = [
     'logger',
-    'timer',
     'colored',
     'update_kwargs',
     'clear_console',
     'show_in_table',
+    'terminate_popen',
     'titled_tabulate',
     'matched_str_head',
     'tabulate_formats',
