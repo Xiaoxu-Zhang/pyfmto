@@ -4,19 +4,14 @@ import os
 import pandas as pd
 import seaborn
 import shutil
-import subprocess
-import sys
 import time
 from collections import defaultdict, namedtuple
-from contextlib import contextmanager
 from PIL import Image
 from matplotlib import pyplot as plt
 from scipy import stats
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional, Union, Type
+from typing import Optional, Union
 
-from pyfmto.framework import Client, Server
 from pyfmto.problems import Solution
 from pyfmto.utilities import logger, save_msgpack, titled_tabulate, load_msgpack, colored
 
@@ -27,7 +22,6 @@ __all__ = [
     "RunSolutions",
     "ClientDataStatis",
     "MergedResults",
-    "LauncherUtils",
     "ReporterUtils"
 ]
 
@@ -248,87 +242,6 @@ class MetaData:
             filedir.mkdir(parents=True, exist_ok=True)
             file_name = filedir / self.npd
             return file_name
-
-
-class LauncherUtils:
-
-    @staticmethod
-    def terminate_popen(process: subprocess.Popen):
-        if process.stdout:
-            process.stdout.close()
-        if process.stderr:
-            process.stderr.close()
-
-        process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-
-    @staticmethod
-    @contextmanager
-    def running_server(server: Type[Server], **kwargs):
-        """
-        Start the server in a subprocess with a context manager approach.
-        The server will be automatically terminated when exiting the context.
-
-        Parameters
-        ----------
-        server:
-            The server class itself, not an instance.
-        kwargs:
-            The kwargs of the server.
-
-        Example
-        -------
-        with LauncherUtils.start_server_context(MyServer, port=8080) as server_process:
-            # Do something with the server
-            pass
-        # Server is automatically terminated here
-        """
-        module_name = server.__module__
-        class_name = server.__name__
-
-        cmd = [
-            sys.executable, "-c",
-            f"from {module_name} import {class_name}; "
-            f"srv = {class_name}(**{repr(kwargs)}); "
-            f"srv.start()"
-        ]
-
-        process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        logger.info("Server started.")
-        time.sleep(3)
-        try:
-            yield process
-        finally:
-            LauncherUtils.terminate_popen(process)
-            logger.debug("Server terminated.")
-
-    @staticmethod
-    def start_clients(clients: list[Client]) -> list[Client]:
-        """
-        Start the client and submit to the threadpool.
-
-        Parameters
-        ----------
-        clients:
-            List of Client instances.
-
-        Returns
-        -------
-            List of clients results
-        """
-        pool = ThreadPoolExecutor(max_workers=len(clients))
-        futures = [pool.submit(c.start) for c in clients]
-        pool.shutdown(wait=True)
-        return [fut.result() for fut in futures]
 
 
 class ReporterUtils:

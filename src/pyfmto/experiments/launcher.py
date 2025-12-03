@@ -1,8 +1,19 @@
+import subprocess
+import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from setproctitle import setproctitle
 
-from pyfmto.utilities import logger, show_in_table, clear_console, titled_tabulate, tabulate_formats as tf
-from .utils import LauncherUtils, RunSolutions
+from pyfmto.utilities import (
+    logger,
+    show_in_table,
+    clear_console,
+    titled_tabulate,
+    terminate_popen,
+    tabulate_formats as tf,
+)
+from .utils import RunSolutions
 from ..framework import Client
 from ..utilities.loaders import ExperimentConfig, ConfigLoader
 
@@ -12,6 +23,7 @@ __all__ = ['Launcher']
 class Launcher:
     exp_idx: int
     exp: ExperimentConfig
+    clients: list[Client]
 
     def __init__(self, conf_file: str = 'config.yaml'):
         clear_console()
@@ -19,7 +31,6 @@ class Launcher:
 
         # Runtime data
         self._repeat_id = 0
-        self._num_clients = 0
 
     def run(self):
         self._setup()
@@ -40,20 +51,52 @@ class Launcher:
             # Init clients
             problem = self.exp.problem.initialize()
             clt_params = self.exp.algorithm.params.get('client', {})
-            clients = [self.exp.algorithm.client(p, **clt_params) for p in problem]
+            self.clients = [self.exp.algorithm.client(p, **clt_params) for p in problem]
             self._iid_info = problem[0].npd
-            self._num_clients = len(clients)
             self._show_progress()
 
             # Launch algorithm
-            srv_params = self.exp.algorithm.params.get('server', {})
-            with LauncherUtils.running_server(self.exp.algorithm.server, **srv_params):
-                results = LauncherUtils.start_clients(clients)
+            with self.running_server():
+                results = self.start_clients()
             self._save_results(results)
             self._save_rounds_info(results)
             self._update_repeat_id()
             clear_console()
             time.sleep(1)
+
+    @contextmanager
+    def running_server(self):
+        server = self.exp.algorithm.server
+        kwargs = self.exp.algorithm.params.get('server', {})
+        module_name = server.__module__
+        class_name = server.__name__
+
+        cmd = [
+            sys.executable, "-c",
+            f"from {module_name} import {class_name}; "
+            f"srv = {class_name}(**{repr(kwargs)}); "
+            f"srv.start()"
+        ]
+
+        process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        logger.info("Server started.")
+        time.sleep(3)
+        try:
+            yield process
+        finally:
+            terminate_popen(process)
+            logger.debug("Server terminated.")
+
+    def start_clients(self) -> list[Client]:
+        pool = ThreadPoolExecutor(max_workers=len(self.clients))
+        futures = [pool.submit(c.start) for c in self.clients]
+        pool.shutdown(wait=True)
+        return [fut.result() for fut in futures]
 
     def _save_rounds_info(self, results: list[Client]):
         if self.conf.backup:
@@ -87,7 +130,7 @@ class Launcher:
             algorithm=self.exp.algorithm.name,
             problem=self.exp.problem.name,
             iid=self._iid_info,
-            clients=self._num_clients,
+            clients=len(self.clients),
             save=self.conf.save)
         print(colored_tab)
         logger.info(f"\n{original_tab}")
