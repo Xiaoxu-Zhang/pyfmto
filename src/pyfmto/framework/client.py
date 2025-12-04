@@ -7,7 +7,7 @@ from abc import abstractmethod, ABC
 from collections import defaultdict
 from numpy import ndarray
 from requests.exceptions import ConnectionError  # type: ignore
-from tqdm import tqdm
+from rich.progress import Progress, TaskID
 from typing import final, Any
 from yaml import safe_load
 
@@ -39,6 +39,9 @@ def record_runtime(name=None):
 
 
 class Client(ABC):
+    progress: Progress
+    bar: TaskID
+
     def __init__(self, problem: SingleTaskProblem, **kwargs):
         self._url: str = ''
         self._conn_retry: int = -1
@@ -97,15 +100,10 @@ class Client(ABC):
             self.__register_id()
             self.__logging_start_info()
 
-            pbar = tqdm(
-                total=self.fe_max,
-                initial=self.solutions.num_updated,
-                desc=self.name, unit="Round",
-                ncols=100, position=self.id, leave=False)
-
+            self._refresh_progress()
             while self.problem.fe_available > 0:
                 self.optimize()
-                pbar.update(self.solutions.num_updated)
+                self._refresh_progress()
 
             self.send_quit()
             logger.debug(f"{self.name} exit with available FE = {self.problem.fe_available}")
@@ -118,6 +116,12 @@ class Client(ABC):
             logger.info(f"{self.name} exit with available FE = {self.problem.fe_available}")
             raise
         return self
+
+    def _refresh_progress(self):
+        if getattr(self, 'progress', None) is None or getattr(self, 'bar', None) is None:
+            logger.info(f"{self.name} Rich's progress or TaskID object is None")
+        else:
+            self.progress.advance(self.bar, self.solutions.num_updated)
 
     @abstractmethod
     def optimize(self):
