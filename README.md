@@ -40,8 +40,6 @@ width="95%"/><br>
 
 ## Usage
 
-> PyFMTO is developed and tested on Linux and macOS. It may not work well on Windows.
-
 ### Quick Start
 
 Clone the [fmto](https://github.com/Xiaoxu-Zhang/fmto.git) repository ([why?](#about-fmto)):
