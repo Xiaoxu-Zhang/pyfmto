@@ -9,7 +9,6 @@ from typing import Literal
 __all__ = [
     'colored',
     'clear_console',
-    'show_in_table',
     'update_kwargs',
     'titled_tabulate',
     'tabulate_formats',
@@ -88,31 +87,6 @@ def titled_tabulate(title: str, fill_char: str, *args, **kwargs):
     tab = tabulate(*args, **kwargs)
     tit = title.center(tab.find('\n'), fill_char)
     return f"\n{tit}\n{tab}"
-
-
-def show_in_table(**kwargs):
-    keys, colored_values, original_values = zip(*map(_mapper, kwargs.items()))
-    colored_data = dict(zip(keys, colored_values))
-    original_data = dict(zip(keys, original_values))
-    alignment = ['center'] * len(kwargs)
-    colored_tab = tabulate(colored_data, headers='keys', tablefmt='rounded_grid', colalign=alignment)
-    original_tab = tabulate(original_data, headers='keys', tablefmt='rounded_grid', colalign=alignment)
-    return colored_tab, original_tab
-
-
-def _mapper(item):
-    k, v = item
-    if v is True:
-        return k, [colored('yes', 'green')], [str(v)]
-    elif v is False:
-        return k, [colored('no', 'red')], [str(v)]
-    elif isinstance(v, int):
-        return k, [colored(str(v), 'magenta')], [str(v)]
-    elif isinstance(v, float):
-        val_str = f"{v:.3f}"
-        return k, [colored(val_str, 'green')], [val_str]
-    else:
-        return k, [str(v)], [str(v)]
 
 
 def update_kwargs(name, defaults: dict, updates: dict):

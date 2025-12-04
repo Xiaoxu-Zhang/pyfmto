@@ -4,7 +4,6 @@ from unittest.mock import patch, Mock
 
 from pyfmto.utilities import (
     colored,
-    show_in_table,
     update_kwargs,
     clear_console,
     titled_tabulate,
@@ -39,21 +38,6 @@ class TestTools(unittest.TestCase):
         self.assertIn('\033[32m', color_text)
         self.assertIn(text, color_text)
         self.assertRaises(ValueError, colored, text, 'invalid_color')
-
-    def test_show_in_table(self):
-        settings = {
-            "verbose": True,
-            "iterations": 100,
-            "learning_rate": 0.01,
-            "use_cache": False,
-            "description": "Test Settings"
-        }
-        colored_table, _ = show_in_table(**settings)
-        self.assertIn("yes", colored_table)
-        self.assertIn("no", colored_table)
-        self.assertIn("\033[32m", colored_table)  # green for float
-        self.assertIn("\033[31m", colored_table)  # red for boolean (False)
-        self.assertIn("\033[35m", colored_table)  # magenta for int
 
     def test_titled_tabulate(self):
         data = {"abc": [1, 2, 3], "bcd": [4, 5, 6], 'cde': [7, 8, 9]}
