@@ -232,6 +232,8 @@ class TestExperimentConfig(unittest.TestCase):
 
     def test_default_value(self):
         exp = loaders.ExperimentConfig(self.alg, self.prob, 'out/results')
+        self.assertIn('Alg', repr(exp))
+        self.assertIn('Prob', repr(exp))
         self.assertIsInstance(exp.algorithm, AlgorithmData)
         self.assertIsInstance(exp.problem, ProblemData)
         self.assertIsInstance(exp.root, Path)
@@ -249,8 +251,8 @@ class TestExperimentConfig(unittest.TestCase):
 
         self.assertIn('algorithm', exp.params_dict)
         self.assertIn('problem', exp.params_dict)
-        self.assertIn('prob', str(exp))
-        self.assertIn('alg', str(exp))
+        self.assertIn('PROB', str(exp))
+        self.assertIn('ALG', str(exp))
 
         exp.problem.params_update = {'dim': 2, 'npd': 2}
         prefix = "FEi10_FEm22_Seed123_"
@@ -282,6 +284,18 @@ class TestExperimentConfig(unittest.TestCase):
 
 
 class TestLauncherConfig(unittest.TestCase):
+    def setUp(self):
+        gen_algorithm('ALG1')
+        for prob in ['PROB1', 'PROB2', 'PROB3']:
+            gen_problem(prob)
+        self.exp = [
+            loaders.ExperimentConfig(loaders.load_algorithm('ALG1'), loaders.load_problem(prob), 'out/results')
+            for prob in ['PROB1', 'PROB2', 'PROB3']
+        ]
+
+    def tearDown(self):
+        remove_temp_files()
+
     def test_valid_config(self):
         config = LauncherConfig(
             results='out/results',
@@ -302,9 +316,9 @@ class TestLauncherConfig(unittest.TestCase):
         self.assertEqual(config.algorithms, ['alg1', 'alg2'])
         self.assertEqual(config.problems, ['prob1', 'prob2'])
         self.assertEqual(config.n_exp, 0)
-        config.experiments = [1, 2, 3]
+        self.exp[0].success = True
+        config.experiments = self.exp
         self.assertEqual(config.n_exp, 3)
-        self.assertEqual(config.experiments, [1, 2, 3])
         self.assertEqual(config.total_repeat, config.n_exp * config.repeat)
         config.show_summary()
 

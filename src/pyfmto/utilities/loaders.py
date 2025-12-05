@@ -8,6 +8,9 @@ from importlib import import_module
 from itertools import product
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict
+from rich import box
+from rich.console import Console
+from rich.table import Table
 from ruamel.yaml import CommentedMap
 from textwrap import indent
 from typing import Type, Any, Union, Literal
@@ -15,9 +18,9 @@ from typing import Type, Any, Union, Literal
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
 from pyfmto.problems import MultiTaskProblem, realworld, synthetic
+from . import titled_tabulate
 from .io import parse_yaml, dumps_yaml, load_yaml, save_yaml
 from .loggers import logger
-from .tools import show_in_table
 
 __all__ = [
     'list_algorithms',
@@ -282,6 +285,7 @@ class ExperimentConfig:
         self.algorithm = algorithm
         self.problem = problem
         self._root = Path(root)
+        self.success = False
 
     @property
     def root(self) -> Path:
@@ -335,13 +339,23 @@ class ExperimentConfig:
         self.root.mkdir(parents=True, exist_ok=True)
 
     def __str__(self):
+        tab = {
+            'Algorithm': [self.algorithm.name],
+            'Problem': [self.problem.name],
+            'NPD': [self.problem.npd_str],
+            'Dimension': [self.problem.dim_str],
+        }
+        return titled_tabulate("Experiment", '=', tab, tablefmt='rounded_grid')
+
+    def __repr__(self):
         info = [
-            f"alg: {self.algorithm.name}"
-            f"prob: {self.problem.name}"
-            f"  prob.npd: {self.problem.params['npd']}"
-            f"  prob.dim: {self.problem.params.get('dim', 'unknown')}"
+            f"Alg({self.algorithm.name})",
+            f"Prob({self.problem.name})",
+            f"NPD({self.problem.params['npd']})",
+            f"Dim({self.problem.params.get('dim', '-')})",
         ]
-        return '\n'.join(info)
+
+        return ' '.join(info)
 
 
 class LauncherConfig(BaseModel):
@@ -357,12 +371,26 @@ class LauncherConfig(BaseModel):
     experiments: list[ExperimentConfig] = []
 
     def show_summary(self):
-        colored_tab, _ = show_in_table(
-            num_exp=len(self.experiments),
-            repeat_per_exp=self.repeat,
-            total_repeat=self.total_repeat,
+        tab = Table(
+            title="Experiments Summary",
+            title_justify="center",
+            box=box.ROUNDED,
         )
-        print(colored_tab)
+        tab.add_column('Algorithm', justify='center', style="cyan")
+        tab.add_column('Original', justify='center', style="cyan")
+        tab.add_column('Problem', justify='center', style="magenta")
+        tab.add_column('NPD', justify='center', style="yellow")
+        tab.add_column('Success', justify='center')
+
+        for exp in self.experiments:
+            tab.add_row(
+                exp.algorithm.name,
+                exp.algorithm.name_orig,
+                exp.problem.name,
+                exp.problem.npd_str,
+                '[green]yes[/green]' if exp.success else '[red]no[/red]'
+            )
+        Console().print(tab)
 
     @property
     def n_exp(self) -> int:
