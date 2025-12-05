@@ -36,6 +36,7 @@ dependencies = [
     "tqdm",
     "uvicorn",
     "wrapt",
+    "rich",
    ]
 classifiers = [
     "Development Status :: 4 - Beta",
