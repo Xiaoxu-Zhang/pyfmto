@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from rich import box, progress as rpg
 from rich.console import Group, Console
 from rich.live import Live
+from rich.measure import measure_renderables
 from rich.table import Table
 from setproctitle import setproctitle
 from tabulate import tabulate
@@ -46,14 +47,16 @@ class Launcher:
                 self.exp.init_root()
                 self.exp.backup_params()
             self._repeating()
+        self._remove_bars()
         self.conf.show_summary()
 
     def _setup(self):
         self.progress = rpg.Progress(
             rpg.TextColumn("[progress.description]{task.description}"),
-            rpg.BarColumn(),
+            rpg.BarColumn(bar_width=None),
             rpg.TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             rpg.TimeRemainingColumn(),
+            expand=True,
         )
         setproctitle("AlgClients")
 
@@ -76,7 +79,7 @@ class Launcher:
 
     def _launch_exp(self):
         clear_console()
-        with Live(self._panel, console=Console(width=120), refresh_per_second=10):
+        with Live(self._panel, console=Console(width=self.width), refresh_per_second=10):
             with self._running_server():
                 self._start_clients()
 
@@ -85,6 +88,12 @@ class Launcher:
         self._remove_bars()
         self._update_table()
         return Group(self.table, self.progress)
+
+    @property
+    def width(self):
+        csl = Console(width=1000)
+        min_width, max_width = measure_renderables(csl, csl.options, [self.table])
+        return min_width
 
     def _remove_bars(self):
         for bar in self.progress.task_ids:
