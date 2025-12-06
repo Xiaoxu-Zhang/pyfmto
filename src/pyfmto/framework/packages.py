@@ -5,7 +5,7 @@ from typing import Optional, Any
 
 from pyfmto.utilities import logger
 
-__all__ = ['Actions', 'ClientPackage', 'DataArchive', 'SyncDataManager']
+__all__ = ['Actions', 'ClientPackage', 'SyncDataManager']
 
 
 class Actions(Enum):
@@ -25,25 +25,41 @@ class SyncDataManager:
         self._result: dict[int, dict[int, Any]] = defaultdict(dict)
 
     @validate_call
-    def update_src(self, cid: int, version: int, data: Any):
+    def update_src(self, cid: int, version: int, data: Any) -> None:
+        """
+        Update aggregation source of a client
+        """
         self._source[cid][version] = data
 
     @validate_call
-    def update_res(self, cid: int, version: int, data: Any):
+    def update_res(self, cid: int, version: int, data: Any) -> None:
+        """
+        Update aggregation results of a client
+        """
         self._result[cid][version] = data
 
     @validate_call
     def lts_src_ver(self, cid: int) -> int:
+        """
+        Return the latest source version of a client
+        """
         data = self._source.get(cid, {-1: None})
         return max(data.keys())
 
     @validate_call
     def lts_res_ver(self, cid: int) -> int:
+        """
+        Return the latest aggregation result version of a client
+        """
         data = self._result.get(cid, {-1: None})
         return max(data.keys())
 
     @validate_call
-    def get_src(self, cid: int, version: int):
+    def get_src(self, cid: int, version: int) -> Any:
+        """
+        - Return the aggregation source
+        - Return None if not found
+        """
         if cid not in self._source:
             logger.debug(f"cid={cid} not found in source")
             return None
@@ -53,7 +69,11 @@ class SyncDataManager:
         return data
 
     @validate_call
-    def get_res(self, cid: int, version: int):
+    def get_res(self, cid: int, version: int) -> Any:
+        """
+        - Return the aggregation result data
+        - Return None if not found
+        """
         if cid not in self._result:
             logger.debug(f"cid={cid} not found in result")
             return None
@@ -64,6 +84,10 @@ class SyncDataManager:
 
     @property
     def available_src_ver(self) -> int:
+        """
+        - The latest consistent version uploaded by all clients
+        - -1 if no source data is available
+        """
         try:
             return min([max(data.keys()) for data in self._source.values()])
         except ValueError:
@@ -71,30 +95,7 @@ class SyncDataManager:
 
     @property
     def num_clients(self) -> int:
+        """
+        The number of clients that have uploaded least 1 source data
+        """
         return len(self._source)
-
-
-class DataArchive:
-    def __init__(self):
-        self.src_data = []
-        self.res_data = []
-
-    @property
-    def num_src(self) -> int:
-        return len(self.src_data)
-
-    @property
-    def num_res(self) -> int:
-        return len(self.res_data)
-
-    def add_src(self, src_data):
-        self.src_data.append(src_data)
-
-    def add_res(self, agg_data):
-        self.res_data.append(agg_data)
-
-    def get_latest_res(self):
-        return self.res_data[-1] if self.num_res > 0 else None
-
-    def get_latest_src(self):
-        return self.src_data[-1] if self.num_src > 0 else None

@@ -1,11 +1,10 @@
 from .client import Client, record_runtime
 from .server import Server
-from .packages import ClientPackage, SyncDataManager, DataArchive
+from .packages import ClientPackage, SyncDataManager
 
 __all__ = [
     'Client',
     'Server',
-    'DataArchive',
     'SyncDataManager',
     'ClientPackage',
     'record_runtime'

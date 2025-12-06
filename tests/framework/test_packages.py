@@ -4,7 +4,6 @@ import unittest
 from pyfmto.framework.packages import (
     Actions,
     ClientPackage,
-    DataArchive,
     SyncDataManager
 )
 
@@ -26,28 +25,6 @@ class TestPackagesForCoverage(unittest.TestCase):
         pkg = ClientPackage(cid=None, action=Actions.QUIT)
         self.assertIsNone(pkg.cid)
         self.assertEqual(pkg.action, Actions.QUIT)
-
-    def test_data_archive_initial_state(self):
-        archive = DataArchive()
-        self.assertEqual(archive.num_src, 0)
-        self.assertEqual(archive.num_res, 0)
-        self.assertIsNone(archive.get_latest_src())
-        self.assertIsNone(archive.get_latest_res())
-
-    def test_data_archive_add_and_get(self):
-        archive = DataArchive()
-
-        # Add src data
-        archive.add_src("src1")
-        archive.add_src("src2")
-        self.assertEqual(archive.num_src, 2)
-        self.assertEqual(archive.get_latest_src(), "src2")
-
-        # Add res data
-        archive.add_res("res1")
-        archive.add_res("res2")
-        self.assertEqual(archive.num_res, 2)
-        self.assertEqual(archive.get_latest_res(), "res2")
 
 
 class TestSyncDataManager(unittest.TestCase):
