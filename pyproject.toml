@@ -37,6 +37,7 @@ dependencies = [
     "uvicorn",
     "wrapt",
     "rich",
+    'deepdiff',
    ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -107,7 +108,6 @@ dev = [
     "joblib",
     "python-dateutil",
     "starlette",
-    'deepdiff',
 ]
 
 [project.scripts]
