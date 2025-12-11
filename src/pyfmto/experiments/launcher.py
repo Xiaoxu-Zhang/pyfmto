@@ -144,7 +144,9 @@ class Launcher:
 
         cmd = [
             sys.executable, "-c",
+            "from pyfmto.utilities import logger; "
             f"from {server.__module__} import {server.__name__}; "
+            f"logger.setLevel('{self.conf.loglevel}'); "
             f"srv = {server.__name__}(**{repr(kwargs)}); "
             f"srv.start()"
         ]

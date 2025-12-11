@@ -18,7 +18,7 @@ from typing import Type, Any, Union, Literal
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
 from pyfmto.problems import MultiTaskProblem, realworld, synthetic
-from . import titled_tabulate
+from . import titled_tabulate, clear_console
 from .io import parse_yaml, dumps_yaml, load_yaml, save_yaml
 from .loggers import logger
 
@@ -390,6 +390,7 @@ class LauncherConfig(BaseModel):
                 exp.problem.npd_str,
                 '[green]yes[/green]' if exp.success else '[red]no[/red]'
             )
+        clear_console()
         Console().print(tab)
 
     @property
@@ -460,6 +461,7 @@ class ConfigLoader:
     def launcher(self) -> LauncherConfig:
         self.check_config_issues('launcher')
         conf = LauncherConfig(**self.config['launcher'])
+        logger.setLevel(conf.loglevel)
         algorithms = self.gen_alg_list(conf.algorithms)
         problems = self.gen_prob_list(conf.problems)
         logger.debug(f"algorithms: {[alg.name for alg in algorithms]}")
@@ -515,7 +517,6 @@ class ConfigLoader:
         return problems
 
     def check_config_issues(self, name: Literal['launcher', 'reporter']) -> None:
-        logger.debug(f"Checking {name} configuration...")
         if name == 'launcher':
             issues = self.check_launcher_config()
         else:
