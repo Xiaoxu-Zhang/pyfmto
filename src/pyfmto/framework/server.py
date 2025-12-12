@@ -12,8 +12,7 @@ from tabulate import tabulate
 from typing import final, Any
 
 from .packages import ClientPackage, Actions
-from pyfmto.utilities import logger, parse_yaml
-from ..utilities.tools import update_kwargs
+from pyfmto.utilities import logger
 
 app = FastAPI()
 
@@ -29,10 +28,9 @@ class Server(ABC):
     _server: uvicorn.Server
 
     def __init__(self, **kwargs):
+        self.agg_interval = 0.1
         self._active_clients = set()
         self._server_info = defaultdict(list)
-        self._agg_interval = 0.5
-        self._handler_pool_size = 2
         self._updated_server_info = False
 
         self._register_routes()
@@ -43,26 +41,23 @@ class Server(ABC):
         self._quit = False
         self._last_request_time = time.time()
 
-    def set_addr(self, host='localhost', port=18510):
+    def set_addr(self, host='localhost', port=18510) -> None:
         self._config.host = host
         self._config.port = port
 
     @staticmethod
-    def enable_consol_log():
+    def enable_consol_log() -> None:
         for name in ["uvicorn", "fastapi", "uvicorn.error", "uvicorn.access"]:
             __logger = logging.getLogger(name)
             __logger.setLevel(logging.INFO)
             __logger.disabled = False
 
     @staticmethod
-    def _disable_consol_log():
+    def _disable_consol_log() -> None:
         for name in ["uvicorn", "fastapi", "uvicorn.error", "uvicorn.access"]:
             __logger = logging.getLogger(name)
             __logger.setLevel(logging.ERROR)
             __logger.disabled = True
-
-    def set_agg_interval(self, seconds: float):
-        self._agg_interval = max(0.01, seconds)
 
     def update_server_info(self, name: str, value: str):
         lts = self._server_info[name][-1:]
@@ -86,7 +81,7 @@ class Server(ABC):
 
     async def _aggregator(self):
         while not self._quit:
-            await asyncio.sleep(self._agg_interval)
+            await asyncio.sleep(max(0.01, self.agg_interval))
             if self.num_clients == 0:
                 continue
             try:
@@ -159,14 +154,16 @@ class Server(ABC):
             self._server.should_exit = True
             self._server.force_exit = True
 
-    def update_kwargs(self, kwargs: dict):
-        docstr = parse_yaml(self.__class__.__doc__)
-        return update_kwargs(self.__class__.__name__, docstr, kwargs)
-
     @property
-    def sorted_ids(self):
+    def sorted_ids(self) -> list[int]:
+        """
+        Returns a list of client IDs sorted in ascending order.
+        """
         return sorted(self._active_clients)
 
     @property
-    def num_clients(self):
+    def num_clients(self) -> int:
+        """
+        Return the number of active clients currently connected to the server.
+        """
         return len(self._active_clients)

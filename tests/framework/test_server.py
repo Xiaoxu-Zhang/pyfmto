@@ -23,7 +23,6 @@ class TestEmptyServer(unittest.TestCase):
             """
             def __init__(self, **kwargs):
                 super().__init__()
-                kwargs = self.update_kwargs(kwargs)
                 self.alpha = kwargs['alpha']
                 self.beta = kwargs['beta']
         server = ConfigurableServer(alpha=0.3, beta=0.4)
@@ -35,7 +34,7 @@ class TestEmptyServer(unittest.TestCase):
 
         self.assertEqual(server._config.host, 'localhost')
         self.assertEqual(server._config.port, 18510)
-        self.assertEqual(server._agg_interval, 0.5)
+        self.assertEqual(server.agg_interval, 0.1)
 
         for ip, port in zip(['1.2.3.4', '5.6.7.8', '9.10.11.12'], [18510, 18511, 18512]):
             server.set_addr(ip, port)
@@ -43,8 +42,8 @@ class TestEmptyServer(unittest.TestCase):
             self.assertEqual(server._config.port, port)
 
         for agg_itv in [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]:
-            server.set_agg_interval(agg_itv)
-            self.assertEqual(server._agg_interval, max(agg_itv, 0.01))
+            server.agg_interval = agg_itv
+            self.assertEqual(server.agg_interval, agg_itv)
 
         server.enable_consol_log()
 

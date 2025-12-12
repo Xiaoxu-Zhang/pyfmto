@@ -21,7 +21,6 @@ class OfflineServer(Server):
 class OnlineServer(Server):
     def __init__(self):
         super().__init__()
-        self.set_agg_interval(0.1)
         self.update_server_info('time init', date.ctime(date.today()))
         self.update_server_info('time init', date.ctime(date.today()))
         self.update_server_info('num clients', str(self.num_clients))
