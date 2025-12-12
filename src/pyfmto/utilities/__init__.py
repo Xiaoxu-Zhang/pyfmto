@@ -2,7 +2,6 @@ from .loggers import logger
 
 from .tools import (
     colored,
-    update_kwargs,
     clear_console,
     titled_tabulate,
     tabulate_formats,
@@ -29,7 +28,6 @@ from .io import (
 __all__ = [
     'logger',
     'colored',
-    'update_kwargs',
     'clear_console',
     'terminate_popen',
     'titled_tabulate',

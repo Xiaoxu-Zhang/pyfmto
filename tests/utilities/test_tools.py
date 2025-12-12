@@ -4,7 +4,6 @@ from unittest.mock import patch, Mock
 
 from pyfmto.utilities import (
     colored,
-    update_kwargs,
     clear_console,
     titled_tabulate,
     terminate_popen,
@@ -52,17 +51,6 @@ class TestTools(unittest.TestCase):
         lines = tit.split('\n')
         self.assertTrue('Test' in lines[1], f"Titled table is \n {tit}")
         self.assertEqual(len(tit[1]), len(tit[2]))
-
-    def test_warn_unused_kwargs(self):
-        empty1 = update_kwargs('test', {}, {'a': 1, 'b': 2})
-        empty2 = update_kwargs('test', {}, {})
-        res1 = update_kwargs('test', {'a': 1, 'b': 2}, {})
-        res2 = update_kwargs('test', {'a': 1, 'b': 2}, {'a': 2})
-
-        self.assertEqual(empty1, {})
-        self.assertEqual(empty2, {})
-        self.assertTrue(res1 == {'a': 1, 'b': 2})
-        self.assertTrue(res2 == {'a': 2, 'b': 2})
 
     def test_terminate_popen_normal(self):
         mock_process = Mock(spec=subprocess.Popen)
