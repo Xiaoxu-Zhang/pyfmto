@@ -45,7 +45,6 @@ class TestClient(unittest.TestCase):
 
             def __init__(self, problem, **kwargs):
                 super().__init__(problem)
-                kwargs = self.update_kwargs(kwargs)
                 self.alpha = kwargs['alpha']
                 self.beta = kwargs['beta']
 
@@ -54,7 +53,7 @@ class TestClient(unittest.TestCase):
 
         prob = self.problems[0]
         defaults = parse_yaml(ConfigurableClient.__doc__)
-        default_config = ConfigurableClient(prob)
+        default_config = ConfigurableClient(prob, **defaults)
         for k, v in defaults.items():
             self.assertEqual(getattr(default_config, k), v, f'Client parameter {k} is not equal to {v}')
         for alpha, beta in product([0.1, 0.2, 0.3], [0.4, 0.5, 0.6]):

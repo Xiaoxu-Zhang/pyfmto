@@ -9,11 +9,10 @@ from numpy import ndarray
 from requests.exceptions import ConnectionError  # type: ignore
 from rich.progress import Progress, TaskID
 from typing import final, Any
-from yaml import safe_load
 
 from .packages import ClientPackage, Actions
 from pyfmto.problems import SingleTaskProblem
-from pyfmto.utilities import logger, update_kwargs, titled_tabulate, tabulate_formats as tf, colored
+from pyfmto.utilities import logger, colored, titled_tabulate, tabulate_formats as tf
 
 __all__ = [
     'Client',
@@ -44,13 +43,13 @@ class Client(ABC):
 
     def __init__(self, problem: SingleTaskProblem, **kwargs):
         self._url: str = ''
-        self._conn_retry: int = -1
+        self.conn_retry: int = 3
         self.problem = problem
         self.rounds_info: dict[str, list[str]] = defaultdict(list)
 
         self.set_addr()
 
-    def set_addr(self, ip='localhost', port=18510, conn_retry: int = 3):
+    def set_addr(self, ip='localhost', port=18510) -> None:
         """
         Configure the server address and port that this client will connect to.
 
@@ -62,11 +61,6 @@ class Client(ABC):
         port : int, optional
             The port number on which the server is listening. Default is 18510.
 
-        conn_retry : int, optional
-            Maximum number of connection retry attempts if the initial request fails.
-            This value determines how many times the client will attempt to reconnect
-            before raising an exception. Default is 3.
-
         Returns:
         --------
         None
@@ -74,7 +68,6 @@ class Client(ABC):
         """
         # noinspection HttpUrlsUsage
         self._url = f"http://{ip}:{port}"
-        self._conn_retry = conn_retry
 
     def __logging_start_info(self):
         param_dict = defaultdict(list)
@@ -85,7 +78,7 @@ class Client(ABC):
         param_dict['IniFE'].append(str(self.problem.fe_init))
         param_dict['MaxFE'].append(str(self.problem.fe_max))
         tab = titled_tabulate(
-            f"{self.name} Init information", '=',
+            f"{self.name} init information", '=',
             param_dict, headers='keys', tablefmt=tf.rounded_grid
         )
         logger.debug(tab)
@@ -100,10 +93,10 @@ class Client(ABC):
             self.__register_id()
             self.__logging_start_info()
 
-            self._refresh_progress()
+            self.__refresh_progress()
             while self.problem.fe_available > 0:
                 self.optimize()
-                self._refresh_progress()
+                self.__refresh_progress()
 
             self.send_quit()
             logger.debug(f"{self.name} exit with available FE = {self.problem.fe_available}")
@@ -117,9 +110,9 @@ class Client(ABC):
             raise
         return self
 
-    def _refresh_progress(self):
+    def __refresh_progress(self):
         if getattr(self, 'progress', None) is None or getattr(self, 'bar', None) is None:
-            logger.info(f"{self.name} Rich's progress or TaskID object is None")
+            logger.debug(f"{self.name} Rich's progress or TaskID object is None")
         else:
             self.progress.advance(self.bar, self.solutions.num_updated)
 
@@ -133,7 +126,7 @@ class Client(ABC):
         logger.debug(f"{self.name} registered")
 
     @staticmethod
-    def deserialize_pickle(package: Any):
+    def __uppack(package: Any):
         return pickle.loads(package) if package is not None else None
 
     def request_server(self, package: ClientPackage,
@@ -188,16 +181,16 @@ class Client(ABC):
                 logger.error(f"{self.name} Connection failed {failed_retry} times.")
                 time.sleep(interval)
                 failed_retry += 1
-                if failed_retry > self._conn_retry:
-                    raise ConnectionError(f"{self.name} Connection failed {self._conn_retry} times.")
+                if failed_retry > self.conn_retry:
+                    raise ConnectionError(f"{self.name} Connection failed {self.conn_retry} times.")
                 continue
-            pkg = self.deserialize_pickle(resp.content)
+            pkg = self.__uppack(resp.content)
             if pkg is not None and self.check_pkg(pkg):
                 return pkg
             else:
                 time.sleep(interval)
                 request_repeat += 1
-        raise ConnectionError(f"{self.name} Requested repeat failed for {repeat_max} times")
+        return None
 
     def check_pkg(self, pkg) -> bool:
         """
@@ -211,7 +204,7 @@ class Client(ABC):
         Returns
         -------
         bool
-            True if the package is acceptable; otherwise, False.
+            True(default) if the package is acceptable; otherwise, False.
 
         Notes
         -----
@@ -227,52 +220,56 @@ class Client(ABC):
         quit_pkg = ClientPackage(self.id, Actions.QUIT)
         self.request_server(quit_pkg)
 
-    def update_kwargs(self, kwargs: dict):
-        _docstr = self.__class__.__doc__
-        docstr = {} if not _docstr else safe_load(_docstr)
-        return update_kwargs(self.__class__.__name__, docstr, kwargs)
-
     @property
-    def id(self):
-        """Same with the problem id"""
+    def id(self) -> int:
+        """Using the problem id as client's id"""
         return self.problem.id
 
     @property
-    def name(self):
+    def name(self) -> str:
         return f"Client {self.id:<2}"
 
     @property
     def dim(self) -> int:
+        """The problem dimensions of the client"""
         return self.problem.dim
 
     @property
     def obj(self) -> int:
+        """The problem's objectives of the client"""
         return self.problem.obj
 
     @property
     def fe_init(self) -> int:
+        """The problem's initial random fitness evaluations of the client"""
         return self.problem.fe_init
 
     @property
     def fe_max(self) -> int:
+        """The problem's maximum fitness evaluations of the client"""
         return self.problem.fe_max
 
     @property
     def y_max(self) -> float:
+        """The problem's current maximum objective value of the client"""
         return self.solutions.y_max
 
     @property
     def y_min(self) -> float:
+        """The problem's current minimum objective value of the client"""
         return self.solutions.y_min
 
     @property
     def lb(self) -> ndarray:
+        """The problem's lower bounds of the client"""
         return self.problem.lb
 
     @property
     def ub(self) -> ndarray:
+        """The problem's upper bounds of the client"""
         return self.problem.ub
 
     @property
     def solutions(self):
+        """The problem's solutions object of the client"""
         return self.problem.solutions
