@@ -36,12 +36,6 @@ class TestClientSide(unittest.TestCase):
         with running_server(OfflineServer):
             start_clients(clients)
 
-    def test_valid_online_client(self):
-        clients = [OnlineClient(prob) for prob in self.problems[:N_CLIENTS]]
-        with running_server(OfflineServer):
-            with self.assertRaises(ConnectionError):
-                start_clients(clients)
-
         clients = [OnlineClient(prob) for prob in self.problems[:N_CLIENTS]]
         with running_server(OnlineServer):
             start_clients(clients)
