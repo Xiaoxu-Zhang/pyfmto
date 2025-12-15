@@ -43,7 +43,7 @@ class Client(ABC):
 
     def __init__(self, problem: SingleTaskProblem, **kwargs):
         self._url: str = ''
-        self.conn_retry: int = 3
+        self.conn_retry: int = 5
         self.problem = problem
         self.rounds_info: dict[str, list[str]] = defaultdict(list)
 
