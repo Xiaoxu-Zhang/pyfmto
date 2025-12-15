@@ -38,6 +38,9 @@ class TestSyncDataManager(unittest.TestCase):
     def test_update_src(self):
         self.sync_manager.update_src(1, 100, "test_data")
         self.assertEqual(self.sync_manager.get_src(1, 100), "test_data")
+        self.assertIn('Aggregation Source', self.sync_manager.data_info)
+        self.assertNotIn('Aggregation Results', self.sync_manager.data_info)
+        self.assertNotEqual(self.sync_manager.data_info, '')
 
     def test_update_res(self):
         self.sync_manager.update_res(1, 200, "result_data")

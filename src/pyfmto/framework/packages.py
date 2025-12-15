@@ -3,7 +3,7 @@ from enum import Enum, auto
 from pydantic import validate_call
 from typing import Optional, Any
 
-from pyfmto.utilities import logger
+from pyfmto.utilities import logger, titled_tabulate, tabulate_formats
 
 __all__ = ['Actions', 'ClientPackage', 'SyncDataManager']
 
@@ -99,3 +99,17 @@ class SyncDataManager:
         The number of clients that have uploaded least 1 source data
         """
         return len(self._source)
+
+    @property
+    def data_info(self):
+        src = {f"C {cid}": [self.lts_src_ver(cid)] for cid in sorted(self._source.keys())}
+        res = {f"C {cid}": [self.lts_res_ver(cid)] for cid in sorted(self._result.keys())}
+        src_str = titled_tabulate("Aggregation Source", '=',
+                                  src, headers='keys', tablefmt=tabulate_formats.rounded_grid) if src else ""
+        res_str = titled_tabulate("Aggregation Results", '=',
+                                  res, headers='keys', tablefmt=tabulate_formats.rounded_grid) if res else ""
+        return (
+            f"AvaSrcVer: {self.available_src_ver}\n"
+            f"Total Clt: {self.num_clients}"
+            f"{src_str}{res_str}"
+        )
