@@ -12,7 +12,7 @@ from tabulate import tabulate
 from typing import final, Any
 
 from .packages import ClientPackage, Actions
-from pyfmto.utilities import logger
+from pyfmto.utilities import logger, redirect_warnings
 
 app = FastAPI()
 
@@ -70,7 +70,8 @@ class Server(ABC):
     def start(self):
         setproctitle('AlgServer')
         self._server = uvicorn.Server(self._config)
-        asyncio.run(self._run_server())
+        with redirect_warnings():
+            asyncio.run(self._run_server())
 
     async def _run_server(self):
         await asyncio.gather(

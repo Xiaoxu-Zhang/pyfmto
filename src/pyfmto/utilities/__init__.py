@@ -7,6 +7,7 @@ from .tools import (
     tabulate_formats,
     matched_str_head,
     terminate_popen,
+    redirect_warnings,
 )
 
 from .stroptions import (
@@ -33,6 +34,7 @@ __all__ = [
     'titled_tabulate',
     'matched_str_head',
     'tabulate_formats',
+    'redirect_warnings',
     'Cmaps',
     'StrColors',
     'SeabornStyles',
