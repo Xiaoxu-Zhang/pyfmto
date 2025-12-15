@@ -47,7 +47,8 @@ class Launcher:
             if self.conf.save:
                 self.exp.init_root()
                 self.exp.backup_params()
-            self._repeating()
+            with redirect_warnings():
+                self._repeating()
         self._remove_bars()
         self.conf.show_summary()
 
@@ -60,7 +61,6 @@ class Launcher:
             rpg.TimeRemainingColumn(),
             expand=True,
         )
-        redirect_warnings()
         setproctitle("AlgClients")
 
     def _repeating(self):

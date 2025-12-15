@@ -2,6 +2,7 @@ import os
 import platform
 import subprocess
 
+from contextlib import contextmanager
 from tabulate import tabulate
 from typing import Literal
 from .loggers import logger
@@ -103,14 +104,19 @@ def matched_str_head(s: str, str_list: list[str]) -> str:
     return ''
 
 
+@contextmanager
 def redirect_warnings():
     import warnings
     orig_show = warnings.showwarning
 
-    def my_show(message, category, *args, **kwargs) -> None:
+    def redirected_show(message, category, *args, **kwargs) -> None:
         if issubclass(category, UserWarning):
             logger.warning(message)
         else:
             orig_show(message, category, *args, **kwargs)
 
-    warnings.showwarning = my_show
+    warnings.showwarning = redirected_show
+    try:
+        yield
+    finally:
+        warnings.showwarning = orig_show

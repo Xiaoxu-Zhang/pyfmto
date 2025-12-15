@@ -94,20 +94,14 @@ class TestTools(unittest.TestCase):
         mock_process.kill.assert_called_once()
 
     def test_redirect_warnings_user_warning(self):
-        original_showwarning = warnings.showwarning
-
-        redirect_warnings()
-
-        with patch('pyfmto.utilities.loggers.logger.warning') as mock_logger_warning:
-            warnings.warn("This is a user warning", UserWarning)
-            mock_logger_warning.assert_called_once()
-        warnings.showwarning = original_showwarning
+        with redirect_warnings():
+            with patch('pyfmto.utilities.loggers.logger.warning') as mock_logger_warning:
+                warnings.warn("This is a user warning", UserWarning)
+                mock_logger_warning.assert_called_once()
 
     def test_redirect_warnings_deprecation_warning(self):
-        original_showwarning = warnings.showwarning
         mock_original = Mock()
         warnings.showwarning = mock_original
-        redirect_warnings()
-        warnings.warn("This is a deprecation warning", DeprecationWarning)
-        mock_original.assert_called_once()
-        warnings.showwarning = original_showwarning
+        with redirect_warnings():
+            warnings.warn("This is a deprecation warning", DeprecationWarning)
+            mock_original.assert_called_once()
