@@ -21,6 +21,7 @@ from pyfmto.utilities import (
 from .utils import RunSolutions
 from ..framework import Client
 from ..utilities.loaders import ExperimentConfig, ConfigLoader
+from ..utilities.tools import redirect_warnings
 
 __all__ = ['Launcher']
 
@@ -55,9 +56,11 @@ class Launcher:
             rpg.TextColumn("[progress.description]{task.description}"),
             rpg.BarColumn(bar_width=None),
             rpg.TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            rpg.MofNCompleteColumn(),
             rpg.TimeRemainingColumn(),
             expand=True,
         )
+        redirect_warnings()
         setproctitle("AlgClients")
 
     def _repeating(self):
@@ -154,8 +157,8 @@ class Launcher:
         process = subprocess.Popen(
             cmd,
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stdout=None,
+            stderr=None
         )
         logger.info("Server started.")
         time.sleep(3)
