@@ -4,6 +4,7 @@ import subprocess
 
 from tabulate import tabulate
 from typing import Literal
+from .loggers import logger
 
 __all__ = [
     'colored',
@@ -12,6 +13,7 @@ __all__ = [
     'tabulate_formats',
     'matched_str_head',
     'terminate_popen',
+    'redirect_warnings',
 ]
 
 
@@ -99,3 +101,16 @@ def matched_str_head(s: str, str_list: list[str]) -> str:
         if item.startswith(s):
             return item
     return ''
+
+
+def redirect_warnings():
+    import warnings
+    orig_show = warnings.showwarning
+
+    def my_show(message, category, *args, **kwargs) -> None:
+        if issubclass(category, UserWarning):
+            logger.warning(message)
+        else:
+            orig_show(message, category, *args, **kwargs)
+
+    warnings.showwarning = my_show

@@ -1,5 +1,6 @@
 import subprocess
 import unittest
+import warnings
 from unittest.mock import patch, Mock
 
 from pyfmto.utilities import (
@@ -9,6 +10,7 @@ from pyfmto.utilities import (
     terminate_popen,
     tabulate_formats,
 )
+from pyfmto.utilities.tools import redirect_warnings
 
 from tests.helpers import remove_temp_files
 
@@ -90,3 +92,22 @@ class TestTools(unittest.TestCase):
         self.assertEqual(mock_process.wait.call_count, 2)
         mock_process.wait.assert_any_call(timeout=5)
         mock_process.kill.assert_called_once()
+
+    def test_redirect_warnings_user_warning(self):
+        original_showwarning = warnings.showwarning
+
+        redirect_warnings()
+
+        with patch('pyfmto.utilities.loggers.logger.warning') as mock_logger_warning:
+            warnings.warn("This is a user warning", UserWarning)
+            mock_logger_warning.assert_called_once()
+        warnings.showwarning = original_showwarning
+
+    def test_redirect_warnings_deprecation_warning(self):
+        original_showwarning = warnings.showwarning
+        mock_original = Mock()
+        warnings.showwarning = mock_original
+        redirect_warnings()
+        warnings.warn("This is a deprecation warning", DeprecationWarning)
+        mock_original.assert_called_once()
+        warnings.showwarning = original_showwarning
