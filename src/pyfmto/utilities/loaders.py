@@ -1,12 +1,15 @@
 import copy
-import importlib
 import inspect
 import os
 import textwrap
+from collections import defaultdict
+
+import tabulate
 from deepdiff import DeepDiff
 from importlib import import_module
 from itertools import product
 from pathlib import Path
+
 from pydantic import BaseModel, ConfigDict
 from rich import box
 from rich.console import Console
@@ -18,23 +21,46 @@ from typing import Type, Any, Union, Literal
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
 from pyfmto.problems import MultiTaskProblem, realworld, synthetic
-from . import titled_tabulate, clear_console
+from . import titled_tabulate, clear_console, tabulate_formats
 from .io import parse_yaml, dumps_yaml, load_yaml, save_yaml
 from .loggers import logger
 
 __all__ = [
-    'list_algorithms',
-    'load_algorithm',
     'list_problems',
     'load_problem',
     'init_problem',
     'ProblemData',
-    'ConfigLoader',
+    'DataLoader',
     'AlgorithmData',
     'ExperimentConfig',
     'ReporterConfig',
     'LauncherConfig',
 ]
+
+from .tools import print_dict_as_table
+
+
+def build_index(paths):
+    import sys
+    alg_index: dict[str, list[str]] = defaultdict(list)
+    prob_index: dict[str, list[str]] = defaultdict(list)
+
+    for p in paths:
+        root = Path(p).resolve()
+        alg_dir = root / 'algorithms'
+        prob_dir = root / 'problems'
+        if str(root.parent) not in sys.path:
+            sys.path.append(str(root.parent))
+        if str(root) not in sys.path:
+            sys.path.append(str(root))
+        if alg_dir.exists():
+            for alg_name in os.listdir(alg_dir):
+                if alg_name.isupper():
+                    alg_index[alg_name].append(f"{root.name}.algorithms.{alg_name}")
+        if prob_dir.exists():
+            for prob_name in os.listdir(prob_dir):
+                prob_index[prob_name].append(f"{root.name}.problems.{prob_name}")
+    return alg_index, prob_index
 
 
 def recursive_to_pure_dict(data: Any) -> dict[str, Any]:
@@ -61,61 +87,6 @@ def combine_params(params: dict[str, Union[Any, list[Any]]]) -> list[dict[str, A
     for combination in product(*values):
         result.append(dict(zip(params.keys(), combination)))
     return result
-
-
-def list_algorithms(print_it=False):
-    alg_dir = Path().cwd() / 'algorithms'
-    if alg_dir.exists():
-        folders = os.listdir(alg_dir)
-        alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
-    else:
-        logger.error(f"'algorithms' folder not found in {alg_dir.parent}.")
-        alg_names = []
-
-    algorithms: dict[str, AlgorithmData] = {}
-    for name in alg_names:
-        try:
-            algorithms[name] = load_algorithm(name)
-        except Exception as e:
-            logger.error(f"Failed to load {name}: {e}")
-
-    if print_it:
-        if alg_dir.exists():
-            alg_str = '\n'.join(list(algorithms.keys()))
-            print(f"Found {len(algorithms)} available algorithms: \n{textwrap.indent(alg_str, ' ' * 4)}")
-        else:
-            print(f"'algorithms' folder not found in {alg_dir.parent}.")
-    return algorithms
-
-
-def load_algorithm(name: str) -> 'AlgorithmData':
-    name = name.upper()
-    alg_dir = Path().cwd() / 'algorithms' / name
-    if alg_dir.exists():
-        module = importlib.import_module(f"algorithms.{name}")
-    else:
-        if alg_dir.parent.exists():
-            raise ValueError(f"Algorithm {name} not found.")
-        else:
-            raise FileNotFoundError(f"'algorithms' folder not found in {alg_dir.parent.parent}.")
-
-    clt, srv = None, None
-    for attr_name in dir(module):
-        attr = getattr(module, attr_name)
-        if inspect.isclass(attr):
-            if issubclass(attr, Client):
-                clt = attr
-            if issubclass(attr, Server):
-                srv = attr
-        if clt and srv:
-            return AlgorithmData(name, clt, srv)
-
-    msg: list[str] = [f'Load algorithm {name} failed:']
-    if not clt:
-        msg.append("  Client not found.")
-    if not srv:
-        msg.append("  Server not found.")
-    raise ModuleNotFoundError('\n'.join(msg))
 
 
 def init_problem(name: str, **kwargs) -> MultiTaskProblem:
@@ -155,15 +126,65 @@ def collect_problems(module) -> dict[str, 'ProblemData']:
 
 
 class AlgorithmData:
+    client: Type[Client]
+    server: Type[Server]
 
-    def __init__(self, name: str, client: Any = None, server: Any = None):
+    def __init__(self, name: str, paths: list[str]):
         self.name_orig = name
         self.name_alias = ''
-        self.client: Type[Client] = client
-        self.server: Type[Server] = server
+        self.paths = paths
         self.params_default: dict[str, dict[str, Any]] = {}
         self.params_update: dict[str, dict[str, Any]] = {}
-        self.__parse_default_params()
+        self.module_detail: dict[str, list] = defaultdict(list)
+        self.__load()
+        if self.available:
+            self.__parse_default_params()
+
+    @property
+    def available(self):
+        return True in self.module_detail['pass']
+
+    def verbose(self):
+        return {k: self.module_detail[k] for k in ['name', 'pass', 'paths', 'msg']}
+
+    def __load(self):
+        import importlib
+        check_res: dict[str, list] = defaultdict(list)
+        for path in self.paths:
+            clt, srv = None, None
+            msg: list[str] = []
+            check_pass = False
+            try:
+                module = importlib.import_module(path)
+                for attr_name in dir(module):
+                    attr = getattr(module, attr_name)
+                    if inspect.isclass(attr):
+                        if issubclass(attr, Client):
+                            clt = attr
+                        if issubclass(attr, Server):
+                            srv = attr
+                if clt and srv:
+                    check_pass = True
+                    if not hasattr(self, 'client'):
+                        self.client = clt
+                        self.server = srv
+                else:
+                    check_pass = False
+                if not clt:
+                    msg.append("Client not found.")
+                if not srv:
+                    msg.append("Server not found.")
+                check_res['msg'].append('\n'.join(msg))
+            except Exception as e:
+                check_res['msg'].append(str(e))
+            finally:
+                check_res['name'].append(self.name)
+                check_res['pass'].append(check_pass)
+                check_res['paths'].append(path)
+                check_res['client'].append(clt)
+                check_res['server'].append(srv)
+
+        self.module_detail = check_res
 
     def __parse_default_params(self):
         c_doc = self.client.__doc__ if self.client else None
@@ -417,14 +438,15 @@ class ReporterConfig(BaseModel):
         return Path(self.results)
 
 
-class ConfigLoader:
+class DataLoader:
     """
     launcher:
+        paths: []
         results: out/results  # [optional] save results to this directory
         repeat: 2             # [optional] repeat each experiment for this number of times
         seed: 123             # [optional] random seed
         save: true            # [optional] save results to disk
-        backup: false          # [optional] backup parameters to disk
+        backup: false         # [optional] backup parameters to disk
         loglevel: INFO        # [optional] log level [CRITICAL, ERROR, WARNING, INFO, DEBUG], default INFO
         algorithms: []        # run these algorithms
         problems: []          # run each algorithm on these problems
@@ -439,6 +461,9 @@ class ConfigLoader:
 
         self.merge_global_config_from_updates()
         self.fill_launcher_config_from_reporter()
+        self.algorithms: dict[str, AlgorithmData] = {}
+        self.problems: dict[str, ProblemData] = {}
+        self.list_sources()
 
     def merge_global_config_from_updates(self):
         for key, value in self.config_update.items():
@@ -446,6 +471,18 @@ class ConfigLoader:
                 self.config[key].update(value)
             else:
                 self.config[key] = value
+        cwd = str(Path().cwd().resolve())
+        if cwd not in self.config['paths']:
+            self.config['paths'].append(cwd)
+
+    @staticmethod
+    def check_path_absolute(path: str) -> str:
+        p = Path(path)
+        if p.is_absolute():
+            return path
+        else:
+            logger.warn(f"filtered out non-absolute path {path}")
+            return ''
 
     def fill_launcher_config_from_reporter(self) -> None:
         launcher_params = self.config['launcher']
@@ -474,7 +511,7 @@ class ConfigLoader:
         self.check_config_issues('reporter')
         conf = ReporterConfig(**self.config['reporter'])
         alg_names = list(set(sum(conf.algorithms, [])))
-        algorithms = [AlgorithmData(name) for name in alg_names]
+        algorithms = [AlgorithmData(name, []) for name in alg_names]
         problems = self.gen_prob_list(conf.problems)
         conf.experiments = [
             ExperimentConfig(alg, prob, conf.results)
@@ -488,18 +525,41 @@ class ConfigLoader:
 
     def gen_alg_list(self, names: list[str]) -> list[AlgorithmData]:
         algorithms: list[AlgorithmData] = []
-        available_algs = list_algorithms()
         for name_alias in names:
             alg_params = self.config.get('algorithms', {}).get(name_alias, {})
             alg_name = alg_params.pop('base', name_alias)
-            if alg_name not in available_algs:
-                logger.error(f"Algorithm {alg_name} is not available.")
+            if alg_name not in self.algorithms:
+                logger.error(f"Algorithm '{alg_name}' is not available")
                 continue
-            alg_data = available_algs[alg_name].copy()
+            alg_data = self.algorithms[alg_name].copy()
             alg_data.name_alias = name_alias
             alg_data.params_update = alg_params
             algorithms.append(alg_data)
         return algorithms
+
+    def load_algorithms(self, alg_names):
+        algorithms: dict[str, AlgorithmData] = {}
+        for name in alg_names:
+            alg_data = self.algorithms.get(name, AlgorithmData(name, []))
+            if alg_data.available:
+                algorithms[name] = alg_data
+        return algorithms
+
+    def list_sources(self):
+        alg_paths, prob_paths = build_index(self.config['paths'])
+        for name, paths in alg_paths.items():
+            self.algorithms[name] = AlgorithmData(name, paths)
+
+    def algorithms_info(self, print_it: bool = True) -> str:
+        dicts = [alg_data.verbose() for alg_data in self.algorithms.values()]
+        keys = dicts[0].keys()
+        res = defaultdict(list)
+        for k in keys:
+            for d in dicts:
+                res[k] += d[k]
+        if print_it:
+            print_dict_as_table(res)
+        return tabulate.tabulate(res, headers='keys', tablefmt=tabulate_formats.rounded_grid)
 
     def gen_prob_list(self, names: list[str]) -> list[ProblemData]:
         available_probs = list_problems()

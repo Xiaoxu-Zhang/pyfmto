@@ -3,6 +3,9 @@ import platform
 import subprocess
 
 from contextlib import contextmanager
+
+from rich.console import Console
+from rich.table import Table, box
 from tabulate import tabulate
 from typing import Literal
 from .loggers import logger
@@ -15,6 +18,7 @@ __all__ = [
     'matched_str_head',
     'terminate_popen',
     'redirect_warnings',
+    'print_dict_as_table'
 ]
 
 
@@ -61,6 +65,33 @@ def terminate_popen(process: subprocess.Popen):
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait()
+
+
+def print_dict_as_table(data: dict[str, list], true_color="green", false_color="red", title=None):
+    lengths = {len(v) for v in data.values()}
+    if len(lengths) != 1:
+        raise ValueError(f"all values must have the same length: {lengths}")
+
+    table = Table(title=title, box=box.ROUNDED)
+
+    for key in data.keys():
+        table.add_column(str(key))
+
+    num_rows = lengths.pop()
+    keys = list(data.keys())
+    for i in range(num_rows):
+        row = []
+        for key in keys:
+            val = data[key][i]
+            if isinstance(val, bool):
+                color = true_color if val else false_color
+                row.append(f"[{color}]{val}[/{color}]")
+            else:
+                row.append(str(val))
+        table.add_row(*row)
+
+    console = Console()
+    console.print(table)
 
 
 def colored(text: str, color: Literal['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'reset']):

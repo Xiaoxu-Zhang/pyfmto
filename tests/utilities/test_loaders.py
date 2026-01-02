@@ -12,7 +12,7 @@ from pyfmto.framework import Client, Server
 from pyfmto.utilities.loaders import (
     ProblemData, AlgorithmData,
     LauncherConfig, ReporterConfig,
-    ConfigLoader
+    DataLoader
 )
 from tests.helpers import remove_temp_files, gen_algorithm, gen_problem
 
@@ -389,8 +389,8 @@ class TestConfigLoader(unittest.TestCase):
     def make_conf(self, conf: dict):
         save_yaml(conf, self.conf_dir)
 
-    def load_conf(self) -> ConfigLoader:
-        return ConfigLoader(str(self.conf_dir))
+    def load_conf(self) -> DataLoader:
+        return DataLoader(str(self.conf_dir))
 
     def copy_valid_conf(self):
         return copy.deepcopy(self.valid)
