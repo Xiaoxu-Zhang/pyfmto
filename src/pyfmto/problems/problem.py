@@ -859,7 +859,7 @@ class MultiTaskProblem(ABC):
         #>>> problem.plot_distribution(dims=(1, 2), filename='distribution.png')
         """
         init_x: dict[str, ndarray] = {f"T{p.id:02}({p.name})": p.normalize_x(p.solutions.x) for p in self}
-        npd = self[0].npd
+        npd = self[0].npd  # type: ignore
         tick_interval = 1.0 / npd
         ticks = np.arange(0, 1 + tick_interval, tick_interval)
         dim1 = min(dims)
@@ -981,7 +981,7 @@ class MultiTaskProblem(ABC):
         else:
             raise ValueError(f"Invalid method: {method}, support spearmanr, kendalltau, and pearsonr")
         _cmap = None if cmap is None else str(cmap)
-        x = lhs(self[0].dim, samples=n_samples)
+        x = lhs(self[0].dim, samples=n_samples)  # type: ignore
         evals = [f.evaluate(f.denormalize_x(x)).squeeze() for f in self]
         evals = np.array(evals)
         _sig = [[[*corr(evals[i], evals[j])] for j in range(self.task_num)] for i in range(self.task_num)]

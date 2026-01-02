@@ -509,7 +509,7 @@ class ConfigLoader:
         self.list_sources(target)
         dicts = [alg_data.verbose() for alg_data in getattr(self, target).values()]
         keys = dicts[0].keys()
-        res = defaultdict(list)
+        res: dict[str, list[Any]] = defaultdict(list)
         for k in keys:
             for d in dicts:
                 res[k] += d[k]
