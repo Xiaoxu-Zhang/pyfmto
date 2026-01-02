@@ -16,7 +16,7 @@ from typing import Type, Any, Union, Literal
 
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
-from pyfmto.problems import MultiTaskProblem
+from pyfmto.problem import MultiTaskProblem
 from . import titled_tabulate, clear_console, tabulate_formats
 from .io import parse_yaml, dumps_yaml, load_yaml, save_yaml
 from .loggers import logger

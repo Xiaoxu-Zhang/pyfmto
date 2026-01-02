@@ -229,26 +229,28 @@ SingleTaskProblem and then define a MultiTaskProblem to aggregate them.
 ```python
 import numpy as np
 from numpy import ndarray
-from pyfmto.problems import SingleTaskProblem, MultiTaskProblem
+from pyfmto.problem import SingleTaskProblem, MultiTaskProblem
 from typing import Union
+
 
 class MySTP(SingleTaskProblem):
 
     def __init__(self, dim=2, **kwargs):
         super().__init__(dim=dim, obj=1, lb=0, ub=1, **kwargs)
-    
+
     def _eval_single(self, x: ndarray):
         pass
+
 
 class MyMTP(MultiTaskProblem):
     is_realworld = False
     intro = "user defined MTP"
     notes = "a demo of user-defined MTP"
     references = ['ref1', 'ref2']
-    
+
     def __init__(self, dim=10, **kwargs):
         super().__init__(dim, **kwargs)
-    
+
     def _init_tasks(self, dim, **kwargs) -> list[SingleTaskProblem]:
         # Duplicate MySTP for 10 here as an example
         return [MySTP(dim=dim, **kwargs) for _ in range(10)]
@@ -259,7 +261,7 @@ class MyMTP(MultiTaskProblem):
 ### list_problems
 
 ```python
-from pyfmto.problems import list_problems
+from pyfmto.problem import list_problems
 
 # list all problems in console
 list_problems(print_it=True)
@@ -271,7 +273,7 @@ prob_lst = list_problems()
 ### init_problem
 
 ```python
-from pyfmto.problems import init_problem
+from pyfmto.problem import init_problem
 
 _ = load_problem('Arxiv2017')
 
@@ -287,12 +289,12 @@ print(prob)
 ### SingleTaskProblem Visualization
 
 ```python
-from pyfmto.problems.benchmarks import Ackley
+from pyfmto.problem.benchmarks import Ackley
 
 task = Ackley()
 task.plot_2d(f'visualize2D')
 task.plot_3d(f'visualize3D')
-task.iplot_3d() # interactive plotting
+task.iplot_3d()  # interactive plotting
 ```
 
 ### MultiTaskProblem Visualization

@@ -11,7 +11,7 @@ from rich.progress import Progress, TaskID
 from typing import final, Any
 
 from .packages import ClientPackage, Actions
-from pyfmto.problems import SingleTaskProblem
+from pyfmto.problem import SingleTaskProblem
 from pyfmto.utilities import logger, colored, titled_tabulate, tabulate_formats as tf
 
 __all__ = [

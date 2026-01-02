@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import cast, Literal
 
 from .tools import matched_str_head
-from ..experiments import Launcher, Reports, list_report_formats, show_default_conf
+from ..experiment import Launcher, Reports, list_report_formats, show_default_conf
 from .loaders import add_sources, ConfigLoader, ProblemData, AlgorithmData
 
 

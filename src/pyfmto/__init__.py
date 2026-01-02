@@ -1,6 +1,6 @@
 __version__ = "0.2.4"
 
-from .experiments import Launcher, Reports
+from .experiment import Launcher, Reports
 # from .utilities.loaders import (
 #     list_algorithms,
 #     load_algorithm,

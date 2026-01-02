@@ -1,7 +1,7 @@
 from datetime import date
 
 from pyfmto.framework import Server, ClientPackage, Client, record_runtime
-from pyfmto.problems import SingleTaskProblem
+from pyfmto.problem import SingleTaskProblem
 
 
 class OfflineServer(Server):

@@ -12,7 +12,7 @@ from scipy import stats
 from pathlib import Path
 from typing import Optional, Union
 
-from pyfmto.problems import Solution
+from pyfmto.problem import Solution
 from pyfmto.utilities import logger, save_msgpack, titled_tabulate, load_msgpack, colored
 
 StatisData = namedtuple("StatisData", ['mean', 'std', 'se', 'opt'])
