@@ -1,12 +1,10 @@
 import copy
 import inspect
 import os
-import textwrap
 from collections import defaultdict
 
 import tabulate
 from deepdiff import DeepDiff
-from importlib import import_module
 from itertools import product
 from pathlib import Path
 
@@ -20,17 +18,17 @@ from typing import Type, Any, Union, Literal
 
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
-from pyfmto.problems import MultiTaskProblem, realworld, synthetic
+from pyfmto.problems import MultiTaskProblem
 from . import titled_tabulate, clear_console, tabulate_formats
 from .io import parse_yaml, dumps_yaml, load_yaml, save_yaml
 from .loggers import logger
 
 __all__ = [
-    'list_problems',
-    'load_problem',
-    'init_problem',
+    # 'list_problems',
+    # 'load_problem',
+    # 'init_problem',
     'ProblemData',
-    'DataLoader',
+    'ConfigLoader',
     'AlgorithmData',
     'ExperimentConfig',
     'ReporterConfig',
@@ -59,7 +57,8 @@ def build_index(paths):
                     alg_index[alg_name].append(f"{root.name}.algorithms.{alg_name}")
         if prob_dir.exists():
             for prob_name in os.listdir(prob_dir):
-                prob_index[prob_name].append(f"{root.name}.problems.{prob_name}")
+                if (prob_dir / prob_name).is_dir() and not prob_name.startswith(('.', '_')):
+                    prob_index[prob_name].append(f"{root.name}.problems.{prob_name}")
     return alg_index, prob_index
 
 
@@ -89,40 +88,40 @@ def combine_params(params: dict[str, Union[Any, list[Any]]]) -> list[dict[str, A
     return result
 
 
-def init_problem(name: str, **kwargs) -> MultiTaskProblem:
-    prob = load_problem(name)
-    prob.params_update = kwargs
-    return prob.initialize()
+# def init_problem(name: str, **kwargs) -> MultiTaskProblem:
+#     prob = load_problem(name)
+#     prob.params_update = kwargs
+#     return prob.initialize()
 
 
-def load_problem(name: str) -> 'ProblemData':
-    problems = list_problems()
-    if name in problems.keys():
-        return problems[name]
-    else:
-        raise ValueError(f"Problem '{name}' not found, use 'pyfmto show problems' to see available problems.")
+# def load_problem(name: str) -> 'ProblemData':
+#     problems = list_problems()
+#     if name in problems.keys():
+#         return problems[name]
+#     else:
+#         raise ValueError(f"Problem '{name}' not found, use 'pyfmto show problems' to see available problems.")
 
 
-def list_problems(print_it=False) -> dict[str, 'ProblemData']:
-    problems: dict[str, ProblemData] = {}
-    for module in [realworld, synthetic]:
-        problems.update(collect_problems(module))
-    prob_dir = Path().cwd() / 'problems'
-    if prob_dir.exists():
-        problems.update(collect_problems(import_module('problems')))
-    if print_it:
-        print(f"Found {len(problems)} available problems:")
-        print(textwrap.indent('\n'.join(list(problems.keys())), ' ' * 4))
-    return problems
+# def list_problems(print_it=False) -> dict[str, 'ProblemData']:
+#     problems: dict[str, ProblemData] = {}
+#     for module in [realworld, synthetic]:
+#         problems.update(collect_problems(module))
+#     prob_dir = Path().cwd() / 'problems'
+#     if prob_dir.exists():
+#         problems.update(collect_problems(import_module('problems')))
+#     if print_it:
+#         print(f"Found {len(problems)} available problems:")
+#         print(textwrap.indent('\n'.join(list(problems.keys())), ' ' * 4))
+#     return problems
 
 
-def collect_problems(module) -> dict[str, 'ProblemData']:
-    problems = {}
-    for name in dir(module):
-        cls = getattr(module, name)
-        if inspect.isclass(cls) and issubclass(cls, MultiTaskProblem) and cls != MultiTaskProblem:
-            problems[name] = ProblemData(cls)
-    return problems
+# def collect_problems(module) -> dict[str, 'ProblemData']:
+#     problems = {}
+#     for name in dir(module):
+#         cls = getattr(module, name)
+#         if inspect.isclass(cls) and issubclass(cls, MultiTaskProblem) and cls != MultiTaskProblem:
+#             problems[name] = ProblemData(cls)
+#     return problems
 
 
 class AlgorithmData:
@@ -226,16 +225,56 @@ class AlgorithmData:
 
 
 class ProblemData:
+    problem: Type[MultiTaskProblem]
 
-    def __init__(self, problem: Type[MultiTaskProblem]):
-        self.problem: Type[MultiTaskProblem] = problem
+    def __init__(self, name, paths: list[str]):
+        self.name_orig = name
+        self.paths = paths
         self.params_default: dict[str, Any] = {
             'npd': 1,
             'random_ctrl': 'weak',
             'seed': 123,
         }
         self.params_update: dict[str, Any] = {}
-        self.__parse_default_params()
+        self.module_detail: dict[str, list] = defaultdict(list)
+        self.__load()
+        if self.available:
+            self.__parse_default_params()
+
+    @property
+    def available(self):
+        return hasattr(self, 'problem')
+
+    def verbose(self):
+        return {k: self.module_detail[k] for k in ['name', 'pass', 'paths', 'msg']}
+
+    def __load(self):
+        import importlib
+        check_res: dict[str, list] = defaultdict(list)
+        for path in self.paths:
+            check_pass = False
+            problem = None
+            try:
+                module = importlib.import_module(path)
+                for attr_name in dir(module):
+                    attr = getattr(module, attr_name)
+                    if inspect.isclass(attr) and issubclass(attr, MultiTaskProblem):
+                        problem = attr
+                        self.problem = problem
+                        check_pass = True
+                        break
+                if not check_pass:
+                    check_res['msg'].append("Problem Class not found.")
+                else:
+                    check_res['msg'].append("")
+            except Exception as e:
+                check_res['msg'].append(str(e))
+            finally:
+                check_res['name'].append(self.name_orig)
+                check_res['pass'].append(check_pass)
+                check_res['paths'].append(path)
+                check_res['problem'].append(problem)
+        self.module_detail = check_res
 
     def __parse_default_params(self):
         p_doc = self.problem.__doc__
@@ -438,7 +477,7 @@ class ReporterConfig(BaseModel):
         return Path(self.results)
 
 
-class DataLoader:
+class ConfigLoader:
     """
     launcher:
         paths: []
@@ -549,6 +588,8 @@ class DataLoader:
         alg_paths, prob_paths = build_index(self.config['paths'])
         for name, paths in alg_paths.items():
             self.algorithms[name] = AlgorithmData(name, paths)
+        for name, paths in prob_paths.items():
+            self.problems[name] = ProblemData(name, paths)
 
     def algorithms_info(self, print_it: bool = True) -> str:
         dicts = [alg_data.verbose() for alg_data in self.algorithms.values()]
@@ -561,17 +602,27 @@ class DataLoader:
             print_dict_as_table(res)
         return tabulate.tabulate(res, headers='keys', tablefmt=tabulate_formats.rounded_grid)
 
+    def problems_info(self, print_it: bool = True) -> str:
+        dicts = [prob_data.verbose() for prob_data in self.problems.values()]
+        keys = dicts[0].keys()
+        res = defaultdict(list)
+        for k in keys:
+            for d in dicts:
+                res[k] += d[k]
+        if print_it:
+            print_dict_as_table(res)
+        return tabulate.tabulate(res, headers='keys', tablefmt=tabulate_formats.rounded_grid)
+
     def gen_prob_list(self, names: list[str]) -> list[ProblemData]:
-        available_probs = list_problems()
         problems: list[ProblemData] = []
         for n in names:
-            if n not in available_probs:
+            if n not in self.problems:
                 logger.error(f"Problem {n} is not available.")
                 continue
             prob_params = self.config.get('problems', {}).get(n, {})
             params_variations = combine_params(prob_params)
             for params in params_variations:
-                prob_data = available_probs[n].copy()
+                prob_data = self.problems[n].copy()
                 prob_data.params_update = params
                 problems.append(prob_data)
         return problems

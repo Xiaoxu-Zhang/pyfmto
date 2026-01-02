@@ -20,7 +20,7 @@ from pyfmto.utilities import (
 )
 from .utils import RunSolutions
 from ..framework import Client
-from ..utilities.loaders import ExperimentConfig, DataLoader
+from ..utilities.loaders import ExperimentConfig, ConfigLoader
 from ..utilities.tools import redirect_warnings
 
 __all__ = ['Launcher']
@@ -34,7 +34,7 @@ class Launcher:
     progress: rpg.Progress
 
     def __init__(self, conf_file: str = 'config.yaml'):
-        self.conf = DataLoader(conf_file).launcher
+        self.conf = ConfigLoader(conf_file).launcher
 
         # Runtime data
         self._repeat_id = 0

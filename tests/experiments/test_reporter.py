@@ -7,7 +7,7 @@ from pathlib import Path
 from pyfmto.experiments import RunSolutions, Reports
 from pyfmto.experiments.reporter import ReportGenerator, Reporter
 from pyfmto.utilities import save_yaml
-from pyfmto.utilities.loaders import DataLoader
+from pyfmto.utilities.loaders import ConfigLoader
 from tests.helpers import remove_temp_files, gen_problem, gen_algorithm
 
 plt.use('Agg')
@@ -29,7 +29,7 @@ class ReporterTestBase(unittest.TestCase):
         save_yaml(self.conf_dict, self.filename)
         gen_algorithm(self.algorithms)
         gen_problem(self.problems)
-        self.conf = DataLoader(self.filename).reporter
+        self.conf = ConfigLoader(self.filename).reporter
         self.gen_fake_data()
         self.reports = Reports(self.filename)
 
