@@ -11,7 +11,7 @@ from tqdm import tqdm
 from typing import Literal, Annotated, final
 
 from .utils import ReporterUtils, MergedResults, MetaData
-from ..utilities.loaders import ConfigLoader, ReporterConfig
+from ..utilities.loaders import ReporterConfig
 
 _ = scienceplots.stylesheets  # This is to suppress the 'unused import' warning
 T_Suffix = Literal['.png', '.jpg', '.jpeg', '.svg', '.pdf']
@@ -336,8 +336,8 @@ class Reporter:
 
 
 class Reports:
-    def __init__(self, conf_file: str = 'config.yaml'):
-        self.conf = ConfigLoader(conf_file).reporter
+    def __init__(self, conf: ReporterConfig):
+        self.conf = conf
         self.reporter = Reporter(self.conf)
         self.reporter.register_generator('to_curve', CurveGenerator())
         self.reporter.register_generator('to_excel', ExcelGenerator())

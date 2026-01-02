@@ -3,7 +3,6 @@ import platform
 import subprocess
 
 from contextlib import contextmanager
-
 from rich.console import Console
 from rich.table import Table, box
 from tabulate import tabulate
@@ -71,12 +70,9 @@ def print_dict_as_table(data: dict[str, list], true_color="green", false_color="
     lengths = {len(v) for v in data.values()}
     if len(lengths) != 1:
         raise ValueError(f"all values must have the same length: {lengths}")
-
-    table = Table(title=title, box=box.ROUNDED)
-
+    table = Table(title=title, box=box.ROUNDED, show_lines=True)
     for key in data.keys():
-        table.add_column(str(key))
-
+        table.add_column(str(key), max_width=50, justify="center", overflow='fold', vertical='middle')
     num_rows = lengths.pop()
     keys = list(data.keys())
     for i in range(num_rows):
@@ -89,7 +85,6 @@ def print_dict_as_table(data: dict[str, list], true_color="green", false_color="
             else:
                 row.append(str(val))
         table.add_row(*row)
-
     console = Console()
     console.print(table)
 

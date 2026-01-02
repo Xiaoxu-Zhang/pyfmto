@@ -20,7 +20,7 @@ from pyfmto.utilities import (
 )
 from .utils import RunSolutions
 from ..framework import Client
-from ..utilities.loaders import ExperimentConfig, ConfigLoader
+from ..utilities.loaders import ExperimentConfig, LauncherConfig
 from ..utilities.tools import redirect_warnings
 
 __all__ = ['Launcher']
@@ -33,8 +33,8 @@ class Launcher:
     table: Table
     progress: rpg.Progress
 
-    def __init__(self, conf_file: str = 'config.yaml'):
-        self.conf = ConfigLoader(conf_file).launcher
+    def __init__(self, conf: LauncherConfig):
+        self.conf = conf
 
         # Runtime data
         self._repeat_id = 0
@@ -148,6 +148,8 @@ class Launcher:
         cmd = [
             sys.executable, "-c",
             "from pyfmto.utilities import logger; "
+            "from pyfmto.utilities.loaders import add_sources; "
+            f"add_sources({self.conf.sources}); "
             f"from {server.__module__} import {server.__name__}; "
             f"logger.setLevel('{self.conf.loglevel}'); "
             f"srv = {server.__name__}(**{repr(kwargs)}); "
