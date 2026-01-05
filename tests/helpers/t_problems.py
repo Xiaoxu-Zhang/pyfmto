@@ -1,7 +1,9 @@
 from typing import Union
 
 import numpy as np
-from pyfmto.problems import SingleTaskProblem, MultiTaskProblem
+from pyfmto.problem import SingleTaskProblem, MultiTaskProblem
+
+__all__ = ['ClassPrefixProb']
 
 
 class StpA(SingleTaskProblem):
@@ -39,7 +41,7 @@ class StpD(SingleTaskProblem):
         return np.tan(sum(x))
 
 
-class NameProb(MultiTaskProblem):
+class ClassPrefixProb(MultiTaskProblem):
     """
     dim: 2
     """

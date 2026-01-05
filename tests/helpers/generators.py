@@ -1,41 +1,33 @@
 import numpy as np
 from pathlib import Path
-from typing import Union
-from pyfmto.experiments import RunSolutions
-from pyfmto.experiments.utils import MergedResults, MetaData
-from pyfmto.problems import Solution
+from typing import Union, Literal
+from pyfmto.experiment import RunSolutions
+from pyfmto.experiment.utils import MergedResults, MetaData
+from pyfmto.problem import Solution
+from pyfmto.utilities import save_yaml, parse_yaml
 from pyfmto.utilities.schemas import STPConfig
 
 
-__all__ = ['gen_algorithm', 'gen_problem', 'ExpDataGenerator']
+__all__ = ['gen_code', 'gen_config', 'ExpDataGenerator']
 
 
-def gen_algorithm(names: Union[str, list[str]]):
+def gen_config(conf_str: str, path: Path):
+    path.mkdir(parents=True, exist_ok=True)
+    filename = path / 'config.yaml'
+    save_yaml(parse_yaml(conf_str), filename)
+    return filename
+
+
+def gen_code(data_type: Literal['algorithms', 'problems'], names: Union[str, list[str]], path: Path):
     name_lst = names if isinstance(names, list) else [names]
     for name in name_lst:
-        alg_dir = Path('algorithms') / name
+        alg_dir = path / data_type / name
         alg_dir.mkdir(parents=True, exist_ok=True)
-        with open(Path(__file__).parent / 'alg_template.py', 'r') as f1:
-            template = f1.read().replace('NameAlg', name.title())
+        with open(Path(__file__).parent / f't_{data_type}.py', 'r') as f1:
+            template = f1.read().replace('ClassPrefix', name.title())
             with open(alg_dir / '__init__.py', 'w') as f2:
                 f2.write(template)
         print(f"Successfully generated algorithm {name}")
-
-
-def gen_problem(names: Union[str, list[str]]):
-    from .cleaners import clear_problems_cache
-    clear_problems_cache()
-    name_lst = names if isinstance(names, list) else [names]
-    for name in name_lst:
-        root = Path('problems')
-        root.mkdir(parents=True, exist_ok=True)
-        with open(Path(__file__).parent / 'prob_template.py', 'r') as f1:
-            template = f1.read().replace('NameProb', name)
-            with open(root / f"{name.lower()}.py", 'w') as f2:
-                f2.write(template)
-            with open(root / '__init__.py', 'a') as f3:
-                f3.write(f"from .{name.lower()} import {name}\n")
-        print(f"Successfully generated problem {name}")
 
 
 class ExpDataGenerator:

@@ -3,7 +3,7 @@ from typing import Any
 from pyfmto.framework import Client, Server, ClientPackage
 
 
-class NameAlgClient(Client):
+class ClassPrefixClient(Client):
     """
     name: c
     """
@@ -17,7 +17,7 @@ class NameAlgClient(Client):
         self.problem.evaluate(x)
 
 
-class NameAlgServer(Server):
+class ClassPrefixServer(Server):
     """
     name: s
     """
