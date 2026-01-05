@@ -1,17 +1,16 @@
 import subprocess
 
 import numpy as np
-import shutil
-import unittest
 from itertools import product
 from pathlib import Path
 
-from pyfmto.problems import Solution
-from pyfmto.experiments.utils import (
+from pyfmto.problem import Solution
+from pyfmto.experiment.utils import (
     RunSolutions, ReporterUtils, MetaData, MergedResults, ClientDataStatis
 )
 from pyfmto.utilities.schemas import STPConfig
 from pyfmto.utilities import load_msgpack
+from tests.helpers import PyfmtoTestCase
 from tests.helpers.generators import ExpDataGenerator
 
 
@@ -31,14 +30,19 @@ def create_solution():
     return solution
 
 
-class TestMetaData(unittest.TestCase):
+class TestMetaData(PyfmtoTestCase):
     def setUp(self):
+        self.save_sys_env()
         self.algs = ['ALG1', 'ALG2']
         self.probs = ['PROB1', 'PROB2']
         self.npd_names = ['NPD1', 'NPD2']
         self.n_task = 5
         self.n_run = 3
         self.generator = ExpDataGenerator(dim=10, lb=0, ub=1)
+
+    def tearDown(self):
+        self.delete('out')
+        self.restore_sys_env()
 
     def test_empty(self):
         md = MetaData({}, 'P1', 'NIID', Path('tmp'))
@@ -70,7 +74,7 @@ class TestMetaData(unittest.TestCase):
             self.assertEqual(len(md.items()), len(self.algs))
 
 
-class TestMergedResults(unittest.TestCase):
+class TestMergedResults(PyfmtoTestCase):
     def setUp(self):
         self.generator = ExpDataGenerator(dim=10, lb=0, ub=1)
 
@@ -84,7 +88,7 @@ class TestMergedResults(unittest.TestCase):
             MergedResults([])
 
 
-class TestClientDataStatis(unittest.TestCase):
+class TestClientDataStatis(PyfmtoTestCase):
     def setUp(self):
         self.conf = STPConfig(dim=10, obj=1, lb=0, ub=1)
         self.generator = ExpDataGenerator(dim=10, lb=0, ub=1)
@@ -117,13 +121,15 @@ class TestClientDataStatis(unittest.TestCase):
                 self.assertEqual(statis.opt.shape[0], 10)
 
 
-class TestReporterUtils(unittest.TestCase):
+class TestReporterUtils(PyfmtoTestCase):
 
     def setUp(self):
+        self.save_sys_env()
         self.utils = ReporterUtils
 
     def tearDown(self):
-        shutil.rmtree(Path('out'), ignore_errors=True)
+        self.delete('out')
+        self.restore_sys_env()
 
     def test_load_runs_data(self):
         self.assertEqual(self.utils.load_runs_data(Path('out')), [])
@@ -206,16 +212,16 @@ class TestReporterUtils(unittest.TestCase):
             ReporterUtils.find_grid_shape(0)
 
 
-class TestRunSolutions(unittest.TestCase):
+class TestRunSolutions(PyfmtoTestCase):
 
     def setUp(self):
-        self.tmp = Path('tmp')
-        if not self.tmp.exists():
-            self.tmp.mkdir()
+        self.save_sys_env()
+        self.tmp_dir = Path('temp_dir_for_test')
+        self.tmp_dir.mkdir(exist_ok=True)
 
     def tearDown(self):
-        if self.tmp.exists():
-            shutil.rmtree(self.tmp)
+        self.delete(self.tmp_dir)
+        self.restore_sys_env()
 
     def test_initialization(self):
         rs = RunSolutions()
@@ -247,7 +253,7 @@ class TestRunSolutions(unittest.TestCase):
 
     def test_save_empty(self):
         rs = RunSolutions()
-        self.assertRaises(ValueError, rs.to_msgpack, self.tmp / 'test.msgpack')
+        self.assertRaises(ValueError, rs.to_msgpack, self.tmp_dir / 'test.msgpack')
 
     def test_save_and_load(self):
         rs1 = RunSolutions()
@@ -255,8 +261,8 @@ class TestRunSolutions(unittest.TestCase):
 
         rs1.update(1, solution)
         rs1.update(2, solution)
-        rs1.to_msgpack(self.tmp / 'test.msgpack')
-        rs2 = RunSolutions(load_msgpack(self.tmp / 'test.msgpack'))
+        rs1.to_msgpack(self.tmp_dir / 'test.msgpack')
+        rs2 = RunSolutions(load_msgpack(self.tmp_dir / 'test.msgpack'))
 
         self.assertEqual(rs2.num_clients, rs1.num_clients)
         self.assertEqual(rs2.sorted_ids, rs1.sorted_ids)
