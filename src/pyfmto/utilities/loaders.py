@@ -71,12 +71,11 @@ def combine_params(params: dict[str, Union[Any, list[Any]]]) -> list[dict[str, A
     return result
 
 
-def load_problem(name: str, config: str = 'config.yaml', **kwargs) -> MultiTaskProblem:
+def load_problem(name: str, config: Union[str, Path] = 'config.yaml', **kwargs) -> MultiTaskProblem:
     conf = ConfigLoader(config)
-    conf.list_sources('problems')
     prob = conf.problems.get(name, ProblemData(name, []))
     if not prob.available:
-        logger.error(f"Problem '{name}' is not available")
+        raise ValueError(f"Problem '{name}' is not available")
     prob.params_update = kwargs
     return prob.initialize()
 
@@ -114,25 +113,25 @@ class AlgorithmData:
                 module = importlib.import_module(path)
                 for attr_name in dir(module):
                     attr = getattr(module, attr_name)
+                    if attr_name.startswith('__'):
+                        continue
                     if inspect.isclass(attr):
-                        if issubclass(attr, Client):
+                        if issubclass(attr, Client) and attr != Client:
                             clt = attr
-                        if issubclass(attr, Server):
+                        if issubclass(attr, Server) and attr != Server:
                             srv = attr
-                if clt and srv:
-                    check_pass = True
-                    if not hasattr(self, 'client'):
-                        self.client = clt
-                        self.server = srv
-                else:
-                    check_pass = False
+                    if clt and srv:
+                        check_pass = True
+                        if not hasattr(self, 'client'):
+                            self.client = clt
+                            self.server = srv
                 if not clt:
                     msg.append("Client not found.")
                 if not srv:
                     msg.append("Server not found.")
                 check_res['msg'].append('\n'.join(msg))
             except Exception as e:
-                check_res['msg'].append(str(e))
+                check_res['msg'].append(f"Exception: {str(e)}")
             finally:
                 check_res['name'].append(self.name)
                 check_res['pass'].append(check_pass)
@@ -215,7 +214,7 @@ class ProblemData:
                 module = importlib.import_module(path)
                 for attr_name in dir(module):
                     attr = getattr(module, attr_name)
-                    if inspect.isclass(attr) and issubclass(attr, MultiTaskProblem):
+                    if inspect.isclass(attr) and issubclass(attr, MultiTaskProblem) and attr != MultiTaskProblem:
                         problem = attr
                         self.problem = problem
                         check_pass = True
@@ -453,7 +452,7 @@ class ConfigLoader:
         formats: [excel]      # [optional] generate these reports
     """
 
-    def __init__(self, config: str = 'config.yaml'):
+    def __init__(self, config: Union[str, Path] = 'config.yaml'):
         self.config_default = parse_yaml(self.__class__.__doc__)
         self.config_update = load_yaml(config)
         self.config = copy.deepcopy(self.config_default)
@@ -462,6 +461,7 @@ class ConfigLoader:
         self.algorithms: dict[str, AlgorithmData] = {}
         self.problems: dict[str, ProblemData] = {}
         add_sources(self.sources)
+        self.__list_sources()
 
     @property
     def sources(self) -> list[str]:
@@ -487,26 +487,24 @@ class ConfigLoader:
             else:
                 self.config['reporter'][key] = launcher_params[key]
 
-    def list_sources(self, target: Literal['algorithms', 'problems']):
-        if getattr(self, target) != {}:
-            return
-        source_indices: dict[str, list[str]] = defaultdict(list)
-        for path in self.sources:
-            target_dir = Path(path).resolve() / target
-            if target_dir.exists():
-                for name in os.listdir(target_dir):
-                    sub_dir = target_dir / name
-                    if sub_dir.is_dir() and not name.startswith(('.', '_')):
-                        source_indices[name].append('.'.join(sub_dir.parts[-3:]))
-        if target == 'algorithms':
-            for name, paths in source_indices.items():
-                self.algorithms[name] = AlgorithmData(name, paths)
-        else:
-            for name, paths in source_indices.items():
-                self.problems[name] = ProblemData(name, paths)
+    def __list_sources(self):
+        for target in ['algorithms', 'problems']:
+            source_indices: dict[str, list[str]] = defaultdict(list)
+            for path in self.sources:
+                target_dir = Path(path).resolve() / target
+                if target_dir.exists():
+                    for name in os.listdir(target_dir):
+                        sub_dir = target_dir / name
+                        if sub_dir.is_dir() and not name.startswith(('.', '_')):
+                            source_indices[name].append('.'.join(sub_dir.parts[-3:]))
+            if target == 'algorithms':
+                for name, paths in source_indices.items():
+                    self.algorithms[name] = AlgorithmData(name, paths)
+            else:
+                for name, paths in source_indices.items():
+                    self.problems[name] = ProblemData(name, paths)
 
     def show_sources(self, target: Literal['algorithms', 'problems'], print_it: bool = False) -> str:
-        self.list_sources(target)
         dicts = [alg_data.verbose() for alg_data in getattr(self, target).values()]
         keys = dicts[0].keys()
         res: dict[str, list[Any]] = defaultdict(list)

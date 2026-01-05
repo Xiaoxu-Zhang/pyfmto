@@ -41,9 +41,7 @@ def main():
     )
     args = parser.parse_args()
 
-    conf = ConfigLoader(args.config)
-    conf.list_sources('algorithms')
-    conf.list_sources('problems')
+    conf = ConfigLoader(config=args.config)
 
     if args.command == 'run':
         launcher = Launcher(conf=conf.launcher)
