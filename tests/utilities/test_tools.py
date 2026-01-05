@@ -1,5 +1,4 @@
 import subprocess
-import unittest
 import warnings
 from unittest.mock import patch, Mock
 
@@ -10,15 +9,15 @@ from pyfmto.utilities import (
     terminate_popen,
     tabulate_formats,
 )
-from pyfmto.utilities.tools import redirect_warnings
+from pyfmto.utilities.tools import redirect_warnings, print_dict_as_table
 
-from tests.helpers import remove_temp_files
+from tests.helpers import PyfmtoTestCase
 
 
-class TestTools(unittest.TestCase):
+class TestTools(PyfmtoTestCase):
 
     def tearDown(self):
-        remove_temp_files()
+        self.delete()
 
     def test_cross_platform_tools(self):
         with patch('os.system') as mock_system:
@@ -32,6 +31,20 @@ class TestTools(unittest.TestCase):
                 clear_console()
                 mock_system.assert_called_once_with('clear')
                 mock_system.reset_mock()
+
+    def test_dict_to_table(self):
+        data_valid = {
+            "a": [1, 2, 3],
+            "b": [True, False, False],
+            "c": ['OK', 'Yes', 'NO'],
+        }
+        data_invalid = {
+            "a": [1, 2, 3],
+            "b": [True, False],
+        }
+        print_dict_as_table(data_valid)
+        with self.assertRaises(ValueError):
+            print_dict_as_table(data_invalid)
 
     def test_colored(self):
         text = "test"

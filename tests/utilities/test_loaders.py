@@ -1,23 +1,23 @@
-import copy
 import os
 import unittest
 from pathlib import Path
 from pydantic import ValidationError
 from ruamel.yaml import CommentedMap
 
-from pyfmto.problems import MultiTaskProblem
-from pyfmto.utilities import loaders, save_yaml
-from pyfmto.experiments import list_report_formats, show_default_conf
-from pyfmto.framework import Client, Server
+from pyfmto.problem import MultiTaskProblem
+from pyfmto.utilities import loaders
+from pyfmto.experiment import list_report_formats, show_default_conf
 from pyfmto.utilities.loaders import (
     ProblemData, AlgorithmData,
     LauncherConfig, ReporterConfig,
     ConfigLoader
 )
-from tests.helpers import remove_temp_files, gen_algorithm, gen_problem
+from tests.helpers import gen_code, PyfmtoTestCase
+from tests.helpers.generators import gen_config
+from tests.utilities import LoadersTestCase
 
 
-class TestOtherHelpers(unittest.TestCase):
+class TestUtilities(PyfmtoTestCase):
 
     def test_recursive_to_pure_dict(self):
         data = {
@@ -56,44 +56,6 @@ class TestOtherHelpers(unittest.TestCase):
             with self.subTest(r=r):
                 self.assertIn(r, expected, msg=f"\n  result: {r} not in\nexpected: {expected}")
 
-
-class TestAlgorithmHelpers(unittest.TestCase):
-
-    def tearDown(self):
-        remove_temp_files()
-
-    def test_list_without_alg_dir(self):
-        res = loaders.list_algorithms(print_it=True)
-        self.assertEqual(res, {})
-
-    def test_list_algorithms(self):
-        algs = ['ALG1', 'ALG2', 'ALG3']
-        gen_algorithm(algs)
-
-        # Make an invalid algorithm to cover the load failure lines
-        Path('algorithms', 'INVALID').mkdir(parents=True, exist_ok=True)
-
-        res = loaders.list_algorithms(print_it=True)
-        self.assertEqual(set(res.keys()), set(algs))
-
-    def test_load_algorithm(self):
-        gen_algorithm('ALG1')
-        res = loaders.load_algorithm('ALG1')
-        self.assertTrue(issubclass(res.client, Client))
-        self.assertTrue(issubclass(res.server, Server))
-        self.assertEqual(res.params_default, {'client': {'name': 'c'}, 'server': {'name': 's'}})
-
-    def test_load_no_algorithms_dir(self):
-        with self.assertRaises(FileNotFoundError):
-            loaders.load_algorithm('ALG')
-
-    def test_load_invalid_algorithm(self):
-        Path('algorithms', 'INVALID').mkdir(parents=True, exist_ok=True)
-        with self.assertRaises(ModuleNotFoundError):
-            loaders.load_algorithm('INVALID')
-        with self.assertRaises(ValueError):
-            loaders.load_algorithm('NONEXISTENT')
-
     def test_list_report_formats(self):
         res = list_report_formats(print_it=True)
         for fmt in ['curve', 'violin', 'excel', 'latex', 'console']:
@@ -104,45 +66,32 @@ class TestAlgorithmHelpers(unittest.TestCase):
             with self.subTest(fmt=fmt):
                 self.assertIsNone(show_default_conf(fmt))
 
-
-class TestProblemHelpers(unittest.TestCase):
-
-    def setUp(self):
-        self.n_probs = len(loaders.list_problems(print_it=True))
-        self.probs = ['PROB1', 'PROB2']
-        gen_problem(self.probs)
-
-    def tearDown(self):
-        remove_temp_files()
-
-    def test_list_problems(self):
-        res2 = loaders.list_problems(print_it=True)
-        self.assertEqual(self.n_probs, len(res2) - len(self.probs))
-        for prob in self.probs:
-            with self.subTest(prob=prob):
-                self.assertIn(prob, res2)
-
     def test_load_problem(self):
-        res = loaders.load_problem(self.probs[0])
-        self.assertIsInstance(res, ProblemData)
-        with self.assertRaises(ValueError):
-            loaders.load_problem('NONEXISTENT')
+        self.save_sys_env()
 
-    def test_init_problem(self):
-        res = loaders.init_problem(self.probs[0])
+        tmp_dir = Path('temp_dir_for_test')
+        conf_file = gen_config(
+            f"""
+            launcher:
+                sources: [{tmp_dir}]
+            """,
+            tmp_dir
+        )
+        self.probs = ['PROB1']
+        gen_code('problems', self.probs, tmp_dir)
+        res = loaders.load_problem(self.probs[0], conf_file)
         self.assertIsInstance(res, MultiTaskProblem)
+        with self.assertRaises(ValueError):
+            loaders.load_problem('PROB2', conf_file)
+
+        self.delete(tmp_dir)
+        self.restore_sys_env()
 
 
-class TestAlgorithmData(unittest.TestCase):
-
-    def setUp(self):
-        gen_algorithm('ALG1')
-
-    def tearDown(self):
-        remove_temp_files()
+class TestAlgorithmData(LoadersTestCase):
 
     def test_default_value(self):
-        alg = loaders.load_algorithm('ALG1')
+        alg = self.algorithms.get('ALG1')
         self.assertEqual(alg.params_default, {'client': {'name': 'c'}, 'server': {'name': 's'}})
         self.assertEqual(alg.params_default, alg.params)
         self.assertEqual(alg.name, 'ALG1')
@@ -150,7 +99,7 @@ class TestAlgorithmData(unittest.TestCase):
         self.assertTrue('client' in alg.params_yaml)
 
     def test_update_params(self):
-        alg = loaders.load_algorithm('ALG1')
+        alg = self.algorithms.get('ALG1')
         para_dft = {'client': {'name': 'c'}}
         para_upd = {'client': {'name': 'cc', 'c_new': 'n'}, 'server': {'name': 'ss', 's_new': 'n'}}
         alg.params_default = para_dft
@@ -166,22 +115,33 @@ class TestAlgorithmData(unittest.TestCase):
         self.assertEqual(alg.name_alias, 'ALGG')
         self.assertEqual(alg.name, 'ALGG')
 
+    def test_load_failure(self):
+        empty_alg = self.tmp_dir / 'algorithms' / 'ALG2'
+        empty_alg.mkdir(parents=True, exist_ok=True)
+        module_path = '.'.join(empty_alg.parts[-3:])
+        alg = AlgorithmData('ALG2', [module_path])
+        msg = '\n'.join(alg.verbose()['msg']) + module_path
+        self.assertIn('Client not found.', msg, msg=msg)
+        self.assertIn('Server not found.', msg, msg=msg)
+        self.assertFalse(hasattr(alg, 'client'))
+        self.assertFalse(hasattr(alg, 'server'))
+        self.assertFalse(alg.available)
+
+        alg = AlgorithmData('ALG2', ["invalid_path.algorithms.ALG2"])
+        msg = '\n'.join(alg.verbose()['msg'])
+        self.assertIn('No module named', msg, msg=msg)
+
     def test_copy(self):
-        alg = loaders.load_algorithm('ALG1')
+        alg = self.algorithms.get('ALG1')
         alg_cp = alg.copy()
         self.assertTrue(id(alg) != id(alg_cp))
         self.assertEqual(alg.__dict__, alg_cp.__dict__)
 
 
-class TestProblemData(unittest.TestCase):
-    def setUp(self):
-        gen_problem('PROB1')
-
-    def tearDown(self):
-        remove_temp_files()
+class TestProblemData(LoadersTestCase):
 
     def test_default_value(self):
-        prob = loaders.load_problem('PROB1')
+        prob = self.problems.get('PROB1')
         prob.params_default.pop('dim')
         self.assertIn('PROB1', prob.name)
         self.assertEqual(prob.npd, 1)
@@ -212,35 +172,43 @@ class TestProblemData(unittest.TestCase):
         prob.params_default = {}
         self.assertIn('no configurable parameters', prob.params_yaml)
 
+    def test_load_failure(self):
+        empty_prob = self.tmp_dir / 'problems' / 'PROB2'
+        empty_prob.mkdir(parents=True, exist_ok=True)
+        module_path = '.'.join(empty_prob.parts[-3:])
+        prob = ProblemData('PROB2', [module_path])
+        self.assertFalse(prob.available)
+        self.assertIn('Problem Class not found.', prob.verbose()['msg'])
+        prob = ProblemData('PROB2', ["invalid_path.problems.PROB2"])
+        self.assertFalse(prob.available)
+        self.assertIn('No module named', '\n'.join(prob.verbose()['msg']))
+        with self.assertRaises(ValueError):
+            prob.initialize()
+
     def test_copy(self):
-        prob = loaders.load_problem('PROB1')
+        prob = self.problems.get('PROB1')
         prob_cp = prob.copy()
         self.assertTrue(id(prob) != id(prob_cp))
 
 
-class TestExperimentConfig(unittest.TestCase):
-
-    def setUp(self):
-        gen_algorithm('ALG1')
-        gen_problem('PROB1')
-        self.prob = loaders.load_problem('PROB1')
-        self.alg = loaders.load_algorithm('ALG1')
-        self.prob.params_default.pop('dim')
-
-    def tearDown(self):
-        remove_temp_files()
+class TestExperimentConfig(LoadersTestCase):
 
     def test_default_value(self):
-        exp = loaders.ExperimentConfig(self.alg, self.prob, 'out/results')
+        alg = self.algorithms.get('ALG1')
+        prob = self.problems.get('PROB1')
+        self.assertTrue(alg.available)
+        self.assertTrue(prob.available)
+        exp = loaders.ExperimentConfig(alg, prob, 'out/results')
         self.assertIn('Alg', repr(exp))
         self.assertIn('Prob', repr(exp))
         self.assertIsInstance(exp.algorithm, AlgorithmData)
         self.assertIsInstance(exp.problem, ProblemData)
         self.assertIsInstance(exp.root, Path)
         self.assertEqual(exp.root, Path('out/results') / exp.algorithm.name / exp.problem.name / exp.problem.npd_str)
-        prefix = f"Seed{exp.problem.params['seed']}_"
-        self.assertEqual(exp.prefix, prefix)
-        self.assertEqual(exp.result_name(1).name, f'{prefix}Rep01.msgpack')
+        self.assertIn("FEi", exp.prefix)
+        self.assertIn('FEm', exp.prefix)
+        self.assertIn('Seed', exp.prefix)
+        self.assertIn('Rep01.msgpack', exp.result_name(1).name)
 
         self.assertEqual(exp.num_results, 0)
         exp.init_root()
@@ -269,7 +237,7 @@ class TestExperimentConfig(unittest.TestCase):
         self.assertEqual(exp.num_results, 3)
         res_root = exp.root.parent.parent
         n_prob = len(os.listdir(res_root))
-        self.assertEqual(n_prob, 2, msg=f"res root: {res_root}")
+        self.assertEqual(n_prob, 1, msg=f"res root: {res_root}")
 
         self.assertEqual(exp.problem.dim, 2)
         self.assertEqual(exp.problem.npd, 2)
@@ -283,18 +251,15 @@ class TestExperimentConfig(unittest.TestCase):
         self.assertTrue((exp.root.parent / 'parameters.yaml').exists())
 
 
-class TestLauncherConfig(unittest.TestCase):
+class TestLauncherConfig(PyfmtoTestCase):
     def setUp(self):
-        gen_algorithm('ALG1')
-        for prob in ['PROB1', 'PROB2', 'PROB3']:
-            gen_problem(prob)
         self.exp = [
-            loaders.ExperimentConfig(loaders.load_algorithm('ALG1'), loaders.load_problem(prob), 'out/results')
+            loaders.ExperimentConfig(loaders.AlgorithmData('ALG1', []), loaders.ProblemData(prob, []), 'out/results')
             for prob in ['PROB1', 'PROB2', 'PROB3']
         ]
 
     def tearDown(self):
-        remove_temp_files()
+        self.delete('out')
 
     def test_valid_config(self):
         config = LauncherConfig(
@@ -305,7 +270,8 @@ class TestLauncherConfig(unittest.TestCase):
             loglevel='DEBUG',
             save=True,
             algorithms=['alg1', 'alg2'],
-            problems=['prob1', 'prob2']
+            problems=['prob1', 'prob2'],
+            sources=[],
         )
         self.assertEqual(config.results, 'out/results')
         self.assertEqual(config.repeat, 3)
@@ -354,53 +320,40 @@ class TestReporterConfig(unittest.TestCase):
         self.assertRaises(ValidationError, ReporterConfig, **empty_problems)
 
 
-class TestConfigLoader(unittest.TestCase):
+class TestConfigLoader(PyfmtoTestCase):
 
     def setUp(self):
-        self.tmp_dir = Path('out')
-        self.conf_dir = self.tmp_dir / 'config.yaml'
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.valid = {
-            'launcher': {
-                'algorithms': ['ALG1', 'ALG2'],
-                'problems': ['PROB1', 'PROB2']
-            },
-        }
-        self.invalid = {
-            'launcher': {
-                'results': '',
-                'repeat': 0,
-                'save': 'yes',
-                'loglevel': 'INVALID',
-                'algorithms': [],
-                'problems': [],
-            },
-            'reporter': {
-                'results': '',
-                'algorithms': [],
-                'problems': [],
-                'formats': [],
-            }
-        }
+        self.save_sys_env()
+        self.tmp_dir = Path('temp_dir_for_test')
+
+        self.valid = f"""
+        launcher:
+            sources: [{self.tmp_dir}]
+            algorithms: [ALG1, ALG2]
+            problems: [PROB1, PROB2]
+        """
+        self.invalid = """
+        launcher:
+            results: ''
+            repeat: 0
+            save: yes
+            loglevel: INVALID
+            algorithms: []
+            problems: []
+        reporter:
+            results: ''
+            algorithms: []
+            problems: []
+            formats: []
+        """
 
     def tearDown(self):
-        remove_temp_files()
-
-    def make_conf(self, conf: dict):
-        save_yaml(conf, self.conf_dir)
-
-    def load_conf(self) -> ConfigLoader:
-        return ConfigLoader(str(self.conf_dir))
-
-    def copy_valid_conf(self):
-        return copy.deepcopy(self.valid)
-
-    def copy_invalid_conf(self):
-        return copy.deepcopy(self.invalid)
+        self.delete(self.tmp_dir)
+        self.restore_sys_env()
 
     def test_default_config(self):
-        self.make_conf({})
-        conf = self.load_conf()
+        filename = gen_config(self.valid, self.tmp_dir)
+        conf = ConfigLoader(filename)
         self.assertIn('launcher', conf.config)
         self.assertIn('reporter', conf.config)
         self.assertIn('results', conf.config['reporter'])
@@ -411,24 +364,23 @@ class TestConfigLoader(unittest.TestCase):
         r_conf = conf.config['reporter']
         self.assertEqual(l_conf['results'], r_conf['results'])
         self.assertEqual(l_conf['problems'], r_conf['problems'])
-        self.assertEqual(l_conf['algorithms'], [])
-        self.assertEqual(r_conf['algorithms'], [[]])
+        self.assertEqual(l_conf['algorithms'], ['ALG1', 'ALG2'])
+        self.assertEqual(r_conf['algorithms'], [['ALG1', 'ALG2']])
         self.assertEqual(len(conf.config), 2)
-
-        self.make_conf(
-            {
-                'launcher': {
-                    'results': 'out/launcher/results',
-                    'algorithms': ['ALG1', 'ALG2'],
-                    'problems': ['PROB1', 'PROB2']
-                },
-                'reporter': {
-                    'results': 'out/reporter/results',
-                },
-                'problems': {}
-            }
+        gen_config(
+            """
+            launcher:
+                results: out/launcher/results
+                algorithms: [ALG1, ALG2]
+                problems: [PROB1, PROB2]
+            reporter:
+                results: out/reporter/results
+            problems:
+                PROB1: []
+            """,
+            self.tmp_dir
         )
-        conf = self.load_conf()
+        conf = ConfigLoader(filename)
         self.assertEqual(len(conf.config), 3)
         self.assertIn('launcher', conf.config)
         self.assertIn('reporter', conf.config)
@@ -442,33 +394,71 @@ class TestConfigLoader(unittest.TestCase):
 
     def test_check_config(self):
 
-        self.make_conf(self.invalid)
-        conf = self.load_conf()
+        filename = gen_config(self.invalid, self.tmp_dir)
+        conf = ConfigLoader(filename)
         with self.assertRaises(ValueError):
             conf.check_config_issues('launcher')
         with self.assertRaises(ValueError):
             conf.check_config_issues('reporter')
 
-        conf_src = self.copy_invalid_conf()
-        conf_src['reporter']['algorithms'] = [123, 'ALG1', 'ALG2', ['ALG3', 'ALG4']]
-        self.make_conf(conf_src)
-        conf = self.load_conf()
+        gen_config(
+            """
+            launcher:
+                sources: []
+                results: ''
+                repeat: 0
+                save: yes
+                loglevel: INVALID
+                algorithms: []
+                problems: []
+            reporter:
+                results: ''
+                algorithms: [123, ALG1, ALG2, [ALG3, ALG4]]
+                problems: []
+                formats: []
+            """,
+            self.tmp_dir
+        )
+        conf = ConfigLoader(filename)
         with self.assertRaises(ValueError):
             conf.check_config_issues('reporter')
         with self.assertRaises(ValueError):
             conf.check_config_issues('launcher')
 
     def test_conf_values(self):
-        self.make_conf(self.valid)
-        conf = self.load_conf()
+        filename = gen_config(self.valid, self.tmp_dir)
+        conf = ConfigLoader(filename)
         self.assertIsInstance(conf.launcher, LauncherConfig)
         self.assertIsInstance(conf.reporter, ReporterConfig)
         self.assertEqual(conf.launcher.n_exp, 0)
         self.assertEqual(conf.reporter.experiments, [])
 
-        gen_algorithm(conf.config['launcher']['algorithms'])
-        gen_problem(conf.config['launcher']['problems'])
+        gen_code('algorithms', ['ALG1', 'ALG2'], self.tmp_dir)
+        gen_code('problems', ['PROB1', 'PROB2'], self.tmp_dir)
+        conf = ConfigLoader(filename)
         self.assertIsInstance(conf.launcher, LauncherConfig)
         self.assertIsInstance(conf.reporter, ReporterConfig)
         self.assertEqual(conf.launcher.n_exp, 4)
         self.assertEqual(len(conf.reporter.experiments), 4)
+
+    def test_show_sources(self):
+        gen_code('algorithms', ['ALG1', 'ALG2'], self.tmp_dir)
+        gen_code('problems', ['PROB1', 'PROB2'], self.tmp_dir)
+        conf_file = gen_config(
+            f"""
+            launcher:
+                sources: [{self.tmp_dir}]
+            """,
+            self.tmp_dir
+        )
+        conf = ConfigLoader(conf_file)
+        alg_str = conf.show_sources('algorithms', True)
+        prob_str = conf.show_sources('problems', True)
+        self.assertIn('ALG1', alg_str)
+        self.assertIn('ALG2', alg_str)
+        self.assertIn('PROB1', prob_str)
+        self.assertIn('PROB2', prob_str)
+        self.assertNotIn('ALG1', prob_str)
+        self.assertNotIn('ALG2', prob_str)
+        self.assertNotIn('PROB1', alg_str)
+        self.assertNotIn('PROB2', alg_str)
