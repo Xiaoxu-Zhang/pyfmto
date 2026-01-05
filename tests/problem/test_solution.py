@@ -1,7 +1,7 @@
 import numpy as np
 import unittest
 
-from pyfmto.problems.solution import Solution
+from pyfmto.problem.solution import Solution
 from pyfmto.utilities.schemas import STPConfig
 
 

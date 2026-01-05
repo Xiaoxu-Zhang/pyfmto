@@ -8,7 +8,7 @@ from pathlib import Path
 
 from numpy import ndarray
 
-from tests.problems import ConstantProblem, SimpleProblem, MtpSynthetic, MtpRealworld, MtpNonIterableReturn
+from tests.problem import ConstantProblem, SimpleProblem, MtpSynthetic, MtpRealworld, MtpNonIterableReturn
 
 
 class TestProblemBase(unittest.TestCase):
