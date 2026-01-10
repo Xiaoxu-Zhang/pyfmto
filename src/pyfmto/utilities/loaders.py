@@ -44,8 +44,6 @@ def add_sources(paths):
             continue
         if str(root.parent) not in sys.path:
             sys.path.append(str(root.parent))
-        if str(root) not in sys.path:
-            sys.path.append(str(root))
 
 
 def recursive_to_pure_dict(data: Any) -> dict[str, Any]:
@@ -129,9 +127,9 @@ class AlgorithmData:
                             self.client = clt
                             self.server = srv
                 if not clt:
-                    msg.append("Client not found.")
+                    msg.append("The subclass of 'Client' not found.")
                 if not srv:
-                    msg.append("Server not found.")
+                    msg.append("The subclass of 'Server' not found.")
                 check_res['msg'].append('\n'.join(msg))
             except Exception as e:
                 check_res['msg'].append(f"Exception: {str(e)}")
@@ -223,7 +221,7 @@ class ProblemData:
                         check_pass = True
                         break
                 if not check_pass:
-                    check_res['msg'].append("Problem Class not found.")
+                    check_res['msg'].append("The subclass of 'MultiTaskProblem' not found.")
                 else:
                     check_res['msg'].append("")
             except Exception as e:
