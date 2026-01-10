@@ -39,6 +39,9 @@ def add_sources(paths):
     import sys
     for p in paths:
         root = Path(p).resolve()
+        if not root.exists():
+            logger.warning(f"Path '{root}' does not exist.")
+            continue
         if str(root.parent) not in sys.path:
             sys.path.append(str(root.parent))
         if str(root) not in sys.path:
@@ -100,7 +103,7 @@ class AlgorithmData:
         return True in self.module_detail['pass']
 
     def verbose(self):
-        return {k: self.module_detail[k] for k in ['name', 'pass', 'paths', 'msg']}
+        return {k: self.module_detail[k] for k in ['name', 'pass', 'path', 'msg']}
 
     def __load(self):
         import importlib
@@ -135,7 +138,7 @@ class AlgorithmData:
             finally:
                 check_res['name'].append(self.name)
                 check_res['pass'].append(check_pass)
-                check_res['paths'].append(path)
+                check_res['path'].append(path)
                 check_res['client'].append(clt)
                 check_res['server'].append(srv)
 
@@ -202,7 +205,7 @@ class ProblemData:
         return hasattr(self, 'problem')
 
     def verbose(self):
-        return {k: self.module_detail[k] for k in ['name', 'pass', 'paths', 'msg']}
+        return {k: self.module_detail[k] for k in ['name', 'pass', 'path', 'msg']}
 
     def __load(self):
         import importlib
@@ -228,7 +231,7 @@ class ProblemData:
             finally:
                 check_res['name'].append(self.name_orig)
                 check_res['pass'].append(check_pass)
-                check_res['paths'].append(path)
+                check_res['path'].append(path)
                 check_res['problem'].append(problem)
         self.module_detail = check_res
 
@@ -457,7 +460,7 @@ class ConfigLoader:
         self.config_update = load_yaml(config)
         self.config = copy.deepcopy(self.config_default)
         self.merge_global_config_from_updates()
-        self.fill_launcher_config_from_reporter()
+        self.fill_reporter_config_from_launcher()
         self.algorithms: dict[str, AlgorithmData] = {}
         self.problems: dict[str, ProblemData] = {}
         add_sources(self.sources)
@@ -476,8 +479,9 @@ class ConfigLoader:
         cwd = str(Path().cwd().resolve())
         if cwd not in self.config['launcher']['sources']:
             self.config['launcher']['sources'].append(cwd)
+        logger.setLevel(self.config['launcher']['loglevel'])
 
-    def fill_launcher_config_from_reporter(self) -> None:
+    def fill_reporter_config_from_launcher(self) -> None:
         launcher_params = self.config['launcher']
         for key in ['results', 'problems', 'algorithms']:
             if key in self.config['reporter']:
@@ -503,6 +507,8 @@ class ConfigLoader:
             else:
                 for name, paths in source_indices.items():
                     self.problems[name] = ProblemData(name, paths)
+        logger.debug(self.show_sources('algorithms'))
+        logger.debug(self.show_sources('problems'))
 
     def show_sources(self, target: Literal['algorithms', 'problems'], print_it: bool = False) -> str:
         dicts = [alg_data.verbose() for alg_data in getattr(self, target).values()]
@@ -511,9 +517,14 @@ class ConfigLoader:
         for k in keys:
             for d in dicts:
                 res[k] += d[k]
+
+        src_str = '\n'.join(self.sources)
+        summary = f"Found {sum(res['pass'])} available (total {len(res['pass'])}) {target} in\n{src_str}"
         if print_it:
+            print(summary)
             print_dict_as_table(res)
-        return tabulate.tabulate(res, headers='keys', tablefmt=tabulate_formats.rounded_grid)
+        tab = tabulate.tabulate(res, headers='keys', tablefmt=tabulate_formats.rounded_grid)
+        return f"{summary}\n{tab}"
 
     @property
     def launcher(self) -> LauncherConfig:
