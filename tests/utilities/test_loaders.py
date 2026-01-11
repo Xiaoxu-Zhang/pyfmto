@@ -1,5 +1,4 @@
 import os
-import sys
 import unittest
 from pathlib import Path
 from pydantic import ValidationError
@@ -11,7 +10,7 @@ from pyfmto.experiment import list_report_formats, show_default_conf
 from pyfmto.utilities.loaders import (
     ProblemData, AlgorithmData,
     LauncherConfig, ReporterConfig,
-    ConfigLoader, add_sources
+    ConfigLoader
 )
 from tests.helpers import gen_code, PyfmtoTestCase
 from tests.helpers.generators import gen_config
@@ -19,19 +18,6 @@ from tests.utilities import LoadersTestCase
 
 
 class TestUtilities(PyfmtoTestCase):
-
-    def test_add_sources(self):
-        self.save_sys_env()
-
-        self.tmp_dir = Path('temp_dir_for_test')
-        add_sources([str(self.tmp_dir)])
-        self.assertNotIn(str(self.tmp_dir.parent), sys.path)
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        add_sources([str(self.tmp_dir)])
-        self.assertIn(str(self.tmp_dir.resolve().parent), sys.path)
-
-        self.delete(self.tmp_dir)
-        self.restore_sys_env()
 
     def test_recursive_to_pure_dict(self):
         data = {

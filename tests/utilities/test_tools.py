@@ -1,5 +1,7 @@
 import subprocess
+import sys
 import warnings
+from pathlib import Path
 from unittest.mock import patch, Mock, MagicMock, mock_open
 
 from pyfmto.utilities import (
@@ -9,7 +11,14 @@ from pyfmto.utilities import (
     terminate_popen,
     tabulate_formats,
 )
-from pyfmto.utilities.tools import redirect_warnings, print_dict_as_table, get_pkgs_version, get_cpu_model, get_os_name
+from pyfmto.utilities.tools import (
+    redirect_warnings,
+    print_dict_as_table,
+    get_pkgs_version,
+    get_cpu_model,
+    get_os_name,
+    add_sources
+)
 
 from tests.helpers import PyfmtoTestCase
 
@@ -18,6 +27,19 @@ class TestTools(PyfmtoTestCase):
 
     def tearDown(self):
         self.delete()
+
+    def test_add_sources(self):
+        self.save_sys_env()
+
+        self.tmp_dir = Path('temp_dir_for_test')
+        add_sources([str(self.tmp_dir)])
+        self.assertNotIn(str(self.tmp_dir.parent), sys.path)
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        add_sources([str(self.tmp_dir)])
+        self.assertIn(str(self.tmp_dir.resolve().parent), sys.path)
+
+        self.delete(self.tmp_dir)
+        self.restore_sys_env()
 
     def test_cross_platform_tools(self):
         with patch('os.system') as mock_system:

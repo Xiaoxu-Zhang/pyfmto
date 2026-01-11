@@ -2,9 +2,9 @@ import argparse
 from pathlib import Path
 from typing import cast, Literal
 
-from .tools import matched_str_head
+from .tools import matched_str_head, add_sources
 from ..experiment import Launcher, Reports, list_report_formats, show_default_conf
-from .loaders import add_sources, ConfigLoader, ProblemData, AlgorithmData
+from .loaders import ConfigLoader, ProblemData, AlgorithmData
 
 
 def main():

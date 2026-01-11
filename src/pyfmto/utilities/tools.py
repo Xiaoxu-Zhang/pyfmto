@@ -3,16 +3,20 @@ import platform
 import subprocess
 import sys
 from contextlib import contextmanager
+from pathlib import Path
 from rich.console import Console
 from rich.table import Table, box
 from tabulate import tabulate
 from typing import Literal
+
 from .loggers import logger
 
 __all__ = [
     'colored',
-    'get_pkgs_version',
+    'add_sources',
+    'get_os_name',
     'get_cpu_model',
+    'get_pkgs_version',
     'clear_console',
     'titled_tabulate',
     'tabulate_formats',
@@ -52,6 +56,17 @@ class TabulatesFormats:
 
 
 tabulate_formats = TabulatesFormats()
+
+
+def add_sources(paths: list[str]):
+    import sys
+    for p in paths:
+        root = Path(p).resolve()
+        if not root.exists():
+            logger.warning(f"Path '{root}' does not exist.")
+            continue
+        if str(root.parent) not in sys.path:
+            sys.path.append(str(root.parent))
 
 
 def terminate_popen(process: subprocess.Popen):

@@ -21,12 +21,11 @@ from typing import Type, Any, Union, Literal
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
 from pyfmto.problem import MultiTaskProblem
-from . import titled_tabulate, clear_console, tabulate_formats
 from .io import parse_yaml, dumps_yaml, load_yaml
 from .loggers import logger
+from .tools import get_os_name, add_sources, titled_tabulate, clear_console, tabulate_formats
 
 __all__ = [
-    'add_sources',
     'load_problem',
     'ProblemData',
     'ConfigLoader',
@@ -35,19 +34,6 @@ __all__ = [
     'ReporterConfig',
     'LauncherConfig',
 ]
-
-from .tools import get_os_name
-
-
-def add_sources(paths):
-    import sys
-    for p in paths:
-        root = Path(p).resolve()
-        if not root.exists():
-            logger.warning(f"Path '{root}' does not exist.")
-            continue
-        if str(root.parent) not in sys.path:
-            sys.path.append(str(root.parent))
 
 
 def recursive_to_pure_dict(data: Any) -> dict[str, Any]:
