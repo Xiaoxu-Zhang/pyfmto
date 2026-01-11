@@ -38,6 +38,8 @@ dependencies = [
     "wrapt",
     "rich",
     'deepdiff',
+    'psutil',
+    'concurrent_log_handler',
    ]
 classifiers = [
     "Development Status :: 4 - Beta",
