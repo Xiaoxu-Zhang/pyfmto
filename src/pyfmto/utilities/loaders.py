@@ -453,6 +453,7 @@ class LauncherConfig(BaseModel):
     save: bool
     loglevel: str
     snapshot: bool
+    verbose: bool
     packages: list[str]
     algorithms: list[str]
     problems: list[str]
@@ -515,6 +516,7 @@ class ConfigLoader:
         save: true            # [optional] save results to disk
         loglevel: INFO        # [optional] log level [CRITICAL, ERROR, WARNING, INFO, DEBUG], default INFO
         snapshot: true        # [optional] If create snapshot of the experiment
+        verbose: false        # [optional] Save detailed information for each repeat run
         packages: []          # [optional] Record the version of these packages
         algorithms: []        # run these algorithms
         problems: []          # run each algorithm on these problems
