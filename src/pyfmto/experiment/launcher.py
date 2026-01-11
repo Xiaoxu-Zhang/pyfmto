@@ -45,8 +45,8 @@ class Launcher:
         for self.exp_idx, self.exp in enumerate(self.conf.experiments):
             logger.info(f"\n{self.exp}")
             if self.conf.save:
-                self.exp.init_root()
-                self.exp.backup_params()
+                self._init_root()
+                self._create_snapshot()
             with redirect_warnings():
                 self._repeating()
         self._remove_bars()
@@ -149,10 +149,11 @@ class Launcher:
             sys.executable, "-c",
             "from pyfmto.utilities import logger; "
             "from pyfmto.utilities.loaders import add_sources; "
+            "from importlib import import_module; "
             f"add_sources({self.conf.sources}); "
-            f"from {server.__module__} import {server.__name__}; "
+            f"module = import_module('{server.__module__}'); "
             f"logger.setLevel('{self.conf.loglevel}'); "
-            f"srv = {server.__name__}(**{repr(kwargs)}); "
+            f"srv = module.{server.__name__}(**{repr(kwargs)}); "
             f"srv.start()"
         ]
 
@@ -181,23 +182,31 @@ class Launcher:
         pool.shutdown(wait=True)
         self._results = [fut.result() for fut in futures]
 
+    def _init_root(self):
+        self.exp.init_root()
+
+    def _create_snapshot(self):
+        if self.conf.snapshot:
+            self.exp.create_snapshot(self.conf.packages)
+
     def _save_rounds_info(self):
-        if self.conf.backup:
-            tables = {clt.id: clt for clt in self._results}
-            info_str = ''
-            for cid in sorted(tables.keys()):
-                clt = tables[cid]
-                tab = titled_tabulate(
-                    f"{clt.name} {clt.problem.name}({clt.dim}D)",
-                    '=', clt.rounds_info, headers='keys', tablefmt=tf.rounded_grid
-                )
-                info_str = f"{info_str}{tab}\n"
-            res_file = self.exp.result_name(self._repeat_id)
-            log_dir = res_file.with_name('rounds_info')
-            log_name = res_file.with_suffix('.log').name
-            log_dir.mkdir(parents=True, exist_ok=True)
-            with open(log_dir / log_name, 'w') as f:
-                f.write(info_str)
+        if not self.conf.verbose:
+            return
+        tables = {clt.id: clt for clt in self._results}
+        info_str = ''
+        for cid in sorted(tables.keys()):
+            clt = tables[cid]
+            tab = titled_tabulate(
+                f"{clt.name} {clt.problem.name}({clt.dim}D)",
+                '=', clt.rounds_info, headers='keys', tablefmt=tf.rounded_grid
+            )
+            info_str = f"{info_str}{tab}\n"
+        res_file = self.exp.result_name(self._repeat_id)
+        log_dir = res_file.with_name('verbose')
+        log_name = res_file.with_suffix('.log').name
+        log_dir.mkdir(parents=True, exist_ok=True)
+        with open(log_dir / log_name, 'w') as f:
+            f.write(info_str)
 
     def _save_results(self):
         if self.conf.save:
