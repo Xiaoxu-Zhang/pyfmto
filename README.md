@@ -1,3 +1,5 @@
+from pyfmto import Launcher
+
 ```
 
                                ____                __         
@@ -49,7 +51,7 @@ git clone https://github.com/Xiaoxu-Zhang/fmto.git
 cd fmto
 ```
 
-Create an environment (`conda` is recommended) and install PyFMTO:
+Create an environment and install PyFMTO:
 
 ```bash
 conda create -n fmto python=3.10
@@ -79,10 +81,10 @@ get helps. The CLI layers are as follows:
 ```txt
 pyfmto
    ├── -h/--help
-   ├── run [-c/--config <config_file>]
-   ├── report [-c/--config <config_file>]
+   ├── run
+   ├── report
    ├── list algorithms/problems/reports
-   └── show <result of list>
+   └── show algorithms.<alg_name>/problems.<prob_name>
 ```
 
 **Examples:**
@@ -105,46 +107,45 @@ pyfmto
     ```
 - List something:
     ```bash
-    pyfmto list algorithms
-    ```
-    output:
-    ```txt
-    Found 6 Available Algorithms:
-    FDEMD
-    ADDFBO
-    BO
-    FMTBO
-    IAFFBO
-    ALG
+    pyfmto list algorithms  # or ↓ 
+    # pyfmto list problems
     ```
 - Show supported configurations:
     ```bash
-    pyfmto show algorithms.ALG  # or pyfmto show problems.Cec2022
-    # 'algorithms', 'problems', and 'reports' can be replaced with any prefix of length ≥ 1. 
-    # pyfmto matches the prefix to the corresponding category.
-    # For example, 'algorithms.ALG' is equivalent to 'a.ALG' or 'al.ALG'
+    pyfmto show algorithms.<alg_name>  # or ↓  
+    # pyfmto show problems.<prob_name>
     ```
-    output:
-    ```txt
-    client:   
-      alpha: 0.2
-    
-    server:
-      beta: 0.5
-    ```
+
+> **Note**:
+> 
+> Every subcommand support `-c/--config <config_file>`
+> 
+> In the subcommands `list` and `show`, strings 'algorithms', 'problems', and 'reports' can be 
+> replaced with any prefix of length ≥ 1. PyFMTO matches the prefix to the 
+> corresponding category. For example: 
+> 
+> `pyfmto list algorithms` is equivalent to:
+> - `pyfmto list a`
+> - `pyfmto list al`
+> - `pyfmto list alg`
+> - ...
+> 
+> `pyfmto show problems.<prob_name>` is equivalent to:
+> - `pyfmto show p.<prob_name>`
+> - `pyfmto show prob.<prob_name>`
+> - ...
 
 ### Use PyFMTO in python
 
 ```python
-from pyfmto import Launcher, Reporter
+from pyfmto.utilities.loaders import ConfigLoader
+from pyfmto import Launcher, Reports
 
 if __name__ == '__main__':
-    launcher = Launcher()
-    launcher.run()
-    
-    reports = Reports()
-    reports.to_curve()
-    # reporter.to_ ...
+    conf = ConfigLoader()
+    launcher = Launcher(conf.launcher)
+    reports = Reports(conf.reporter)
+    reports.to_excel()
 ```
 
 ## Architecture and Ecosystem
@@ -181,9 +182,10 @@ includes the following components:
 - A template algorithm named "ALG" that you can use as a basis for implementing your own algorithm.
 - A template problem named "PROB" that you can use as a basis for implementing your own problem.
 
-The `config.yaml`, `ALG` and `PROB` provided detailed instructions, you can even start your 
-research without additional documentation. The fmto repository is currently in the early stages 
-of development. I'm actively working on improving existing algorithms and adding new algorithms.
+The `config.yaml`, `algorithms/DEMO` and `problems/DEMO` provided detailed instructions, you can 
+even start your research without additional documentation. The fmto repository is currently in 
+the early stages of development. I'm actively working on improving existing algorithms and adding 
+new algorithms.
 
 ## Algorithm's Components
 
@@ -258,27 +260,13 @@ class MyMTP(MultiTaskProblem):
 
 ## Tools
 
-### list_problems
+### load_problem
 
 ```python
-from pyfmto.problem import list_problems
-
-# list all problems in console
-list_problems(print_it=True)
-
-# it also return the dict {ProblemName: ProblemDataInstance} of problems
-prob_lst = list_problems()
-```
-
-### init_problem
-
-```python
-from pyfmto.problem import init_problem
-
-_ = load_problem('Arxiv2017')
+from pyfmto import load_problem
 
 # init a problem with customized args
-prob = init_problem('Arxiv2017', dim=2, fe_init=20, fe_max=50, npd=5)
+prob = load_problem('arxiv2017', dim=2, fe_init=20, fe_max=50, npd=5)
 
 # problem instance can be print
 print(prob)
