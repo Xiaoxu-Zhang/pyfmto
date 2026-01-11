@@ -1,8 +1,10 @@
 import os
 import platform
+import psutil
 import subprocess
-
+import sys
 from contextlib import contextmanager
+from datetime import datetime
 from rich.console import Console
 from rich.table import Table, box
 from tabulate import tabulate
@@ -11,6 +13,8 @@ from .loggers import logger
 
 __all__ = [
     'colored',
+    'get_meta',
+    'get_cpu_model',
     'clear_console',
     'titled_tabulate',
     'tabulate_formats',
@@ -146,3 +150,95 @@ def redirect_warnings():
         yield
     finally:
         warnings.showwarning = orig_show
+
+
+def get_meta(packages: list[str]):
+    pkg_vers = get_pkgs_version(packages)
+    os_name = sys.platform
+    if os_name == 'win32':
+        os_name = 'Windows'
+    elif os_name == 'darwin':
+        os_name = 'macOS'
+    else:
+        os_name = 'Linux'
+    now = datetime.now()
+    return {
+        "date": now.strftime("%Y-%m-%d"),
+        "time": now.strftime("%H:%M:%S"),
+        "sys": {
+            'OS': os_name,
+            "CPU": get_cpu_model(),
+            "MEM": f"{round(psutil.virtual_memory().total / (1024**3), 1)} GB"
+        },
+        "env": {
+            "python": platform.python_version(),
+            **pkg_vers
+        }
+    }
+
+
+def get_pkgs_version(packages: list[str]):
+    res: dict[str, str] = {}
+
+    for name in packages:
+        # 1. importlib.metadata (Python 3.8+)
+        try:
+            from importlib.metadata import version
+            res[name] = version(name)
+            continue
+        except Exception:
+            pass
+
+        # 2. pkg_resources
+        try:
+            from importlib.metadata import version
+            return version(name)
+        except Exception:
+            pass
+
+        # 3. module.__version__
+        from importlib import import_module
+        try:
+            module = import_module(name)
+            res[name] = getattr(module, '__version__', None)
+            continue
+        except Exception:
+            pass
+
+        res[name] = 'unknown'
+    return res
+
+
+def get_cpu_model():
+    # 1. try platform.processor()
+    model = platform.processor().strip()
+    if model and model not in ('', 'arm', 'x86_64'):
+        return model
+
+    # 2. macOS fallback
+    if sys.platform == "darwin":
+        try:
+            result = subprocess.run(
+                ["sysctl", "-n", "machdep.cpu.brand_string"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            model = result.stdout.strip()
+            if model:
+                return model
+        except Exception:
+            pass
+
+    # 3. Linux fallback
+    if sys.platform.startswith("linux"):
+        try:
+            with open("/proc/cpuinfo", "r") as f:
+                for line in f:
+                    if "model name" in line:
+                        return line.split(":", 1)[1].strip()
+        except Exception:
+            pass
+
+    # 4. final fallback
+    return "Unknown CPU"
