@@ -3,22 +3,20 @@
 #   https://www.cnblogs.com/kangshuaibo/p/14700833.html
 
 import logging.config
-import logging.handlers
 import time
 from pathlib import Path
-from logging.handlers import RotatingFileHandler
+from concurrent_log_handler import ConcurrentRotatingFileHandler
 
-__all__ = ['logger']
-Path('out', 'logs').mkdir(parents=True, exist_ok=True)
+log_dir = Path("out/logs")
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / "pyfmto.log"
 
 
-class PyfmtoRotatingFileHandler(RotatingFileHandler):
+class SafeFileHandler(ConcurrentRotatingFileHandler):
     def rotation_filename(self, default_name: str) -> str:
+        ts = time.strftime("%Y-%m-%d_%H-%M-%S")
         filename = Path(self.baseFilename)
-        base = filename.stem
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        new_name = filename.with_name(f"{base} {timestamp}.log")
-        return str(new_name)
+        return str(filename.with_name(f"{filename.stem}_{ts}.log"))
 
 
 LOG_CONF = {
@@ -32,23 +30,23 @@ LOG_CONF = {
     },
     'handlers': {
         'pyfmto_handler': {
-            '()': PyfmtoRotatingFileHandler,
+            '()': SafeFileHandler,
             'level': 'DEBUG',
             'formatter': 'simpleFormatter',
             'filename': 'out/logs/pyfmto.log',
             'maxBytes': 2 * 1024 * 1024,
-            'backupCount': 10
+            'backupCount': 10,
+            'encoding': 'utf-8'
         }
     },
     'loggers': {
         'pyfmto': {
             'level': 'DEBUG',
             'handlers': ['pyfmto_handler'],
-            'propagate': 0
+            'propagate': False
         }
     }
 }
-
 
 logging.config.dictConfig(LOG_CONF)
 logger = logging.getLogger('pyfmto')
