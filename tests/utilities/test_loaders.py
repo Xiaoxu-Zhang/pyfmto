@@ -1,4 +1,5 @@
 import os
+import sys
 import unittest
 from pathlib import Path
 from pydantic import ValidationError
@@ -10,7 +11,7 @@ from pyfmto.experiment import list_report_formats, show_default_conf
 from pyfmto.utilities.loaders import (
     ProblemData, AlgorithmData,
     LauncherConfig, ReporterConfig,
-    ConfigLoader
+    ConfigLoader, add_sources
 )
 from tests.helpers import gen_code, PyfmtoTestCase
 from tests.helpers.generators import gen_config
@@ -18,6 +19,19 @@ from tests.utilities import LoadersTestCase
 
 
 class TestUtilities(PyfmtoTestCase):
+
+    def test_add_sources(self):
+        self.save_sys_env()
+
+        self.tmp_dir = Path('temp_dir_for_test')
+        add_sources([str(self.tmp_dir)])
+        self.assertNotIn(str(self.tmp_dir.parent), sys.path)
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        add_sources([str(self.tmp_dir)])
+        self.assertIn(str(self.tmp_dir.resolve().parent), sys.path)
+
+        self.delete(self.tmp_dir)
+        self.restore_sys_env()
 
     def test_recursive_to_pure_dict(self):
         data = {
@@ -121,8 +135,8 @@ class TestAlgorithmData(LoadersTestCase):
         module_path = '.'.join(empty_alg.parts[-3:])
         alg = AlgorithmData('ALG2', [module_path])
         msg = '\n'.join(alg.verbose()['msg']) + module_path
-        self.assertIn('Client not found.', msg, msg=msg)
-        self.assertIn('Server not found.', msg, msg=msg)
+        self.assertIn("The subclass of 'Client' not found.", msg, msg=msg)
+        self.assertIn("The subclass of 'Server' not found.", msg, msg=msg)
         self.assertFalse(hasattr(alg, 'client'))
         self.assertFalse(hasattr(alg, 'server'))
         self.assertFalse(alg.available)
@@ -178,12 +192,14 @@ class TestProblemData(LoadersTestCase):
         module_path = '.'.join(empty_prob.parts[-3:])
         prob = ProblemData('PROB2', [module_path])
         self.assertFalse(prob.available)
-        self.assertIn('Problem Class not found.', prob.verbose()['msg'])
+        self.assertIn("The subclass of 'MultiTaskProblem' not found.", prob.verbose()['msg'])
         prob = ProblemData('PROB2', ["invalid_path.problems.PROB2"])
         self.assertFalse(prob.available)
         self.assertIn('No module named', '\n'.join(prob.verbose()['msg']))
         with self.assertRaises(ValueError):
             prob.initialize()
+        with self.assertRaises(ValueError):
+            _ = prob.n_task
 
     def test_copy(self):
         prob = self.problems.get('PROB1')
@@ -246,45 +262,66 @@ class TestExperimentConfig(LoadersTestCase):
         self.assertEqual(exp.problem.params['fe_init'], 6)
         self.assertEqual(exp.problem.params['fe_max'], 12)
 
-        exp.backup_params()
+        exp.create_snapshot([])
         self.assertTrue(exp.root.parent.exists())
-        self.assertTrue((exp.root.parent / 'parameters.yaml').exists())
+        self.assertTrue(exp.code_dest.exists())
+        self.assertGreater(len(list(exp.code_dest.iterdir())), 0)
+        self.assertTrue(exp.markdown_dest.exists())
 
 
 class TestLauncherConfig(PyfmtoTestCase):
     def setUp(self):
-        self.exp = [
-            loaders.ExperimentConfig(loaders.AlgorithmData('ALG1', []), loaders.ProblemData(prob, []), 'out/results')
-            for prob in ['PROB1', 'PROB2', 'PROB3']
-        ]
+        self.save_sys_env()
+        self.tmp_dir = Path('temp_dir_for_test')
+        self.algs = ['alg1', 'alg2']
+        self.probs = ['prob1', 'prob2']
+        gen_code('algorithms', self.algs, self.tmp_dir)
+        gen_code('problems', self.probs, self.tmp_dir)
+        filename = gen_config(
+            f"""
+            launcher:
+                sources: [{self.tmp_dir}]
+                algorithms: [{self.algs[0]}, {self.algs[1]}]
+                problems: [{self.probs[0]}, {self.probs[1]}]
+            """,
+            self.tmp_dir
+        )
+        conf = ConfigLoader(filename)
+        self.exp = conf.launcher.experiments
 
     def tearDown(self):
         self.delete('out')
+        self.delete(self.tmp_dir)
+        self.restore_sys_env()
 
     def test_valid_config(self):
         config = LauncherConfig(
             results='out/results',
             repeat=3,
             seed=123,
-            backup=True,
+            snapshot=True,
+            verbose=False,
+            packages=[],
             loglevel='DEBUG',
             save=True,
-            algorithms=['alg1', 'alg2'],
-            problems=['prob1', 'prob2'],
+            algorithms=self.algs,
+            problems=self.probs,
             sources=[],
         )
         self.assertEqual(config.results, 'out/results')
         self.assertEqual(config.repeat, 3)
         self.assertEqual(config.seed, 123)
         self.assertEqual(config.loglevel, 'DEBUG')
-        self.assertTrue(config.backup)
+        self.assertEqual(config.packages, [])
+        self.assertTrue(config.snapshot)
+        self.assertFalse(config.verbose)
         self.assertTrue(config.save)
-        self.assertEqual(config.algorithms, ['alg1', 'alg2'])
-        self.assertEqual(config.problems, ['prob1', 'prob2'])
+        self.assertEqual(config.algorithms, self.algs)
+        self.assertEqual(config.problems, self.probs)
         self.assertEqual(config.n_exp, 0)
         self.exp[0].success = True
         config.experiments = self.exp
-        self.assertEqual(config.n_exp, 3)
+        self.assertEqual(config.n_exp, len(self.probs) * len(self.algs))
         self.assertEqual(config.total_repeat, config.n_exp * config.repeat)
         config.show_summary()
 
@@ -337,7 +374,7 @@ class TestConfigLoader(PyfmtoTestCase):
             results: ''
             repeat: 0
             save: yes
-            loglevel: INVALID
+            loglevel: INFO
             algorithms: []
             problems: []
         reporter:
@@ -393,7 +430,8 @@ class TestConfigLoader(PyfmtoTestCase):
         self.assertEqual(conf.config['reporter']['problems'], ['PROB1', 'PROB2'])
 
     def test_check_config(self):
-
+        gen_code('algorithms', ['ALG1', 'ALG2'], self.tmp_dir)
+        gen_code('problems', ['PROB1', 'PROB2'], self.tmp_dir)
         filename = gen_config(self.invalid, self.tmp_dir)
         conf = ConfigLoader(filename)
         with self.assertRaises(ValueError):
@@ -408,7 +446,7 @@ class TestConfigLoader(PyfmtoTestCase):
                 results: ''
                 repeat: 0
                 save: yes
-                loglevel: INVALID
+                loglevel: INFO
                 algorithms: []
                 problems: []
             reporter:
