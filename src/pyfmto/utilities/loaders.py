@@ -34,7 +34,7 @@ __all__ = [
     'LauncherConfig',
 ]
 
-from .tools import print_dict_as_table, get_meta, get_cpu_model
+from .tools import print_dict_as_table, get_meta
 
 
 def add_sources(paths):
@@ -319,7 +319,6 @@ class ExperimentConfig:
         self.algorithm = algorithm
         self.problem = problem
         self._root = Path(root)
-        self.versioning = []
         self.success = False
 
     @property
@@ -380,29 +379,29 @@ class ExperimentConfig:
 
         template = f"""
             # Experiment information
-            
+
             The experiment was performed on `{meta['date']}` at `{meta['time']}`
-            
+
             ---
-            
+
             ## system
-            
+
             <system>
-            
+
             ## environment
-    
+
             <environment>
-            
+
             ## Configuration
-            
+
             ### Algorithm
-            
+
             ``` yaml
             <algorithm>
             ```
-            
+
             ### Problem
-            
+
             ``` yaml
             <problem>
             ```

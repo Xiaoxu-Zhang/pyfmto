@@ -200,7 +200,7 @@ def get_pkgs_version(packages: list[str]):
         from importlib import import_module
         try:
             module = import_module(name)
-            res[name] = getattr(module, '__version__', None)
+            res[name] = getattr(module, '__version__')
             continue
         except Exception:
             pass
