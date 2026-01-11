@@ -14,8 +14,8 @@ class TestLauncher(ExpTestCase):
             self.assertNotEqual(exp.root.iterdir(), [])
 
     def test_not_save(self):
-        self.conf.config['launcher'].update({'save': False, 'backup': True})
+        self.conf.config['launcher'].update({'save': False, 'verbose': True})
         self.assertFalse(self.conf.launcher.save)
-        self.assertTrue(self.conf.launcher.backup)
+        self.assertTrue(self.conf.launcher.verbose)
         launcher = Launcher(self.conf.launcher)
         launcher.run()
