@@ -1,7 +1,9 @@
 import copy
 import inspect
 import os
+import shutil
 import tabulate
+import textwrap
 from collections import defaultdict
 from deepdiff import DeepDiff
 from itertools import product
@@ -18,7 +20,7 @@ from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
 from pyfmto.problem import MultiTaskProblem
 from . import titled_tabulate, clear_console, tabulate_formats
-from .io import parse_yaml, dumps_yaml, load_yaml, save_yaml
+from .io import parse_yaml, dumps_yaml, load_yaml
 from .loggers import logger
 
 __all__ = [
@@ -32,7 +34,7 @@ __all__ = [
     'LauncherConfig',
 ]
 
-from .tools import print_dict_as_table
+from .tools import print_dict_as_table, get_meta, get_cpu_model
 
 
 def add_sources(paths):
@@ -264,7 +266,9 @@ class ProblemData:
 
     @property
     def name(self) -> str:
-        return f"{self.name_orig}_{self.dim_str}" if self.dim > 0 else self.name_orig
+        name_with_dim = f"{self.name_orig}_{self.task_str}_{self.dim_str}"
+        name_no_dim = f"{self.name_orig}_{self.task_str}"
+        return name_with_dim if self.dim > 0 else name_no_dim
 
     @property
     def npd(self) -> int:
@@ -286,6 +290,17 @@ class ProblemData:
             return ""
 
     @property
+    def n_task(self) -> int:
+        if self.available:
+            return len(self.problem(**{'_init_solutions': False}))
+        else:
+            raise ValueError(f"Problem {self.name_orig} not available.")
+
+    @property
+    def task_str(self) -> str:
+        return f"{self.n_task}T"
+
+    @property
     def params_yaml(self) -> str:
         if self.params_default:
             return dumps_yaml(self.params_default)
@@ -304,6 +319,7 @@ class ExperimentConfig:
         self.algorithm = algorithm
         self.problem = problem
         self._root = Path(root)
+        self.versioning = []
         self.success = False
 
     @property
@@ -336,23 +352,74 @@ class ExperimentConfig:
     def params_dict(self) -> dict[str, Any]:
         data = {
             'algorithm': {
-                'name': self.algorithm.name,
-                'params': self.algorithm.params,
-                'default': self.algorithm.params_default,
-                'update': self.algorithm.params_update,
+                self.algorithm.name: {
+                    'base': self.algorithm.name_orig,
+                    'params': self.algorithm.params,
+                    'default': self.algorithm.params_default,
+                    'update': self.algorithm.params_update,
+                },
             },
             'problem': {
-                'name': self.problem.name,
-                'params': self.problem.params,
-                'default': self.problem.params_default,
-                'update': self.problem.params_update,
+                self.problem.name: {
+                    'params': self.problem.params,
+                    'default': self.problem.params_default,
+                    'update': self.problem.params_update,
+                }
             }
         }
         return recursive_to_pure_dict(data)
 
-    def backup_params(self):
-        self.root.parent.mkdir(parents=True, exist_ok=True)
-        save_yaml(self.params_dict, self.root.parent / "parameters.yaml")
+    def create_snapshot(self, versioning: list[str]):
+        meta = get_meta(versioning)
+        sys_str = '\n'.join([f"- {k}: {v}" for k, v in meta['sys'].items()])
+        env_str = '\n'.join([f"- {k}: `{v}`" for k, v in meta['env'].items()])
+        alg_params = dumps_yaml(self.params_dict['algorithm'])
+        prob_params = dumps_yaml(self.params_dict['problem'])
+        code_dest = self.root.parent / "snapshot" / f"code {meta['date']}"
+        md_dest = code_dest.parent / f"conf {meta['date']}.md"
+
+        template = f"""
+            # Experiment information
+            
+            The experiment was performed on `{meta['date']}` at `{meta['time']}`
+            
+            ---
+            
+            ## system
+            
+            <system>
+            
+            ## environment
+    
+            <environment>
+            
+            ## Configuration
+            
+            ### Algorithm
+            
+            ``` yaml
+            <algorithm>
+            ```
+            
+            ### Problem
+            
+            ``` yaml
+            <problem>
+            ```
+        """
+        md_str = textwrap.dedent(template)
+        md_str = md_str.replace('<system>', sys_str)
+        md_str = md_str.replace('<environment>', env_str)
+        md_str = md_str.replace('<algorithm>', alg_params)
+        md_str = md_str.replace('<problem>', prob_params)
+
+        file_src = inspect.getfile(self.algorithm.client)
+        for p in Path(file_src).resolve().parents:
+            if p.parent.name == 'algorithms' and not code_dest.exists():
+                shutil.copytree(p, code_dest)
+        if not md_dest.exists():
+            with open(md_dest, 'w') as f:
+                f.write(md_str)
 
     def init_root(self):
         self.root.mkdir(parents=True, exist_ok=True)
@@ -383,9 +450,10 @@ class LauncherConfig(BaseModel):
     results: str
     repeat: int
     seed: int
-    backup: bool
     save: bool
     loglevel: str
+    snapshot: bool
+    packages: list[str]
     algorithms: list[str]
     problems: list[str]
     experiments: list[ExperimentConfig] = []
@@ -445,8 +513,9 @@ class ConfigLoader:
         repeat: 2             # [optional] repeat each experiment for this number of times
         seed: 123             # [optional] random seed
         save: true            # [optional] save results to disk
-        backup: false         # [optional] backup parameters to disk
         loglevel: INFO        # [optional] log level [CRITICAL, ERROR, WARNING, INFO, DEBUG], default INFO
+        snapshot: true        # [optional] If create snapshot of the experiment
+        packages: []          # [optional] Record the version of these packages
         algorithms: []        # run these algorithms
         problems: []          # run each algorithm on these problems
     reporter:
