@@ -2,9 +2,11 @@ import copy
 import inspect
 import os
 import shutil
+import psutil
 import tabulate
 import textwrap
 from collections import defaultdict
+from datetime import datetime
 from deepdiff import DeepDiff
 from itertools import product
 from pathlib import Path
@@ -34,7 +36,7 @@ __all__ = [
     'LauncherConfig',
 ]
 
-from .tools import print_dict_as_table, get_meta
+from .tools import get_os_name
 
 
 def add_sources(paths):
@@ -326,6 +328,16 @@ class ExperimentConfig:
         return self._root / self.algorithm.name / self.problem.name / self.problem.npd_str
 
     @property
+    def code_dest(self) -> Path:
+        today = datetime.now().strftime("%Y-%m-%d")
+        return self.root.parent / "snapshot" / f"code {today}"
+
+    @property
+    def markdown_dest(self) -> Path:
+        today = datetime.now().strftime("%Y-%m-%d")
+        return self.root.parent / "snapshot" / f"markdown {today}"
+
+    @property
     def prefix(self) -> str:
         fe_init = self.problem.params.get('fe_init')
         fe_max = self.problem.params.get('fe_max')
@@ -368,19 +380,33 @@ class ExperimentConfig:
         }
         return recursive_to_pure_dict(data)
 
-    def create_snapshot(self, versioning: list[str]):
-        meta = get_meta(versioning)
-        sys_str = '\n'.join([f"- {k}: {v}" for k, v in meta['sys'].items()])
-        env_str = '\n'.join([f"- {k}: `{v}`" for k, v in meta['env'].items()])
-        alg_params = dumps_yaml(self.params_dict['algorithm'])
-        prob_params = dumps_yaml(self.params_dict['problem'])
-        code_dest = self.root.parent / "snapshot" / f"code {meta['date']}"
-        md_dest = code_dest.parent / f"conf {meta['date']}.md"
+    @staticmethod
+    def desc_sys():
+        from pyfmto.utilities.tools import get_cpu_model
+        data = {
+            'OS': get_os_name(),
+            "CPU": get_cpu_model(),
+            "MEM": f"{round(psutil.virtual_memory().total / (1024 ** 3), 1)} GB"
+        }
+        return '\n'.join([f"- {k}: {v}" for k, v in data.items()])
 
+    @staticmethod
+    def desc_env(packages: list[str]):
+        import platform
+        from pyfmto.utilities.tools import get_pkgs_version
+        data = {
+            'python': platform.python_version(),
+            **get_pkgs_version(packages)
+        }
+        return '\n'.join([f"- {k}: `{v}`" for k, v in data.items()])
+
+    def create_snapshot(self, packages: list[str]):
+        date = datetime.now().strftime("%Y-%m-%d")
+        time = datetime.now().strftime("%H:%M:%S")
         template = f"""
             # Experiment information
 
-            The experiment was performed on `{meta['date']}` at `{meta['time']}`
+            The experiment was performed on `{date}` at `{time}`
 
             ---
 
@@ -407,17 +433,17 @@ class ExperimentConfig:
             ```
         """
         md_str = textwrap.dedent(template)
-        md_str = md_str.replace('<system>', sys_str)
-        md_str = md_str.replace('<environment>', env_str)
-        md_str = md_str.replace('<algorithm>', alg_params)
-        md_str = md_str.replace('<problem>', prob_params)
+        md_str = md_str.replace('<system>', self.desc_sys())
+        md_str = md_str.replace('<environment>', self.desc_env(packages))
+        md_str = md_str.replace('<algorithm>', dumps_yaml(self.params_dict['algorithm']))
+        md_str = md_str.replace('<problem>', dumps_yaml(self.params_dict['problem']))
 
         file_src = inspect.getfile(self.algorithm.client)
         for p in Path(file_src).resolve().parents:
-            if p.parent.name == 'algorithms' and not code_dest.exists():
-                shutil.copytree(p, code_dest)
-        if not md_dest.exists():
-            with open(md_dest, 'w') as f:
+            if p.parent.name == 'algorithms' and not self.code_dest.exists():
+                shutil.copytree(p, self.code_dest)
+        if not self.markdown_dest.exists():
+            with open(self.markdown_dest, 'w') as f:
                 f.write(md_str)
 
     def init_root(self):
@@ -579,19 +605,25 @@ class ConfigLoader:
         logger.debug(self.show_sources('problems'))
 
     def show_sources(self, target: Literal['algorithms', 'problems'], print_it: bool = False) -> str:
-        dicts = [alg_data.verbose() for alg_data in getattr(self, target).values()]
-        keys = dicts[0].keys()
         res: dict[str, list[Any]] = defaultdict(list)
-        for k in keys:
-            for d in dicts:
-                res[k] += d[k]
-
         src_str = '\n'.join(self.sources)
-        summary = f"Found {sum(res['pass'])} available (total {len(res['pass'])}) {target} in\n{src_str}"
+        target_values = list(getattr(self, target).values())
+        if len(target_values) == 0:
+            summary = f"No {target} found in {src_str}"
+        else:
+            dicts = [data.verbose() for data in getattr(self, target).values()]
+            keys = dicts[0].keys()
+
+            for k in keys:
+                for d in dicts:
+                    res[k] += d[k]
+
+            summary = f"Found {sum(res['pass'])} available (total {len(res['pass'])}) {target} in\n{src_str}"
         if print_it:
             print(summary)
+            from pyfmto.utilities.tools import print_dict_as_table
             print_dict_as_table(res)
-        tab = tabulate.tabulate(res, headers='keys', tablefmt=tabulate_formats.rounded_grid)
+        tab = tabulate.tabulate(res, headers='keys', tablefmt=tabulate_formats.rounded_grid) if res != {} else ''
         return f"{summary}\n{tab}"
 
     @property
@@ -665,15 +697,12 @@ class ConfigLoader:
     def check_launcher_config(self) -> list[str]:
         issues = []
         launcher = self.config['launcher']
-        loglevel = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
         if not launcher.get('results'):
             issues.append("No results directory specified in launcher.")
         if launcher.get('repeat') <= 0:
             issues.append("Invalid repeat number specified in launcher. Must be greater than 0.")
         if not isinstance(launcher.get('save'), bool):
             issues.append("Invalid save option specified in launcher. Must be True or False.")
-        if launcher.get('loglevel') not in loglevel:
-            issues.append(f"Invalid log level specified in launcher. Choices: {loglevel}")
         if not launcher.get('algorithms'):
             issues.append("No algorithms specified in launcher.")
         if not launcher.get('problems'):

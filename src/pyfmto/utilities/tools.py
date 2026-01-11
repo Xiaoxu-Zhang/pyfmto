@@ -1,10 +1,8 @@
 import os
 import platform
-import psutil
 import subprocess
 import sys
 from contextlib import contextmanager
-from datetime import datetime
 from rich.console import Console
 from rich.table import Table, box
 from tabulate import tabulate
@@ -13,7 +11,7 @@ from .loggers import logger
 
 __all__ = [
     'colored',
-    'get_meta',
+    'get_pkgs_version',
     'get_cpu_model',
     'clear_console',
     'titled_tabulate',
@@ -71,6 +69,8 @@ def terminate_popen(process: subprocess.Popen):
 
 
 def print_dict_as_table(data: dict[str, list], true_color="green", false_color="red", title=None):
+    if not data:
+        return
     lengths = {len(v) for v in data.values()}
     if len(lengths) != 1:
         raise ValueError(f"all values must have the same length: {lengths}")
@@ -152,29 +152,14 @@ def redirect_warnings():
         warnings.showwarning = orig_show
 
 
-def get_meta(packages: list[str]):
-    pkg_vers = get_pkgs_version(packages)
+def get_os_name():
     os_name = sys.platform
     if os_name == 'win32':
-        os_name = 'Windows'
+        return 'Windows'
     elif os_name == 'darwin':
-        os_name = 'macOS'
+        return 'macOS'
     else:
-        os_name = 'Linux'
-    now = datetime.now()
-    return {
-        "date": now.strftime("%Y-%m-%d"),
-        "time": now.strftime("%H:%M:%S"),
-        "sys": {
-            'OS': os_name,
-            "CPU": get_cpu_model(),
-            "MEM": f"{round(psutil.virtual_memory().total / (1024**3), 1)} GB"
-        },
-        "env": {
-            "python": platform.python_version(),
-            **pkg_vers
-        }
-    }
+        return 'Linux'
 
 
 def get_pkgs_version(packages: list[str]):
@@ -189,14 +174,7 @@ def get_pkgs_version(packages: list[str]):
         except Exception:
             pass
 
-        # 2. pkg_resources
-        try:
-            from importlib.metadata import version
-            return version(name)
-        except Exception:
-            pass
-
-        # 3. module.__version__
+        # 2. module.__version__
         from importlib import import_module
         try:
             module = import_module(name)
