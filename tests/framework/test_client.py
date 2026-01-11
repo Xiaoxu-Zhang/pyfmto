@@ -1,21 +1,32 @@
+from pathlib import Path
+
 import numpy as np
-import unittest
 from itertools import product
 
 from pyfmto.framework import Client
-from pyfmto import init_problem
+from pyfmto import load_problem
 from pyfmto.utilities import parse_yaml
-from tests.helpers import gen_problem
+from tests.helpers import gen_code, PyfmtoTestCase
+from tests.helpers.generators import gen_config
 
 
-class TestClient(unittest.TestCase):
+class TestClient(PyfmtoTestCase):
     def setUp(self):
-        gen_problem('PROB')
-        self.problems = init_problem('PROB')
+        self.save_sys_env()
+        self.tmp_dir = Path('temp_dir_for_test')
+        gen_code('problems', ['PROB'], self.tmp_dir)
+        self.conf_file = gen_config(
+            f"""
+            launcher:
+                sources: [{str(self.tmp_dir)}]
+            """,
+            self.tmp_dir
+        )
+        self.problems = load_problem('PROB', self.conf_file)
 
     def tearDown(self):
-        from tests.helpers import remove_temp_files
-        remove_temp_files()
+        self.delete(self.tmp_dir)
+        self.restore_sys_env()
 
     def test_empty_client_attributes(self):
 

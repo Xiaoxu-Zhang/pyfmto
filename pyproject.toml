@@ -38,6 +38,8 @@ dependencies = [
     "wrapt",
     "rich",
     'deepdiff',
+    'psutil',
+    'concurrent_log_handler',
    ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -120,10 +122,6 @@ Homepage = "https://github.com/Xiaoxu-Zhang/pyfmto"
 version = {attr = "pyfmto.__version__"}
 
 # tool configurations
-[tool.setuptools.package-data]
-"pyfmto.problems" = ["*.yaml", "datasets/**/*"]
-"pyfmto.utilities" = ["*.yaml"]
-
 [tool.pytest.ini_options]
 addopts = [
     "--cov=pyfmto",
@@ -146,12 +144,12 @@ directory = "coverage/html"
 
 [tool.mypy]
 files = ["src/"]
-exclude = ["src/pyfmto/problems/benchmarks/", "problems/*", "algorithms/*"]
+exclude = ["temp/*"]
 follow_imports = "skip"
 ignore_missing_imports = true
 check_untyped_defs = true
 
 [tool.flake8]
-exclude = ["*temp*", "problems/*", "algorithms/*"]
+exclude = ["*temp*"]
 max-line-length = 120
 count = true

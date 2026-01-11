@@ -9,8 +9,6 @@ from pyfmto.framework.packages import (
 
 
 class TestPackagesForCoverage(unittest.TestCase):
-    def tearDown(self):
-        shutil.rmtree('out', ignore_errors=True)
 
     def test_actions_enum(self):
         self.assertEqual(Actions.REGISTER.name, 'REGISTER')

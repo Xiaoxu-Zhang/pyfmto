@@ -1,14 +1,13 @@
 import logging.config
 from unittest.mock import patch
 
-from pyfmto.utilities.loggers import LOG_CONF, PyfmtoRotatingFileHandler
+from pyfmto.utilities.loggers import LOG_CONF, SafeFileHandler
 from pathlib import Path
-from unittest import TestCase
 
-from tests.helpers import remove_temp_files
+from tests.helpers import PyfmtoTestCase
 
 
-class TestPyfmtoRotatingFileHandler(TestCase):
+class TestPyfmtoRotatingFileHandler(PyfmtoTestCase):
     def setUp(self):
         self.log_dir = Path("out/logs")
         self.log_dir.mkdir(exist_ok=True, parents=True)
@@ -18,13 +17,13 @@ class TestPyfmtoRotatingFileHandler(TestCase):
         self.logger = logging.getLogger('pyfmto')
 
     def tearDown(self):
-        remove_temp_files()
+        self.delete(self.log_dir)
 
-    @patch("time.strftime", return_value="2023-10-10 12:00:00")
+    @patch("time.strftime", return_value="2023-10-10_12-00-00")
     def test_rotation_filename(self, mock_strftime):
         handler = self.logger.handlers[0]
-        self.assertIsInstance(handler, PyfmtoRotatingFileHandler)
+        self.assertIsInstance(handler, SafeFileHandler)
         default_name = str("pyfmto.log")
         rotated_name = handler.rotation_filename(default_name)
-        expected_name = str(self.log_dir / "pyfmto 2023-10-10 12:00:00.log")
+        expected_name = str(self.log_dir / "pyfmto_2023-10-10_12-00-00.log")
         self.assertEqual(rotated_name[-len(expected_name):], expected_name)

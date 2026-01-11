@@ -1,10 +1,13 @@
 import copy
-import importlib
 import inspect
 import os
+import shutil
+import psutil
+import tabulate
 import textwrap
+from collections import defaultdict
+from datetime import datetime
 from deepdiff import DeepDiff
-from importlib import import_module
 from itertools import product
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict
@@ -17,17 +20,13 @@ from typing import Type, Any, Union, Literal
 
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
-from pyfmto.problems import MultiTaskProblem, realworld, synthetic
-from . import titled_tabulate, clear_console
-from .io import parse_yaml, dumps_yaml, load_yaml, save_yaml
+from pyfmto.problem import MultiTaskProblem
+from .io import parse_yaml, dumps_yaml, load_yaml
 from .loggers import logger
+from .tools import get_os_name, add_sources, titled_tabulate, clear_console, tabulate_formats
 
 __all__ = [
-    'list_algorithms',
-    'load_algorithm',
-    'list_problems',
     'load_problem',
-    'init_problem',
     'ProblemData',
     'ConfigLoader',
     'AlgorithmData',
@@ -63,107 +62,75 @@ def combine_params(params: dict[str, Union[Any, list[Any]]]) -> list[dict[str, A
     return result
 
 
-def list_algorithms(print_it=False):
-    alg_dir = Path().cwd() / 'algorithms'
-    if alg_dir.exists():
-        folders = os.listdir(alg_dir)
-        alg_names = [alg_name for alg_name in folders if alg_name.isupper()]
-    else:
-        logger.error(f"'algorithms' folder not found in {alg_dir.parent}.")
-        alg_names = []
-
-    algorithms: dict[str, AlgorithmData] = {}
-    for name in alg_names:
-        try:
-            algorithms[name] = load_algorithm(name)
-        except Exception as e:
-            logger.error(f"Failed to load {name}: {e}")
-
-    if print_it:
-        if alg_dir.exists():
-            alg_str = '\n'.join(list(algorithms.keys()))
-            print(f"Found {len(algorithms)} available algorithms: \n{textwrap.indent(alg_str, ' ' * 4)}")
-        else:
-            print(f"'algorithms' folder not found in {alg_dir.parent}.")
-    return algorithms
-
-
-def load_algorithm(name: str) -> 'AlgorithmData':
-    name = name.upper()
-    alg_dir = Path().cwd() / 'algorithms' / name
-    if alg_dir.exists():
-        module = importlib.import_module(f"algorithms.{name}")
-    else:
-        if alg_dir.parent.exists():
-            raise ValueError(f"Algorithm {name} not found.")
-        else:
-            raise FileNotFoundError(f"'algorithms' folder not found in {alg_dir.parent.parent}.")
-
-    clt, srv = None, None
-    for attr_name in dir(module):
-        attr = getattr(module, attr_name)
-        if inspect.isclass(attr):
-            if issubclass(attr, Client):
-                clt = attr
-            if issubclass(attr, Server):
-                srv = attr
-        if clt and srv:
-            return AlgorithmData(name, clt, srv)
-
-    msg: list[str] = [f'Load algorithm {name} failed:']
-    if not clt:
-        msg.append("  Client not found.")
-    if not srv:
-        msg.append("  Server not found.")
-    raise ModuleNotFoundError('\n'.join(msg))
-
-
-def init_problem(name: str, **kwargs) -> MultiTaskProblem:
-    prob = load_problem(name)
+def load_problem(name: str, config: Union[str, Path] = 'config.yaml', **kwargs) -> MultiTaskProblem:
+    conf = ConfigLoader(config)
+    prob = conf.problems.get(name, ProblemData(name, []))
+    if not prob.available:
+        raise ValueError(f"Problem '{name}' is not available")
     prob.params_update = kwargs
     return prob.initialize()
 
 
-def load_problem(name: str) -> 'ProblemData':
-    problems = list_problems()
-    if name in problems.keys():
-        return problems[name]
-    else:
-        raise ValueError(f"Problem '{name}' not found, use 'pyfmto show problems' to see available problems.")
-
-
-def list_problems(print_it=False) -> dict[str, 'ProblemData']:
-    problems: dict[str, ProblemData] = {}
-    for module in [realworld, synthetic]:
-        problems.update(collect_problems(module))
-    prob_dir = Path().cwd() / 'problems'
-    if prob_dir.exists():
-        problems.update(collect_problems(import_module('problems')))
-    if print_it:
-        print(f"Found {len(problems)} available problems:")
-        print(textwrap.indent('\n'.join(list(problems.keys())), ' ' * 4))
-    return problems
-
-
-def collect_problems(module) -> dict[str, 'ProblemData']:
-    problems = {}
-    for name in dir(module):
-        cls = getattr(module, name)
-        if inspect.isclass(cls) and issubclass(cls, MultiTaskProblem) and cls != MultiTaskProblem:
-            problems[name] = ProblemData(cls)
-    return problems
-
-
 class AlgorithmData:
+    client: Type[Client]
+    server: Type[Server]
 
-    def __init__(self, name: str, client: Any = None, server: Any = None):
+    def __init__(self, name: str, paths: list[str]):
         self.name_orig = name
         self.name_alias = ''
-        self.client: Type[Client] = client
-        self.server: Type[Server] = server
+        self.paths = paths
         self.params_default: dict[str, dict[str, Any]] = {}
         self.params_update: dict[str, dict[str, Any]] = {}
-        self.__parse_default_params()
+        self.module_detail: dict[str, list] = defaultdict(list)
+        self.__load()
+        if self.available:
+            self.__parse_default_params()
+
+    @property
+    def available(self):
+        return True in self.module_detail['pass']
+
+    def verbose(self):
+        return {k: self.module_detail[k] for k in ['name', 'pass', 'path', 'msg']}
+
+    def __load(self):
+        import importlib
+        check_res: dict[str, list] = defaultdict(list)
+        for path in self.paths:
+            clt, srv = None, None
+            msg: list[str] = []
+            check_pass = False
+            try:
+                module = importlib.import_module(path)
+                for attr_name in dir(module):
+                    attr = getattr(module, attr_name)
+                    if attr_name.startswith('__'):
+                        continue
+                    if inspect.isclass(attr):
+                        if issubclass(attr, Client) and attr != Client:
+                            clt = attr
+                        if issubclass(attr, Server) and attr != Server:
+                            srv = attr
+                    if clt and srv:
+                        check_pass = True
+                        if not hasattr(self, 'client'):
+                            self.client = clt
+                            self.server = srv
+                if not clt:
+                    msg.append("The subclass of 'Client' not found.")
+                if not srv:
+                    msg.append("The subclass of 'Server' not found.")
+                check_res['msg'].append('\n'.join(msg))
+            except Exception as e:
+                check_res['msg'].append(f"Exception: {str(e)}")
+            finally:
+                check_res['name'].append(self.name)
+                check_res['pass'].append(check_pass)
+                check_res['path'].append(path)
+                check_res['client'].append(clt)
+                check_res['server'].append(srv)
+
+        self.module_detail = check_res
 
     def __parse_default_params(self):
         c_doc = self.client.__doc__ if self.client else None
@@ -205,16 +172,56 @@ class AlgorithmData:
 
 
 class ProblemData:
+    problem: Type[MultiTaskProblem]
 
-    def __init__(self, problem: Type[MultiTaskProblem]):
-        self.problem: Type[MultiTaskProblem] = problem
+    def __init__(self, name, paths: list[str]):
+        self.name_orig = name
+        self.paths = paths
         self.params_default: dict[str, Any] = {
             'npd': 1,
             'random_ctrl': 'weak',
             'seed': 123,
         }
         self.params_update: dict[str, Any] = {}
-        self.__parse_default_params()
+        self.module_detail: dict[str, list] = defaultdict(list)
+        self.__load()
+        if self.available:
+            self.__parse_default_params()
+
+    @property
+    def available(self):
+        return hasattr(self, 'problem')
+
+    def verbose(self):
+        return {k: self.module_detail[k] for k in ['name', 'pass', 'path', 'msg']}
+
+    def __load(self):
+        import importlib
+        check_res: dict[str, list] = defaultdict(list)
+        for path in self.paths:
+            check_pass = False
+            problem = None
+            try:
+                module = importlib.import_module(path)
+                for attr_name in dir(module):
+                    attr = getattr(module, attr_name)
+                    if inspect.isclass(attr) and issubclass(attr, MultiTaskProblem) and attr != MultiTaskProblem:
+                        problem = attr
+                        self.problem = problem
+                        check_pass = True
+                        break
+                if not check_pass:
+                    check_res['msg'].append("The subclass of 'MultiTaskProblem' not found.")
+                else:
+                    check_res['msg'].append("")
+            except Exception as e:
+                check_res['msg'].append(str(e))
+            finally:
+                check_res['name'].append(self.name_orig)
+                check_res['pass'].append(check_pass)
+                check_res['path'].append(path)
+                check_res['problem'].append(problem)
+        self.module_detail = check_res
 
     def __parse_default_params(self):
         p_doc = self.problem.__doc__
@@ -240,12 +247,16 @@ class ProblemData:
         return DeepDiff(self.params_default, self.params).pretty()
 
     def initialize(self) -> MultiTaskProblem:
-        return self.problem(**self.params)
+        if self.available:
+            return self.problem(**self.params)
+        else:
+            raise ValueError(f"Problem {self.name_orig} not available.")
 
     @property
     def name(self) -> str:
-        base_name = self.problem.__name__
-        return f"{base_name}_{self.dim_str}" if self.dim > 0 else base_name
+        name_with_dim = f"{self.name_orig}_{self.task_str}_{self.dim_str}"
+        name_no_dim = f"{self.name_orig}_{self.task_str}"
+        return name_with_dim if self.dim > 0 else name_no_dim
 
     @property
     def npd(self) -> int:
@@ -265,6 +276,17 @@ class ProblemData:
             return f"{self.dim}D"
         else:
             return ""
+
+    @property
+    def n_task(self) -> int:
+        if self.available:
+            return len(self.problem(**{'_init_solutions': False}))
+        else:
+            raise ValueError(f"Problem {self.name_orig} not available.")
+
+    @property
+    def task_str(self) -> str:
+        return f"{self.n_task}T"
 
     @property
     def params_yaml(self) -> str:
@@ -292,6 +314,16 @@ class ExperimentConfig:
         return self._root / self.algorithm.name / self.problem.name / self.problem.npd_str
 
     @property
+    def code_dest(self) -> Path:
+        today = datetime.now().strftime("%Y-%m-%d")
+        return self.root.parent / "snapshot" / f"code {today}"
+
+    @property
+    def markdown_dest(self) -> Path:
+        today = datetime.now().strftime("%Y-%m-%d")
+        return self.root.parent / "snapshot" / f"markdown {today}"
+
+    @property
     def prefix(self) -> str:
         fe_init = self.problem.params.get('fe_init')
         fe_max = self.problem.params.get('fe_max')
@@ -317,23 +349,88 @@ class ExperimentConfig:
     def params_dict(self) -> dict[str, Any]:
         data = {
             'algorithm': {
-                'name': self.algorithm.name,
-                'params': self.algorithm.params,
-                'default': self.algorithm.params_default,
-                'update': self.algorithm.params_update,
+                self.algorithm.name: {
+                    'base': self.algorithm.name_orig,
+                    'params': self.algorithm.params,
+                    'default': self.algorithm.params_default,
+                    'update': self.algorithm.params_update,
+                },
             },
             'problem': {
-                'name': self.problem.name,
-                'params': self.problem.params,
-                'default': self.problem.params_default,
-                'update': self.problem.params_update,
+                self.problem.name: {
+                    'params': self.problem.params,
+                    'default': self.problem.params_default,
+                    'update': self.problem.params_update,
+                }
             }
         }
         return recursive_to_pure_dict(data)
 
-    def backup_params(self):
-        self.root.parent.mkdir(parents=True, exist_ok=True)
-        save_yaml(self.params_dict, self.root.parent / "parameters.yaml")
+    @staticmethod
+    def desc_sys():
+        from pyfmto.utilities.tools import get_cpu_model
+        data = {
+            'OS': get_os_name(),
+            "CPU": get_cpu_model(),
+            "MEM": f"{round(psutil.virtual_memory().total / (1024 ** 3), 1)} GB"
+        }
+        return '\n'.join([f"- {k}: {v}" for k, v in data.items()])
+
+    @staticmethod
+    def desc_env(packages: list[str]):
+        import platform
+        from pyfmto.utilities.tools import get_pkgs_version
+        data = {
+            'python': platform.python_version(),
+            **get_pkgs_version(packages)
+        }
+        return '\n'.join([f"- {k}: `{v}`" for k, v in data.items()])
+
+    def create_snapshot(self, packages: list[str]):
+        date = datetime.now().strftime("%Y-%m-%d")
+        time = datetime.now().strftime("%H:%M:%S")
+        template = f"""
+            # Experiment information
+
+            The experiment was performed on `{date}` at `{time}`
+
+            ---
+
+            ## system
+
+            <system>
+
+            ## environment
+
+            <environment>
+
+            ## Configuration
+
+            ### Algorithm
+
+            ``` yaml
+            <algorithm>
+            ```
+
+            ### Problem
+
+            ``` yaml
+            <problem>
+            ```
+        """
+        md_str = textwrap.dedent(template)
+        md_str = md_str.replace('<system>', self.desc_sys())
+        md_str = md_str.replace('<environment>', self.desc_env(packages))
+        md_str = md_str.replace('<algorithm>', dumps_yaml(self.params_dict['algorithm']))
+        md_str = md_str.replace('<problem>', dumps_yaml(self.params_dict['problem']))
+
+        file_src = inspect.getfile(self.algorithm.client)
+        for p in Path(file_src).resolve().parents:
+            if p.parent.name == 'algorithms' and not self.code_dest.exists():
+                shutil.copytree(p, self.code_dest)
+        if not self.markdown_dest.exists():
+            with open(self.markdown_dest, 'w') as f:
+                f.write(md_str)
 
     def init_root(self):
         self.root.mkdir(parents=True, exist_ok=True)
@@ -360,12 +457,15 @@ class ExperimentConfig:
 
 class LauncherConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    sources: list[str]
     results: str
     repeat: int
     seed: int
-    backup: bool
     save: bool
     loglevel: str
+    snapshot: bool
+    verbose: bool
+    packages: list[str]
     algorithms: list[str]
     problems: list[str]
     experiments: list[ExperimentConfig] = []
@@ -420,25 +520,35 @@ class ReporterConfig(BaseModel):
 class ConfigLoader:
     """
     launcher:
+        sources: []           # load alg/prob in these directory
         results: out/results  # [optional] save results to this directory
         repeat: 2             # [optional] repeat each experiment for this number of times
         seed: 123             # [optional] random seed
         save: true            # [optional] save results to disk
-        backup: false          # [optional] backup parameters to disk
         loglevel: INFO        # [optional] log level [CRITICAL, ERROR, WARNING, INFO, DEBUG], default INFO
+        snapshot: true        # [optional] If create snapshot of the experiment
+        verbose: false        # [optional] Save detailed information for each repeat run
+        packages: []          # [optional] Record the version of these packages
         algorithms: []        # run these algorithms
         problems: []          # run each algorithm on these problems
     reporter:
         formats: [excel]      # [optional] generate these reports
     """
 
-    def __init__(self, config: str = 'config.yaml'):
+    def __init__(self, config: Union[str, Path] = 'config.yaml'):
         self.config_default = parse_yaml(self.__class__.__doc__)
         self.config_update = load_yaml(config)
         self.config = copy.deepcopy(self.config_default)
-
         self.merge_global_config_from_updates()
-        self.fill_launcher_config_from_reporter()
+        self.fill_reporter_config_from_launcher()
+        self.algorithms: dict[str, AlgorithmData] = {}
+        self.problems: dict[str, ProblemData] = {}
+        add_sources(self.sources)
+        self.__list_sources()
+
+    @property
+    def sources(self) -> list[str]:
+        return self.config['launcher']['sources']
 
     def merge_global_config_from_updates(self):
         for key, value in self.config_update.items():
@@ -446,8 +556,12 @@ class ConfigLoader:
                 self.config[key].update(value)
             else:
                 self.config[key] = value
+        cwd = str(Path().cwd().resolve())
+        if cwd not in self.config['launcher']['sources']:
+            self.config['launcher']['sources'].append(cwd)
+        logger.setLevel(self.config['launcher']['loglevel'])
 
-    def fill_launcher_config_from_reporter(self) -> None:
+    def fill_reporter_config_from_launcher(self) -> None:
         launcher_params = self.config['launcher']
         for key in ['results', 'problems', 'algorithms']:
             if key in self.config['reporter']:
@@ -456,6 +570,47 @@ class ConfigLoader:
                 self.config['reporter'][key] = [launcher_params[key]]
             else:
                 self.config['reporter'][key] = launcher_params[key]
+
+    def __list_sources(self):
+        for target in ['algorithms', 'problems']:
+            source_indices: dict[str, list[str]] = defaultdict(list)
+            for path in self.sources:
+                target_dir = Path(path).resolve() / target
+                if target_dir.exists():
+                    for name in os.listdir(target_dir):
+                        sub_dir = target_dir / name
+                        if sub_dir.is_dir() and not name.startswith(('.', '_')):
+                            source_indices[name].append('.'.join(sub_dir.parts[-3:]))
+            if target == 'algorithms':
+                for name, paths in source_indices.items():
+                    self.algorithms[name] = AlgorithmData(name, paths)
+            else:
+                for name, paths in source_indices.items():
+                    self.problems[name] = ProblemData(name, paths)
+        logger.debug(self.show_sources('algorithms'))
+        logger.debug(self.show_sources('problems'))
+
+    def show_sources(self, target: Literal['algorithms', 'problems'], print_it: bool = False) -> str:
+        res: dict[str, list[Any]] = defaultdict(list)
+        src_str = '\n'.join(self.sources)
+        target_values = list(getattr(self, target).values())
+        if len(target_values) == 0:
+            summary = f"No {target} found in {src_str}"
+        else:
+            dicts = [data.verbose() for data in getattr(self, target).values()]
+            keys = dicts[0].keys()
+
+            for k in keys:
+                for d in dicts:
+                    res[k] += d[k]
+
+            summary = f"Found {sum(res['pass'])} available (total {len(res['pass'])}) {target} in\n{src_str}"
+        if print_it:
+            print(summary)
+            from pyfmto.utilities.tools import print_dict_as_table
+            print_dict_as_table(res)
+        tab = tabulate.tabulate(res, headers='keys', tablefmt=tabulate_formats.rounded_grid) if res != {} else ''
+        return f"{summary}\n{tab}"
 
     @property
     def launcher(self) -> LauncherConfig:
@@ -474,7 +629,7 @@ class ConfigLoader:
         self.check_config_issues('reporter')
         conf = ReporterConfig(**self.config['reporter'])
         alg_names = list(set(sum(conf.algorithms, [])))
-        algorithms = [AlgorithmData(name) for name in alg_names]
+        algorithms = [AlgorithmData(name, []) for name in alg_names]
         problems = self.gen_prob_list(conf.problems)
         conf.experiments = [
             ExperimentConfig(alg, prob, conf.results)
@@ -488,30 +643,28 @@ class ConfigLoader:
 
     def gen_alg_list(self, names: list[str]) -> list[AlgorithmData]:
         algorithms: list[AlgorithmData] = []
-        available_algs = list_algorithms()
         for name_alias in names:
             alg_params = self.config.get('algorithms', {}).get(name_alias, {})
             alg_name = alg_params.pop('base', name_alias)
-            if alg_name not in available_algs:
-                logger.error(f"Algorithm {alg_name} is not available.")
+            if alg_name not in self.algorithms or not self.algorithms[alg_name].available:
+                logger.error(f"Algorithm '{alg_name}' is not available")
                 continue
-            alg_data = available_algs[alg_name].copy()
+            alg_data = self.algorithms[alg_name].copy()
             alg_data.name_alias = name_alias
             alg_data.params_update = alg_params
             algorithms.append(alg_data)
         return algorithms
 
     def gen_prob_list(self, names: list[str]) -> list[ProblemData]:
-        available_probs = list_problems()
         problems: list[ProblemData] = []
         for n in names:
-            if n not in available_probs:
+            if n not in self.problems or not self.problems[n].available:
                 logger.error(f"Problem {n} is not available.")
                 continue
             prob_params = self.config.get('problems', {}).get(n, {})
             params_variations = combine_params(prob_params)
             for params in params_variations:
-                prob_data = available_probs[n].copy()
+                prob_data = self.problems[n].copy()
                 prob_data.params_update = params
                 problems.append(prob_data)
         return problems
@@ -530,15 +683,12 @@ class ConfigLoader:
     def check_launcher_config(self) -> list[str]:
         issues = []
         launcher = self.config['launcher']
-        loglevel = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
         if not launcher.get('results'):
             issues.append("No results directory specified in launcher.")
         if launcher.get('repeat') <= 0:
             issues.append("Invalid repeat number specified in launcher. Must be greater than 0.")
         if not isinstance(launcher.get('save'), bool):
             issues.append("Invalid save option specified in launcher. Must be True or False.")
-        if launcher.get('loglevel') not in loglevel:
-            issues.append(f"Invalid log level specified in launcher. Choices: {loglevel}")
         if not launcher.get('algorithms'):
             issues.append("No algorithms specified in launcher.")
         if not launcher.get('problems'):

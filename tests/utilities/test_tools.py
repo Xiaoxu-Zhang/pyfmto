@@ -1,7 +1,8 @@
 import subprocess
-import unittest
+import sys
 import warnings
-from unittest.mock import patch, Mock
+from pathlib import Path
+from unittest.mock import patch, Mock, MagicMock, mock_open
 
 from pyfmto.utilities import (
     colored,
@@ -10,15 +11,35 @@ from pyfmto.utilities import (
     terminate_popen,
     tabulate_formats,
 )
-from pyfmto.utilities.tools import redirect_warnings
+from pyfmto.utilities.tools import (
+    redirect_warnings,
+    print_dict_as_table,
+    get_pkgs_version,
+    get_cpu_model,
+    get_os_name,
+    add_sources
+)
 
-from tests.helpers import remove_temp_files
+from tests.helpers import PyfmtoTestCase
 
 
-class TestTools(unittest.TestCase):
+class TestTools(PyfmtoTestCase):
 
     def tearDown(self):
-        remove_temp_files()
+        self.delete()
+
+    def test_add_sources(self):
+        self.save_sys_env()
+
+        self.tmp_dir = Path('temp_dir_for_test')
+        add_sources([str(self.tmp_dir)])
+        self.assertNotIn(str(self.tmp_dir.parent), sys.path)
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        add_sources([str(self.tmp_dir)])
+        self.assertIn(str(self.tmp_dir.resolve().parent), sys.path)
+
+        self.delete(self.tmp_dir)
+        self.restore_sys_env()
 
     def test_cross_platform_tools(self):
         with patch('os.system') as mock_system:
@@ -32,6 +53,21 @@ class TestTools(unittest.TestCase):
                 clear_console()
                 mock_system.assert_called_once_with('clear')
                 mock_system.reset_mock()
+
+    def test_dict_to_table(self):
+        data_valid = {
+            "a": [1, 2, 3],
+            "b": [True, False, False],
+            "c": ['OK', 'Yes', 'NO'],
+        }
+        data_invalid = {
+            "a": [1, 2, 3],
+            "b": [True, False],
+        }
+        print_dict_as_table(data_valid)
+        with self.assertRaises(ValueError):
+            print_dict_as_table(data_invalid)
+        print_dict_as_table({})
 
     def test_colored(self):
         text = "test"
@@ -105,3 +141,144 @@ class TestTools(unittest.TestCase):
         with redirect_warnings():
             warnings.warn("This is a deprecation warning", DeprecationWarning)
             mock_original.assert_called_once()
+
+
+class TestGetOsName(PyfmtoTestCase):
+
+    @patch('sys.platform', 'win32')
+    def test_windows(self):
+        self.assertEqual(get_os_name(), 'Windows')
+
+    @patch('sys.platform', 'darwin')
+    def test_macos(self):
+        self.assertEqual(get_os_name(), 'macOS')
+
+    @patch('sys.platform', 'linux')
+    def test_linux(self):
+        self.assertEqual(get_os_name(), 'Linux')
+
+    @patch('sys.platform', 'freebsd13')
+    def test_other_unix_like(self):
+        # Any non-win32/darwin platform returns 'Linux' per current logic
+        self.assertEqual(get_os_name(), 'Linux')
+
+
+class TestGetPkgsVersion(PyfmtoTestCase):
+
+    def test_importlib_metadata_success(self):
+        with patch('importlib.metadata.version') as mock_version:
+            mock_version.return_value = '3.10.0'
+            result = get_pkgs_version(['requests'])
+            self.assertEqual(result, {'requests': '3.10.0'})
+
+    def test_importlib_fails___version___success(self):
+        with patch('importlib.metadata.version', side_effect=Exception("Not found")):
+            with patch('importlib.import_module') as mock_import:
+                mock_mod = MagicMock()
+                mock_mod.__version__ = '1.9.3'
+                mock_import.return_value = mock_mod
+
+                result = get_pkgs_version(['flask'])
+                self.assertEqual(result, {'flask': '1.9.3'})
+
+    def test_both_methods_fail(self):
+        with patch('importlib.metadata.version', side_effect=Exception("metadata fail")):
+            with patch('importlib.import_module', side_effect=ImportError("no such module")):
+                result = get_pkgs_version(['nonexistent_pkg'])
+                self.assertEqual(result, {'nonexistent_pkg': 'unknown'})
+
+    def test_mixed_packages(self):
+
+        def fake_version(name):
+            if name == 'pkg_a':
+                return '2.0'
+            else:
+                raise Exception("not found")
+
+        with patch('importlib.metadata.version', side_effect=fake_version):
+            with patch('importlib.import_module') as mock_import:
+                def fake_import(name):
+                    if name == 'pkg_b':
+                        mod = MagicMock()
+                        mod.__version__ = '5.1'
+                        return mod
+                    elif name == 'pkg_c':
+                        raise ImportError()
+                    else:
+                        raise Exception("unexpected")
+                mock_import.side_effect = fake_import
+
+                result = get_pkgs_version(['pkg_a', 'pkg_b', 'pkg_c'])
+                expected = {
+                    'pkg_a': '2.0',
+                    'pkg_b': '5.1',
+                    'pkg_c': 'unknown'
+                }
+                self.assertEqual(result, expected)
+
+
+class TestGetCpuModel(PyfmtoTestCase):
+
+    @patch('platform.processor')
+    def test_processor_returns_valid_cpu(self, mock_proc):
+        mock_proc.return_value = 'Intel(R) Core(TM) i7-12700K'
+        self.assertEqual(get_cpu_model(), 'Intel(R) Core(TM) i7-12700K')
+
+    @patch('platform.processor')
+    def test_processor_returns_generic_x86_64(self, mock_proc):
+        mock_proc.return_value = 'x86_64'
+        # Should skip and try OS-specific methods
+        with patch('sys.platform', 'darwin'):
+            with patch('subprocess.run') as mock_run:
+                mock_run.return_value = MagicMock(stdout='Apple M3 Pro\n')
+                self.assertEqual(get_cpu_model(), 'Apple M3 Pro')
+
+    @patch('platform.processor')
+    def test_macos_success(self, mock_proc):
+        mock_proc.return_value = ''  # triggers fallback
+        with patch('sys.platform', 'darwin'):
+            with patch('subprocess.run') as mock_run:
+                mock_run.return_value = MagicMock(stdout='Intel(R) Xeon CPU E5-2690 v4 @ 2.60GHz')
+                self.assertEqual(get_cpu_model(), 'Intel(R) Xeon CPU E5-2690 v4 @ 2.60GHz')
+
+    @patch('platform.processor')
+    def test_macos_subprocess_fails(self, mock_proc):
+        mock_proc.return_value = ''
+        with patch('sys.platform', 'darwin'):
+            with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'sysctl')):
+                # No other fallback on macOS → final fallback
+                self.assertEqual(get_cpu_model(), 'Unknown CPU')
+
+    @patch('platform.processor')
+    def test_linux_success(self, mock_proc):
+        mock_proc.return_value = 'arm'  # generic, so fallback to /proc/cpuinfo
+        cpuinfo_content = """
+processor       : 0
+vendor_id       : GenuineIntel
+cpu family      : 6
+model name      : AMD EPYC 7763 64-Core Processor
+"""
+        with patch('sys.platform', 'linux'):
+            with patch('builtins.open', mock_open(read_data=cpuinfo_content)):
+                self.assertEqual(get_cpu_model(), 'AMD EPYC 7763 64-Core Processor')
+
+    @patch('platform.processor')
+    def test_linux_no_model_name_in_cpuinfo(self, mock_proc):
+        mock_proc.return_value = ''
+        with patch('sys.platform', 'linux'):
+            with patch('builtins.open', mock_open(read_data="cpu MHz: 3000.000\n")):
+                self.assertEqual(get_cpu_model(), 'Unknown CPU')
+
+    @patch('platform.processor')
+    def test_linux_file_access_error(self, mock_proc):
+        mock_proc.return_value = ''
+        with patch('sys.platform', 'linux'):
+            with patch('builtins.open', side_effect=OSError("Permission denied")):
+                self.assertEqual(get_cpu_model(), 'Unknown CPU')
+
+    @patch('platform.processor')
+    def test_windows_or_other_platform(self, mock_proc):
+        mock_proc.return_value = 'x86_64'
+        with patch('sys.platform', 'win32'):
+            # Doesn't enter macOS/Linux branches
+            self.assertEqual(get_cpu_model(), 'Unknown CPU')

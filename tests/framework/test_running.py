@@ -1,28 +1,37 @@
 import threading
 import time
-import unittest
 from pathlib import Path
 
 from pyfmto.framework import Client, Server, ClientPackage
-from pyfmto import init_problem
+from pyfmto import load_problem
 from tests.framework import (
     OfflineServer, OnlineClient, OnlineServer
 )
 from requests.exceptions import ConnectionError
-from tests.helpers import gen_problem, remove_temp_files, running_server, start_clients
+from tests.helpers import gen_code, running_server, start_clients, PyfmtoTestCase
+from tests.helpers.generators import gen_config
 
 N_CLIENTS = 2
 
 
-class TestClientSide(unittest.TestCase):
+class TestClientSide(PyfmtoTestCase):
 
     def setUp(self):
-        Path('out', 'logs').mkdir(parents=True, exist_ok=True)
-        gen_problem('PROB')
-        self.problems = init_problem('PROB', dim=5, fe_init=20, fe_max=30)
+        self.save_sys_env()
+        self.tmp_dir = Path('temp_dir_for_test')
+        gen_code('problems', ['PROB'], self.tmp_dir)
+        self.conf_file = gen_config(
+            f"""
+            launcher:
+                sources: [{str(self.tmp_dir)}]
+            """,
+            self.tmp_dir
+        )
+        self.problems = load_problem('PROB', self.conf_file, dim=5, fe_init=20, fe_max=30)
 
     def tearDown(self):
-        remove_temp_files()
+        self.restore_sys_env()
+        self.delete(self.tmp_dir)
 
     def test_valid_offline_client(self):
         """An offline client doesn't request the server"""
@@ -67,7 +76,7 @@ class TestClientSide(unittest.TestCase):
 
     def test_valid_server(self):
         server = OnlineServer()
-        problems = init_problem('PROB', dim=5, fe_init=20, fe_max=30)
+        problems = load_problem('PROB', self.conf_file, dim=5, fe_init=20, fe_max=30)
         clients = [OnlineClient(prob) for prob in problems[:N_CLIENTS]]
         thread = threading.Thread(target=server.start)
         thread.start()
