@@ -70,7 +70,6 @@ class Launcher:
             self._init_clients()
             self._launch_exp()
             self._save_results()
-            self._save_rounds_info()
             self._update_repeat_id()
             time.sleep(1)
         self.exp.success = True
@@ -189,9 +188,7 @@ class Launcher:
         if self.conf.snapshot:
             self.exp.create_snapshot(self.conf.packages)
 
-    def _save_rounds_info(self):
-        if not self.conf.verbose:
-            return
+    def _save_verbose(self):
         tables = {clt.id: clt for clt in self._results}
         info_str = ''
         for cid in sorted(tables.keys()):
@@ -214,6 +211,8 @@ class Launcher:
             for clt in self._results:
                 run_solutions.update(clt.id, clt.solutions)
             run_solutions.to_msgpack(self.exp.result_name(self._repeat_id))
+            if self.conf.verbose:
+                self._save_verbose()
 
     def _update_repeat_id(self):
         if self.conf.save:
