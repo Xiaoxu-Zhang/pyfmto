@@ -199,6 +199,8 @@ class SingleTaskProblem(ABC):
         lb2, ub2 = self.lb[dim2], self.ub[dim2]
         d1 = np.linspace(lb1, ub1, n_points)
         d2 = np.linspace(lb2, ub2, n_points)
+        D1: ndarray
+        D2: ndarray
         D1, D2 = np.meshgrid(d1, d2)
         points: ndarray = np.ones(shape=(n_points, n_points, self.dim)) * args.fixed
         points[:, :, dim1] = D1
