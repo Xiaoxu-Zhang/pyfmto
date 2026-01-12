@@ -321,7 +321,7 @@ class ExperimentConfig:
     @property
     def markdown_dest(self) -> Path:
         today = datetime.now().strftime("%Y-%m-%d")
-        return self.root.parent / "snapshot" / f"markdown {today}"
+        return self.root.parent / "snapshot" / f"markdown {today}.md"
 
     @property
     def prefix(self) -> str:
