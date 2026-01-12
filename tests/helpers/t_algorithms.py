@@ -11,6 +11,7 @@ class ClassPrefixClient(Client):
     def __init__(self, problem, **kwargs):
         super().__init__(problem)
         self.problem.auto_update_solutions = True
+        self.conn_retry = 100
 
     def optimize(self):
         x = self.problem.random_uniform_x(1)
