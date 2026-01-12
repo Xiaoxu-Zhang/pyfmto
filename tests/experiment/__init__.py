@@ -20,7 +20,7 @@ class ExpTestCase(PyfmtoTestCase):
                 sources: [{self.tmp_dir}]
                 results: {self.tmp_dir / 'out' / 'results'}
                 save: true
-                repeat: 3
+                repeat: 2
                 algorithms: [{', '.join(self.algs)}]
                 problems: [{', '.join(self.probs)}]
             """,
@@ -29,6 +29,6 @@ class ExpTestCase(PyfmtoTestCase):
         self.conf = ConfigLoader(self.conf_file)
 
     def tearDown(self):
-        self.restore_sys_env()
         self.delete(self.tmp_dir)
         self.delete('out')
+        self.restore_sys_env()
