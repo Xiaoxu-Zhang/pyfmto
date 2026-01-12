@@ -25,9 +25,14 @@ __all__ = [
 
 
 @validate_call
-def load_yaml(filename: T_Path):
-    with open(filename, 'r') as f:
-        return parse_yaml(f.read())
+def load_yaml(filename: T_Path, ignore_errors: bool = False):
+    try:
+        with open(filename, 'r') as f:
+            return parse_yaml(f.read())
+    except Exception:
+        if ignore_errors:
+            return {}
+        raise
 
 
 def save_yaml(data: Union[dict, CommentedMap], filename: T_Path):

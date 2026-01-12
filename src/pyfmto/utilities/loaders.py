@@ -537,7 +537,7 @@ class ConfigLoader:
 
     def __init__(self, config: Union[str, Path] = 'config.yaml'):
         self.config_default = parse_yaml(self.__class__.__doc__)
-        self.config_update = load_yaml(config)
+        self.config_update = load_yaml(config, ignore_errors=True)
         self.config = copy.deepcopy(self.config_default)
         self.merge_global_config_from_updates()
         self.fill_reporter_config_from_launcher()

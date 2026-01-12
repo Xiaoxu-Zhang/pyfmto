@@ -61,6 +61,7 @@ class TestYaml(unittest.TestCase):
         self.assertIsNotNone(data)
         self.assertRaises(MarkedYAMLError, load_yaml, self.yaml_bad)
         self.assertRaises(FileNotFoundError, load_yaml, self.not_exists)
+        self.assertEqual(load_yaml(self.not_exists, True), {})
 
 
 class TestMsgpack(unittest.TestCase):
