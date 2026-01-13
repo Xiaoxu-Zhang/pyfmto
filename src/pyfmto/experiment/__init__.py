@@ -43,7 +43,7 @@ curve:
 violin:
     suffix: .png  # File extension for the generated violin image. Options: '.png', '.jpg', '.eps','.svg', '.pdf'.
     quality: 3   # int in [1, 9]. Image quality parameter, affecting the quality of scalar images.
-    merge: bool  # Merge all plotted images to a single figure or not. Only support for '.png' and '.jpg' files.
+    merge: True  # Merge all plotted images to a single figure or not. Only support for '.png' and '.jpg' files.
     clear: True  # If True, clear plots after merge. Only applicable when merge is True.
 console:
     pvalue: 0.5 # T-test threshold for determining statistical significance.
