@@ -9,7 +9,7 @@ from collections import defaultdict
 from fastapi import FastAPI, Response, Depends, Request
 from setproctitle import setproctitle
 from tabulate import tabulate
-from typing import final, Any
+from typing import final, Any, Annotated
 
 from .packages import ClientPackage, Actions
 from pyfmto.utilities import logger, redirect_warnings
@@ -99,7 +99,7 @@ class Server(ABC):
 
     def _register_routes(self):
         @app.post("/alg-comm")
-        async def alg_comm(client_pkg: ClientPackage = Depends(load_body)):
+        async def alg_comm(client_pkg: Annotated[ClientPackage, Depends(load_body)]):
             self._last_request_time = time.time()
             try:
                 server_pkg = self._handle_request(client_pkg)
