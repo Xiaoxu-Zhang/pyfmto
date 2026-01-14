@@ -1,4 +1,6 @@
-```
+# PyFMTO
+
+```text
 
                        ____                __         
     ____     __  __   / __/  ____ ___     / /_   ____ 
@@ -10,8 +12,6 @@
 
 ```
 
-# PyFMTO
-
 [![build](https://github.com/Xiaoxu-Zhang/pyfmto/workflows/build/badge.svg)](https://github.com/Xiaoxu-Zhang/pyfmto/actions?query=workflow%3Abuild)
 [![coverage](https://img.shields.io/codecov/c/github/Xiaoxu-Zhang/pyfmto)](https://codecov.io/gh/Xiaoxu-Zhang/pyfmto)
 [![pypi](https://img.shields.io/pypi/v/pyfmto.svg)](https://pypi.org/project/pyfmto/)
@@ -19,20 +19,18 @@
 [![license](https://img.shields.io/github/license/Xiaoxu-Zhang/pyfmto)](https://github.com/Xiaoxu-Zhang/pyfmto/blob/master/LICENSE)
 [![commit](https://img.shields.io/github/last-commit/Xiaoxu-Zhang/pyfmto)](https://github.com/Xiaoxu-Zhang/pyfmto/commits/main)
 [![OS Support](https://img.shields.io/badge/OS-Linux%20%7C%20MacOS%20%7C%20Windows-green)](https://pypi.org/project/pyfmto/)
-
+[![pypi-downloads](https://img.shields.io/pepy/dt/pyfmto?label=PyPI%20downloads&color=rgb(0%2C%2079%2C%20144))](https://pypistats.org/packages/pyfmto)
 
 **PyFMTO** is a pure Python library for federated many-task optimization research
 
 <table align="center">
   <tr>
     <td align="center">
-      <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-demo.gif" 
-width="95%"/><br>
+      <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-demo.gif" width="95%"/><br>
       Run experiments
     </td>
     <td align="center">
-      <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-iplot.gif" 
-width="95%"/><br>
+      <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-iplot.gif" width="95%"/><br>
       Plot tasks
     </td>
   </tr>
@@ -73,7 +71,7 @@ The reports will be saved in the folder `out/results/<today>`
 
 ### Command-line Interface (CLI)
 
-PyFMTO provides a command-line interface (CLI) for running experiments, analyzing results and 
+PyFMTO provides a command-line interface (CLI) for running experiments, analyzing results and
 get helps. The CLI layers are as follows:
 
 ```txt
@@ -88,47 +86,58 @@ pyfmto
 **Examples:**
 
 - Get help:
+
     ```bash
     pyfmto -h # or ↓
     # pyfmto --help
     # pyfmto list -h
     ```
+
 - Run experiments:
+
     ```bash
     pyfmto run # or ↓
     # pyfmto run -c config.yaml
     ```
+
 - Generate reports:
+
     ```bash
     pyfmto report # or ↓
     # pyfmto report -c config.yaml
     ```
+
 - List something:
+
     ```bash
     pyfmto list algorithms  # or ↓ 
     # pyfmto list problems
     ```
+
 - Show supported configurations:
+
     ```bash
     pyfmto show algorithms.<alg_name>  # or ↓  
     # pyfmto show problems.<prob_name>
     ```
 
 > **Notes**:
-> 
+>
 > Every subcommand support `-c/--config <config_file>`
-> 
-> In the subcommands `list` and `show`, strings 'algorithms', 'problems', and 'reports' can be 
-> replaced with any prefix of length ≥ 1. PyFMTO matches the prefix to the corresponding category. 
-> For example: 
-> 
+>
+> In the subcommands `list` and `show`, strings 'algorithms', 'problems', and 'reports' can be
+> replaced with any prefix of length ≥ 1. PyFMTO matches the prefix to the corresponding category.
+> For example:
+>
 > `pyfmto list algorithms` is equivalent to:
+>
 > - `pyfmto list a`
 > - `pyfmto list al`
 > - `pyfmto list alg`
 > - ...
-> 
+>
 > `pyfmto show problems.<prob_name>` is equivalent to:
+>
 > - `pyfmto show p.<prob_name>`
 > - `pyfmto show prob.<prob_name>`
 > - ...
@@ -149,30 +158,30 @@ if __name__ == '__main__':
 ## Architecture and Ecosystem
 
 <div align="center">
-  <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-architecture.svg" 
+  <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-architecture.svg"
 width="90%">
 </div>
 
 Where the filled area represents the fully developed modules. And the non-filled area represents
 the base modules that can be inherited and extended.
 
-The bottom layer listed the core technologies used in PyFMTO for computing, communicating, plotting 
+The bottom layer listed the core technologies used in PyFMTO for computing, communicating, plotting
 and testing.
 
 ## About fmto
 
-The repository [fmto](https://github.com/Xiaoxu-Zhang/fmto) is the official collection of 
+The repository [fmto](https://github.com/Xiaoxu-Zhang/fmto) is the official collection of
 published FMTO algorithms. The relationship between the `fmto` and `PyFMTO` is as follows:
 
 <p align="center">
     <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/fmto-relation.svg"/>
 <p>
 
-The `fmto` is designed to provide a platform for researchers to compare and evaluate the 
-performance of different FMTO algorithms. The repository is built on top of the PyFMTO library, 
+The `fmto` is designed to provide a platform for researchers to compare and evaluate the
+performance of different FMTO algorithms. The repository is built on top of the PyFMTO library,
 which provides a flexible and extensible framework for implementing FMTO algorithms.
 
-It also serves as a practical example of how to structure and perform experiments. The repository 
+It also serves as a practical example of how to structure and perform experiments. The repository
 includes the following components:
 
 - A collection of published FMTO algorithms.
@@ -180,15 +189,15 @@ includes the following components:
 - A template algorithm named "ALG" that you can use as a basis for implementing your own algorithm.
 - A template problem named "PROB" that you can use as a basis for implementing your own problem.
 
-The `config.yaml`, `algorithms/DEMO` and `problems/DEMO` provided detailed instructions, you can 
-even start your research without additional documentation. The fmto repository is currently in 
-the early stages of development. I'm actively working on improving existing algorithms and adding 
+The `config.yaml`, `algorithms/DEMO` and `problems/DEMO` provided detailed instructions, you can
+even start your research without additional documentation. The fmto repository is currently in
+the early stages of development. I'm actively working on improving existing algorithms and adding
 new algorithms.
 
 ## Algorithm's Components
 
-An algorithm includes two parts: the client and the server. The client is responsible for 
-optimizing the local problem and the server is responsible for aggregating the knowledge from 
+An algorithm includes two parts: the client and the server. The client is responsible for
+optimizing the local problem and the server is responsible for aggregating the knowledge from
 the clients. The required components for client and server are as follows:
 
 ```python
@@ -196,34 +205,34 @@ the clients. The required components for client and server are as follows:
 from pyfmto import Client, Server
 
 class MyClient(Client):
-	def __init__(self, problem, **kwargs):
-		super().__init__(problem)
+ def __init__(self, problem, **kwargs):
+  super().__init__(problem)
 
-	def optimize():
-		# implement the optimizer
-		pass
+ def optimize():
+  # implement the optimizer
+  pass
 
 class MyServer(Server):
-	def __init__(self, **kwargs):
-		super().__init__():
-	
-	def aggregate(self) -> None:
-		# implement the aggregate logic
-		pass
+ def __init__(self, **kwargs):
+  super().__init__():
+ 
+ def aggregate(self) -> None:
+  # implement the aggregate logic
+  pass
 
-	def handle_request(self, pkg) -> Any:
-		# handle the requests of clients to exchange data
-		pass
+ def handle_request(self, pkg) -> Any:
+  # handle the requests of clients to exchange data
+  pass
 ```
 
 ## Problem's Components
 
-There are two types of problems: single-task problems and multitask problems. A single-task 
-problem is a problem that has only one objective function. A multitask problem is a problem that 
-has multiple single-task problems. To define a multitask problem, you should implement several 
+There are two types of problems: single-task problems and multitask problems. A single-task
+problem is a problem that has only one objective function. A multitask problem is a problem that
+has multiple single-task problems. To define a multitask problem, you should implement several
 SingleTaskProblem and then define a MultiTaskProblem to aggregate them.
 
-> **Note**: There are some classical SingleTaskProblem defined in `pyfmto.problems.benchmarks` 
+> **Note**: There are some classical SingleTaskProblem defined in `pyfmto.problems.benchmarks`
 > module. You can use them directly.
 
 ```python
@@ -302,7 +311,7 @@ See [contributing](https://github.com/Xiaoxu-Zhang/pyfmto/blob/main/CONTRIBUTING
 ## Bugs/Requests
 
 Please send bug reports and feature requests through
-[github issue tracker](https://github.com/Xiaoxu-Zhang/pyfmto/issues). PyFMTO is 
+[github issue tracker](https://github.com/Xiaoxu-Zhang/pyfmto/issues). PyFMTO is
 currently under development now, and it's open to any constructive suggestions.
 
 ## License
@@ -315,45 +324,47 @@ Distributed under the terms of the
 ## Acknowledgements
 
 ### Foundations
-This project is supported, in part, by the National Natural Science Foundation of China under 
-Grant 62006143; the Natural Science Foundation of Shandong Province under Grants ZR2025MS1012 
-and ZR2020MF152. I would like to express our sincere gratitude to **Smart Healthcare and Big Data 
+
+This project is supported, in part, by the National Natural Science Foundation of China under
+Grant 62006143; the Natural Science Foundation of Shandong Province under Grants ZR2025MS1012
+and ZR2020MF152. I would like to express our sincere gratitude to **Smart Healthcare and Big Data
 Laboratory, Shandong Women's University**, for providing research facilities and technical support.
 
-
 ### Mentorship and Team Support  
-I would like to express my sincere gratitude to the **Computational Intelligence and 
-Applications Group** for their invaluable help, encouragement, and collaboration throughout the 
+
+I would like to express my sincere gratitude to the **Computational Intelligence and
+Applications Group** for their invaluable help, encouragement, and collaboration throughout the
 development of this project.  
 
-Special thanks go to my mentor, [Jie Tian](https://github.com/Jetina), whose insightful guidance 
+Special thanks go to my mentor, [Jie Tian](https://github.com/Jetina), whose insightful guidance
 and constructive feedback were crucial in refining and improving the work at every stage.
 
 ### Open Source Contributions  
-This project would not have been possible without the outstanding contributions of the 
-open-source community. I am deeply grateful to the maintainers and contributors of the following 
+
+This project would not have been possible without the outstanding contributions of the
+open-source community. I am deeply grateful to the maintainers and contributors of the following
 projects:  
 
-- **[FastAPI](https://fastapi.tiangolo.com)** – A high-performance web framework that made 
+- **[FastAPI](https://fastapi.tiangolo.com)** – A high-performance web framework that made
   building APIs both fast and efficient.  
-- **[NumPy](https://numpy.org)** – The fundamental package for scientific computing in Python, 
+- **[NumPy](https://numpy.org)** – The fundamental package for scientific computing in Python,
   enabling high-speed numerical operations.  
-- **[Pandas](https://pandas.pydata.org)** – Powerful data structures and tools that formed the 
+- **[Pandas](https://pandas.pydata.org)** – Powerful data structures and tools that formed the
   backbone of data analysis in this work.  
-- **[Matplotlib](https://matplotlib.org)** and **[Seaborn](https://seaborn.pydata.org)** – 
+- **[Matplotlib](https://matplotlib.org)** and **[Seaborn](https://seaborn.pydata.org)** –
   Essential for producing high-quality, publication-ready visualizations.  
-- **[PyVista](https://docs.pyvista.org)** – An intuitive, high-level 3D plotting and mesh 
+- **[PyVista](https://docs.pyvista.org)** – An intuitive, high-level 3D plotting and mesh
   analysis interface, making scientific visualization seamlessly integrated into PyFMTO.  
-- **[Scikit-learn](https://scikit-learn.org)** – An extensive set of machine learning algorithms 
+- **[Scikit-learn](https://scikit-learn.org)** – An extensive set of machine learning algorithms
   and utilities.  
-- **[SciPy](https://scipy.org)** – Fundamental algorithms and mathematical functions critical to 
+- **[SciPy](https://scipy.org)** – Fundamental algorithms and mathematical functions critical to
   scientific computing.  
 
-I would also like to acknowledge the maintainers and contributors of other open-source libraries 
+I would also like to acknowledge the maintainers and contributors of other open-source libraries
 that supported this work, including:  
-`jinja2`, `msgpack`, `openpyxl`, `opfunu`, `pillow`, `pydantic`, `pydantic_core`, `pyDOE`, 
-`pyyaml`, `requests`, `ruamel-yaml`, `scienceplots`, `setproctitle`, `tabulate`, `tqdm`, 
+`jinja2`, `msgpack`, `openpyxl`, `opfunu`, `pillow`, `pydantic`, `pydantic_core`, `pyDOE`,
+`pyyaml`, `requests`, `ruamel-yaml`, `scienceplots`, `setproctitle`, `tabulate`, `tqdm`,
 `uvicorn`, and `wrapt`.  
 
-Your dedication to building and maintaining these tools has made it possible for this project to 
+Your dedication to building and maintaining these tools has made it possible for this project to
 achieve both depth and breadth that would otherwise have been unattainable.  
