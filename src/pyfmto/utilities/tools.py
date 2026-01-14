@@ -193,7 +193,7 @@ def get_pkgs_version(packages: list[str]):
         from importlib import import_module
         try:
             module = import_module(name)
-            res[name] = getattr(module, '__version__')
+            res[name] = module.__version__
             continue
         except Exception:
             pass
@@ -226,7 +226,7 @@ def get_cpu_model():
     # 3. Linux fallback
     if sys.platform.startswith("linux"):
         try:
-            with open("/proc/cpuinfo", "r") as f:
+            with open("/proc/cpuinfo") as f:
                 for line in f:
                     if "model name" in line:
                         return line.split(":", 1)[1].strip()

@@ -43,7 +43,7 @@ class RunSolutions:
         try:
             return Solution(self._solutions[item])
         except KeyError:
-            raise KeyError(f"Client id '{item}' not found in results")
+            raise KeyError(f"Client id '{item}' not found in results") from None
 
     def items(self) -> list[tuple[int, Solution]]:
         return list(zip(self.sorted_ids, self.solutions))
@@ -208,7 +208,7 @@ class MetaData:
         if self.alg_num == 0:
             return []
         else:
-            return list(self.data.values())[0].sorted_names
+            return next(iter(self.data.values())).sorted_names
 
     @property
     def clt_num(self):
@@ -223,11 +223,11 @@ class MetaData:
         if self.alg_num == 0:
             return 0
         else:
-            return list(self.data.values())[0].dim
+            return next(iter(self.data.values())).dim
 
     @property
     def num_runs(self):
-        return list(self.data.values())[0].num_runs
+        return next(iter(self.data.values())).num_runs
 
     @property
     def alg_names(self):
@@ -252,7 +252,7 @@ class ReporterUtils:
             data_mat = np.array(data_list, dtype=int)
         except Exception:
             tab = titled_tabulate(msg, '=', data_list, headers=col_title, showindex=row_title, tablefmt='psql')
-            raise ValueError(f"\n{tab}")
+            raise ValueError(f"\n{tab}") from None
         if not np.all(np.equal(data_mat, data_mat[0])):
             tab = titled_tabulate(msg, '=', data_list, headers=col_title, showindex=row_title, tablefmt='psql')
             raise ValueError(f"\n{tab}")
@@ -310,8 +310,8 @@ class ReporterUtils:
         x_indices: np.ndarray = np.arange(size_plot) + 1
         avg = c_data.y_dec_log_statis.mean[-size_plot:] if in_log_scale else c_data.y_dec_statis.mean[-size_plot:]
         se = c_data.y_dec_log_statis.se[-size_plot:] if in_log_scale else c_data.y_dec_statis.se[-size_plot:]
-        se_upper = list(map(lambda x: x[0] - x[1], zip(avg, se)))
-        se_lower = list(map(lambda x: x[0] + x[1], zip(avg, se)))
+        se_upper = [a-b for a, b in zip(avg, se)]
+        se_lower = [a+b for a, b in zip(avg, se)]
         ax.plot(x_indices, avg, label=alg_name, color=color)
         ax.fill_between(x_indices, se_upper, se_lower, alpha=alpha, color=color)
         if size_plot > size_optimization:
@@ -354,9 +354,9 @@ class ReporterUtils:
 
         # row+1: the last row is the count of best solution of each algorithm
         # col+1: the first col is the index of Client
-        add_row = np.zeros(shape=mask.shape[1], dtype=bool)
+        add_row = np.zeros(shape=col, dtype=bool)
         mask = np.vstack((mask, add_row))
-        add_col = np.zeros(shape=mask.shape[0], dtype=bool).reshape(-1, 1)
+        add_col = np.zeros(shape=row, dtype=bool).reshape(-1, 1)
         mask = np.hstack((add_col, mask))
         return mask
 
