@@ -16,7 +16,7 @@ def running_server(server, **kwargs):
     cmd = [
         sys.executable, "-c",
         f"from {module_name} import {class_name}; "
-        f"srv = {class_name}(**{repr(kwargs)}); "
+        f"srv = {class_name}(**{kwargs!r}); "
         f"srv.start()"
     ]
 

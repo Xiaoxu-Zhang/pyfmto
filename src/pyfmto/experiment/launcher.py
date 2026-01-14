@@ -94,7 +94,7 @@ class Launcher:
     @property
     def width(self):
         csl = Console(width=1000)
-        min_width, max_width = measure_renderables(csl, csl.options, [self.table])
+        min_width, _ = measure_renderables(csl, csl.options, [self.table])
         return min_width
 
     def _remove_bars(self):
@@ -152,7 +152,7 @@ class Launcher:
             f"add_sources({self.conf.sources}); "
             f"module = import_module('{server.__module__}'); "
             f"logger.setLevel('{self.conf.loglevel}'); "
-            f"srv = module.{server.__name__}(**{repr(kwargs)}); "
+            f"srv = module.{server.__name__}(**{kwargs!r}); "
             f"srv.start()"
         ]
 
