@@ -27,7 +27,7 @@ __all__ = [
 @validate_call
 def load_yaml(filename: T_Path, ignore_errors: bool = False):
     try:
-        with open(filename, 'r') as f:
+        with open(filename) as f:
             return parse_yaml(f.read())
     except Exception:
         if ignore_errors:
