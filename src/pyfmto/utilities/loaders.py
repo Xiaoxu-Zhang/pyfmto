@@ -280,7 +280,7 @@ class ProblemData:
     @property
     def n_task(self) -> int:
         if self.available:
-            return len(self.problem(**{'_init_solutions': False}))
+            return len(self.problem(**{'_init_solutions': False}, **self.params))
         else:
             raise ValueError(f"Problem {self.name_orig} not available.")
 
