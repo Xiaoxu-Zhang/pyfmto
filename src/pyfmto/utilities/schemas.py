@@ -180,10 +180,14 @@ class PlottingArgs(BaseModel):
     @field_validator('n_points')
     def warning_if_too_large(cls, v):
         if v > 1000:
-            warnings.warn("A large n_points may cause slow plotting. Using 1000 instead.")
+            warnings.warn(
+                "A large n_points may cause slow plotting. Using 1000 instead.", stacklevel=2
+            )
             return 1000
         if v < 10:
-            warnings.warn("A small n_points may cause detail loss in plotting. Using 10 instead.")
+            warnings.warn(
+                "A small n_points may cause detail loss in plotting. Using 10 instead.", stacklevel=2
+            )
             return 10
         return v
 
