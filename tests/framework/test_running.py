@@ -23,7 +23,7 @@ class TestClientSide(PyfmtoTestCase):
         self.conf_file = gen_config(
             f"""
             launcher:
-                sources: [{str(self.tmp_dir)}]
+                sources: [{self.tmp_dir}]
             """,
             self.tmp_dir
         )

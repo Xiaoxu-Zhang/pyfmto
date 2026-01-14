@@ -23,7 +23,7 @@ class TestPyfmtoRotatingFileHandler(PyfmtoTestCase):
     def test_rotation_filename(self, mock_strftime):
         handler = self.logger.handlers[0]
         self.assertIsInstance(handler, SafeFileHandler)
-        default_name = str("pyfmto.log")
+        default_name = "pyfmto.log"
         rotated_name = handler.rotation_filename(default_name)
         expected_name = str(self.log_dir / "pyfmto_2023-10-10_12-00-00.log")
         self.assertEqual(rotated_name[-len(expected_name):], expected_name)

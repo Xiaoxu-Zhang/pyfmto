@@ -83,11 +83,7 @@ class TestTransformerConfig(unittest.TestCase):
     def test_valid(self):
         dims = [2, 3, 4, 5]
         scales = [0.5, 1.0, 2.0, 5.0]
-        test_cases = [
-            ({'dim': dim, 'rotation': np.eye(dim) * scale, 'shift': np.ones(dim) * scale}) for dim, scale in
-            zip(dims, scales)
-        ]
-        for case, dim, scale in zip(test_cases, dims, scales):
+        for dim, scale in zip(dims, scales):
             trans = TransformerConfig(
                 dim=dim,
                 rotation=np.eye(dim) * scale,

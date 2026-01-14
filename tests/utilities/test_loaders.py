@@ -62,7 +62,7 @@ class TestUtilities(PyfmtoTestCase):
             self.assertIn(fmt, res)
 
     def test_show_default_conf(self):
-        for fmt in list_report_formats() + ['nonexist']:
+        for fmt in [*list_report_formats(), 'nonexist']:
             with self.subTest(fmt=fmt):
                 self.assertIsNone(show_default_conf(fmt))
 

@@ -132,14 +132,14 @@ class TestTools(PyfmtoTestCase):
     def test_redirect_warnings_user_warning(self):
         with redirect_warnings():
             with patch('pyfmto.utilities.loggers.logger.warning') as mock_logger_warning:
-                warnings.warn("This is a user warning", UserWarning)
+                warnings.warn("This is a user warning", UserWarning, stacklevel=2)
                 mock_logger_warning.assert_called_once()
 
     def test_redirect_warnings_deprecation_warning(self):
         mock_original = Mock()
         warnings.showwarning = mock_original
         with redirect_warnings():
-            warnings.warn("This is a deprecation warning", DeprecationWarning)
+            warnings.warn("This is a deprecation warning", DeprecationWarning, stacklevel=2)
             mock_original.assert_called_once()
 
 
