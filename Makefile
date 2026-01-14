@@ -12,7 +12,7 @@ release:
 	python -m twine upload dist/*
 
 lint:
-	flake8
+	ruff check .
 	mypy
 
 utest:
