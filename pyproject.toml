@@ -72,7 +72,8 @@ dev = [
     "pytest-cov",
     "pytest-env",
     "iniconfig",
-    # types check
+    # lint
+    "ruff",
     "mypy",
     "mypy_extensions",
     "types-PyYAML",
@@ -80,12 +81,6 @@ dev = [
     "types-requests",
     "typing-inspection",
     "typing_extensions",
-    # quality check
-    "flake8",
-    "flake8-pyproject",
-    "pycodestyle",
-    "pyflakes",
-    "mccabe",
     # other
     "click",
     "pluggy",
@@ -149,7 +144,12 @@ follow_imports = "skip"
 ignore_missing_imports = true
 check_untyped_defs = true
 
-[tool.flake8]
+[tool.ruff]
 exclude = ["*temp*"]
-max-line-length = 120
-count = true
+line-length = 120
+show-fixes = true
+lint.fixable = ["ALL"]
+lint.unfixable = []
+lint.select = ["E", "W", "F", "C", "B", "UP", "RUF"]
+lint.ignore = ["I", "RUF022"]
+lint.exclude = ["*temp*"]
