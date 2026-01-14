@@ -11,16 +11,16 @@ from pathlib import Path
 from pyDOE import lhs
 from scipy.stats import kendalltau, spearmanr, pearsonr
 from tabulate import tabulate
-from typing import Union, Optional, Literal
+from typing import Union, Optional, Literal, ClassVar
 
 from pyfmto.utilities import StrColors, Cmaps, SeabornStyles
 from pyfmto.utilities.schemas import T_Bound, STPConfig, TransformerConfig, FunctionInputs, PlottingArgs
 from .solution import Solution
 
 __all__ = [
-    'Transformer',
     'MultiTaskProblem',
     'SingleTaskProblem',
+    'Transformer',
 ]
 
 
@@ -678,7 +678,7 @@ class MultiTaskProblem(ABC):
     is_realworld: bool
     intro = "Not set"
     notes = "Not set"
-    references: list[str] = ["Not set"]
+    references: ClassVar[list[str]] = ["Not set"]
 
     def __init__(self, *args, **kwargs):
         """
