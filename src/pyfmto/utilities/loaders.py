@@ -1,4 +1,5 @@
 import copy
+import importlib
 import inspect
 import os
 import shutil
@@ -8,7 +9,7 @@ import textwrap
 from collections import defaultdict
 from datetime import datetime
 from deepdiff import DeepDiff
-from itertools import product
+from itertools import product, chain
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict
 from rich import box
@@ -16,7 +17,7 @@ from rich.console import Console
 from rich.table import Table
 from ruamel.yaml import CommentedMap
 from textwrap import indent
-from typing import Type, Any, Union, Literal
+from typing import Any, Union, Literal
 
 from pyfmto.framework.client import Client
 from pyfmto.framework.server import Server
@@ -51,11 +52,11 @@ def recursive_to_pure_dict(data: Any) -> dict[str, Any]:
 
 def combine_params(params: dict[str, Union[Any, list[Any]]]) -> list[dict[str, Any]]:
     values = []
-    for key, value in params.items():
-        if isinstance(value, list):
-            values.append(value)
+    for v in params.values():
+        if isinstance(v, list):
+            values.append(v)
         else:
-            values.append([value])
+            values.append([v])
     result = []
     for combination in product(*values):
         result.append(dict(zip(params.keys(), combination)))
@@ -72,8 +73,8 @@ def load_problem(name: str, config: Union[str, Path] = 'config.yaml', **kwargs) 
 
 
 class AlgorithmData:
-    client: Type[Client]
-    server: Type[Server]
+    client: type[Client]
+    server: type[Server]
 
     def __init__(self, name: str, paths: list[str]):
         self.name_orig = name
@@ -94,43 +95,57 @@ class AlgorithmData:
         return {k: self.module_detail[k] for k in ['name', 'pass', 'path', 'msg']}
 
     def __load(self):
-        import importlib
         check_res: dict[str, list] = defaultdict(list)
+
         for path in self.paths:
-            clt, srv = None, None
-            msg: list[str] = []
-            check_pass = False
             try:
                 module = importlib.import_module(path)
-                for attr_name in dir(module):
-                    attr = getattr(module, attr_name)
-                    if attr_name.startswith('__'):
-                        continue
-                    if inspect.isclass(attr):
-                        if issubclass(attr, Client) and attr != Client:
-                            clt = attr
-                        if issubclass(attr, Server) and attr != Server:
-                            srv = attr
-                    if clt and srv:
-                        check_pass = True
-                        if not hasattr(self, 'client'):
-                            self.client = clt
-                            self.server = srv
-                if not clt:
-                    msg.append("The subclass of 'Client' not found.")
-                if not srv:
-                    msg.append("The subclass of 'Server' not found.")
-                check_res['msg'].append('\n'.join(msg))
+                clt, srv = self._extract_client_server(module)
+                msg = self._build_check_message(clt, srv)
+                check_pass = clt is not None and srv is not None
+
+                # Only set client/server once (first valid module)
+                if check_pass and not hasattr(self, 'client'):
+                    self.client = clt
+                    self.server = srv
+
             except Exception as e:
-                check_res['msg'].append(f"Exception: {str(e)}")
-            finally:
-                check_res['name'].append(self.name)
-                check_res['pass'].append(check_pass)
-                check_res['path'].append(path)
-                check_res['client'].append(clt)
-                check_res['server'].append(srv)
+                clt, srv = None, None
+                msg = f"Exception: {e!s}"
+                check_pass = False
+
+            check_res['name'].append(self.name)
+            check_res['pass'].append(check_pass)
+            check_res['path'].append(path)
+            check_res['client'].append(clt)
+            check_res['server'].append(srv)
+            check_res['msg'].append(msg)
 
         self.module_detail = check_res
+
+    def _extract_client_server(self, module):
+        clt, srv = None, None
+        for attr_name in dir(module):
+            if attr_name.startswith('__'):
+                continue
+            attr = getattr(module, attr_name)
+            if not inspect.isclass(attr):
+                continue
+            if issubclass(attr, Client) and attr is not Client:
+                clt = attr
+            if issubclass(attr, Server) and attr is not Server:
+                srv = attr
+            if clt and srv:
+                break  # Early exit: both found
+        return clt, srv
+
+    def _build_check_message(self, clt, srv):
+        msg_parts = []
+        if not clt:
+            msg_parts.append("The subclass of 'Client' not found.")
+        if not srv:
+            msg_parts.append("The subclass of 'Server' not found.")
+        return '\n'.join(msg_parts)
 
     def __parse_default_params(self):
         c_doc = self.client.__doc__ if self.client else None
@@ -172,7 +187,7 @@ class AlgorithmData:
 
 
 class ProblemData:
-    problem: Type[MultiTaskProblem]
+    problem: type[MultiTaskProblem]
 
     def __init__(self, name, paths: list[str]):
         self.name_orig = name
@@ -196,32 +211,45 @@ class ProblemData:
         return {k: self.module_detail[k] for k in ['name', 'pass', 'path', 'msg']}
 
     def __load(self):
-        import importlib
         check_res: dict[str, list] = defaultdict(list)
+
         for path in self.paths:
-            check_pass = False
-            problem = None
             try:
                 module = importlib.import_module(path)
-                for attr_name in dir(module):
-                    attr = getattr(module, attr_name)
-                    if inspect.isclass(attr) and issubclass(attr, MultiTaskProblem) and attr != MultiTaskProblem:
-                        problem = attr
+                problem = self._find_problem_class(module)
+                if problem is not None:
+                    if not hasattr(self, 'problem'):
                         self.problem = problem
-                        check_pass = True
-                        break
-                if not check_pass:
-                    check_res['msg'].append("The subclass of 'MultiTaskProblem' not found.")
+                    check_pass = True
+                    msg = ""
                 else:
-                    check_res['msg'].append("")
+                    check_pass = False
+                    msg = "The subclass of 'MultiTaskProblem' not found."
             except Exception as e:
-                check_res['msg'].append(str(e))
-            finally:
-                check_res['name'].append(self.name_orig)
-                check_res['pass'].append(check_pass)
-                check_res['path'].append(path)
-                check_res['problem'].append(problem)
+                problem = None
+                check_pass = False
+                msg = str(e)
+
+            check_res['name'].append(self.name_orig)
+            check_res['pass'].append(check_pass)
+            check_res['path'].append(path)
+            check_res['problem'].append(problem)
+            check_res['msg'].append(msg)
+
         self.module_detail = check_res
+
+    def _find_problem_class(self, module):
+        for attr_name in dir(module):
+            if attr_name.startswith('__'):
+                continue
+            attr = getattr(module, attr_name)
+            if (
+                    inspect.isclass(attr)
+                    and issubclass(attr, MultiTaskProblem)
+                    and attr is not MultiTaskProblem
+            ):
+                return attr
+        return None
 
     def __parse_default_params(self):
         p_doc = self.problem.__doc__
@@ -379,6 +407,7 @@ class ExperimentConfig:
     @staticmethod
     def desc_env(packages: list[str]):
         import platform
+
         from pyfmto.utilities.tools import get_pkgs_version
         data = {
             'python': platform.python_version(),
@@ -628,7 +657,7 @@ class ConfigLoader:
     def reporter(self) -> ReporterConfig:
         self.check_config_issues('reporter')
         conf = ReporterConfig(**self.config['reporter'])
-        alg_names = list(set(sum(conf.algorithms, [])))
+        alg_names = list(set(chain.from_iterable(conf.algorithms)))
         algorithms = [AlgorithmData(name, []) for name in alg_names]
         problems = self.gen_prob_list(conf.problems)
         conf.experiments = [
