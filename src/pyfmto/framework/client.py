@@ -182,7 +182,7 @@ class Client(ABC):
                 time.sleep(interval)
                 failed_retry += 1
                 if failed_retry > self.conn_retry:
-                    raise ConnectionError(f"{self.name} Connection failed {self.conn_retry} times.")
+                    raise ConnectionError(f"{self.name} Connection failed {self.conn_retry} times.") from None
                 continue
             pkg = self.__uppack(resp.content)
             if pkg is not None and self.check_pkg(pkg):
