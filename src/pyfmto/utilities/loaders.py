@@ -130,11 +130,11 @@ class AlgorithmData:
             if attr_name.startswith('__'):
                 continue
             attr = getattr(module, attr_name)
-            if not inspect.isclass(attr):
-                continue
-            if issubclass(attr, Client) and attr is not Client:
+            is_client = inspect.isclass(attr) and issubclass(attr, Client) and attr is not Client
+            is_server = inspect.isclass(attr) and issubclass(attr, Server) and attr is not Server
+            if is_client:
                 clt = attr
-            if issubclass(attr, Server) and attr is not Server:
+            if is_server:
                 srv = attr
             if clt and srv:
                 break  # Early exit: both found
