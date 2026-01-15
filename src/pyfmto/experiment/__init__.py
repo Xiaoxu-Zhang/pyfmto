@@ -7,11 +7,11 @@ from .utils import (
 )
 
 __all__ = [
-    'Reports',
     'Launcher',
+    'Reports',
     'RunSolutions',
-    'show_default_conf',
     'list_report_formats',
+    'show_default_conf',
 ]
 
 

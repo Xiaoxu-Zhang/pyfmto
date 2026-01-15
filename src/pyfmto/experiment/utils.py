@@ -21,11 +21,11 @@ from ..utilities.tools import colored, titled_tabulate
 StatisData = namedtuple("StatisData", ['mean', 'std', 'se', 'opt'])
 
 __all__ = [
-    "MetaData",
-    "RunSolutions",
     "ClientDataStatis",
     "MergedResults",
-    "ReporterUtils"
+    "MetaData",
+    "ReporterUtils",
+    "RunSolutions"
 ]
 
 

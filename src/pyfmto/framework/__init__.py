@@ -4,8 +4,8 @@ from .server import Server
 
 __all__ = [
     'Client',
+    'ClientPackage',
     'Server',
     'SyncDataManager',
-    'ClientPackage',
     'record_runtime'
 ]

@@ -13,18 +13,18 @@ from tabulate import tabulate
 from .loggers import logger
 
 __all__ = [
-    'colored',
     'add_sources',
-    'get_os_name',
-    'get_cpu_model',
-    'get_pkgs_version',
     'clear_console',
-    'titled_tabulate',
-    'tabulate_formats',
+    'colored',
+    'get_cpu_model',
+    'get_os_name',
+    'get_pkgs_version',
     'matched_str_head',
-    'terminate_popen',
+    'print_dict_as_table',
     'redirect_warnings',
-    'print_dict_as_table'
+    'tabulate_formats',
+    'terminate_popen',
+    'titled_tabulate'
 ]
 
 

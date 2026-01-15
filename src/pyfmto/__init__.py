@@ -11,9 +11,9 @@ from .utilities.loaders import (
 from .utilities.loggers import logger
 
 __all__ = [
+    "ConfigLoader",
     "Launcher",
     "Reports",
-    "logger",
     "load_problem",
-    "ConfigLoader",
+    "logger",
 ]

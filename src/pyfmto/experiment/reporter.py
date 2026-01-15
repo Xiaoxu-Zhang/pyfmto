@@ -23,14 +23,14 @@ T_Levels10 = Annotated[int, Field(ge=1, le=10)]
 logger.setLevel('DEBUG')
 
 __all__ = [
-    'Reports',
-    'ReportGenerator',
-    'CurveGenerator',
-    'ViolinGenerator',
-    'TableGenerator',
-    'ExcelGenerator',
     'ConsoleGenerator',
+    'CurveGenerator',
+    'ExcelGenerator',
     'LatexGenerator',
+    'ReportGenerator',
+    'Reports',
+    'TableGenerator',
+    'ViolinGenerator',
 ]
 
 

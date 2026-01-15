@@ -28,13 +28,13 @@ from .loggers import logger
 from .tools import add_sources, clear_console, get_os_name, tabulate_formats, titled_tabulate
 
 __all__ = [
-    'load_problem',
-    'ProblemData',
-    'ConfigLoader',
     'AlgorithmData',
+    'ConfigLoader',
     'ExperimentConfig',
-    'ReporterConfig',
     'LauncherConfig',
+    'ProblemData',
+    'ReporterConfig',
+    'load_problem',
 ]
 
 

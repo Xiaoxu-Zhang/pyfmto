@@ -15,12 +15,12 @@ yaml.indent(mapping=2, sequence=4, offset=2)
 T_Path = Union[str, Path]
 
 __all__ = [
-    'load_yaml',
-    'save_yaml',
-    'parse_yaml',
     'dumps_yaml',
     'load_msgpack',
+    'load_yaml',
+    'parse_yaml',
     'save_msgpack',
+    'save_yaml',
 ]
 
 
