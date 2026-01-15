@@ -8,12 +8,10 @@ from .utilities.loaders import (
     ConfigLoader,
     load_problem,
 )
-from .utilities.loggers import logger
 
 __all__ = [
     "ConfigLoader",
     "Launcher",
     "Reports",
     "load_problem",
-    "logger",
 ]
