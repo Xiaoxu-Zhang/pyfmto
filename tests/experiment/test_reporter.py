@@ -14,6 +14,7 @@ class ReporterTestBase(ExpTestCase):
     def gen_fake_data(self):
         for exp in self.conf.reporter.experiments:
             exp.init_root()
+            print(f"initialized data root: {exp.root}")
             for run in range(5):
                 prob = exp.problem.initialize()
                 run_data = RunSolutions()
@@ -22,7 +23,9 @@ class ReporterTestBase(ExpTestCase):
                     y = task.evaluate(x)
                     task.solutions.append(x, y)
                     run_data.update(task.id, task.solutions)
-                run_data.to_msgpack(exp.result_name(run))
+                filename = exp.result_name(run)
+                run_data.to_msgpack(filename)
+                print(f"Saved: {filename}")
 
 
 class TestGenerators(ReporterTestBase):
