@@ -8,11 +8,11 @@ from .generators import ExpDataGenerator, gen_code
 from .launchers import running_server, start_clients
 
 __all__ = [
-    "PyfmtoTestCase",
     "ExpDataGenerator",
+    "PyfmtoTestCase",
+    "gen_code",
     "running_server",
     "start_clients",
-    "gen_code",
 ]
 
 

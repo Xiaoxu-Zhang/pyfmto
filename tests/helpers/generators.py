@@ -9,7 +9,7 @@ from pyfmto.problem import Solution
 from pyfmto.utilities.io import parse_yaml, save_yaml
 from pyfmto.utilities.schemas import STPConfig
 
-__all__ = ['gen_code', 'gen_config', 'ExpDataGenerator']
+__all__ = ['ExpDataGenerator', 'gen_code', 'gen_config']
 
 
 def gen_config(conf_str: str, path: Path):
