@@ -9,6 +9,7 @@ class ExpTestCase(PyfmtoTestCase):
 
     def setUp(self):
         self.save_sys_env()
+        Path('out/logs').mkdir(parents=True, exist_ok=True)
         self.algs = ['ALG1', 'ALG2']
         self.probs = ['PROB1']
         self.tmp_dir = Path('temp_dir_for_test')

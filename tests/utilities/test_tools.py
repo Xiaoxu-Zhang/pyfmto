@@ -2,24 +2,21 @@ import subprocess
 import sys
 import warnings
 from pathlib import Path
-from unittest.mock import patch, Mock, MagicMock, mock_open
+from unittest.mock import MagicMock, Mock, mock_open, patch
 
-from pyfmto.utilities import (
-    colored,
-    clear_console,
-    titled_tabulate,
-    terminate_popen,
-    tabulate_formats,
-)
 from pyfmto.utilities.tools import (
-    redirect_warnings,
-    print_dict_as_table,
-    get_pkgs_version,
+    add_sources,
+    clear_console,
+    colored,
     get_cpu_model,
     get_os_name,
-    add_sources
+    get_pkgs_version,
+    print_dict_as_table,
+    redirect_warnings,
+    tabulate_formats,
+    terminate_popen,
+    titled_tabulate,
 )
-
 from tests.helpers import PyfmtoTestCase
 
 

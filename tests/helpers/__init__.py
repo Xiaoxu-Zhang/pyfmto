@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from typing import Union
 
-from .generators import gen_code, ExpDataGenerator
+from .generators import ExpDataGenerator, gen_code
 from .launchers import running_server, start_clients
 
 __all__ = [

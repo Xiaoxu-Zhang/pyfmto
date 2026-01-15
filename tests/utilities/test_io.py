@@ -1,11 +1,11 @@
-import numpy as np
 import shutil
 import unittest
 from pathlib import Path
+
+import numpy as np
 from ruamel.yaml.error import MarkedYAMLError
 
-from pyfmto.utilities import save_yaml, dumps_yaml, parse_yaml
-from pyfmto.utilities.io import load_yaml, save_msgpack, load_msgpack
+from pyfmto.utilities.io import dumps_yaml, load_msgpack, load_yaml, parse_yaml, save_msgpack, save_yaml
 
 YAML_OK = """
 key1:

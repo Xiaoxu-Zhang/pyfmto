@@ -1,18 +1,15 @@
 import os
 import unittest
 from pathlib import Path
+
 from pydantic import ValidationError
 from ruamel.yaml import CommentedMap
 
+from pyfmto.experiment import list_report_formats, show_default_conf
 from pyfmto.problem import MultiTaskProblem
 from pyfmto.utilities import loaders
-from pyfmto.experiment import list_report_formats, show_default_conf
-from pyfmto.utilities.loaders import (
-    ProblemData, AlgorithmData,
-    LauncherConfig, ReporterConfig,
-    ConfigLoader
-)
-from tests.helpers import gen_code, PyfmtoTestCase
+from pyfmto.utilities.loaders import AlgorithmData, ConfigLoader, LauncherConfig, ProblemData, ReporterConfig
+from tests.helpers import PyfmtoTestCase, gen_code
 from tests.helpers.generators import gen_config
 from tests.utilities import LoadersTestCase
 

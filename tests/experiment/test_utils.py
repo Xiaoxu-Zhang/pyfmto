@@ -1,15 +1,13 @@
 import subprocess
-
-import numpy as np
 from itertools import product
 from pathlib import Path
 
+import numpy as np
+
+from pyfmto.experiment.utils import ClientDataStatis, MergedResults, MetaData, ReporterUtils, RunSolutions
 from pyfmto.problem import Solution
-from pyfmto.experiment.utils import (
-    RunSolutions, ReporterUtils, MetaData, MergedResults, ClientDataStatis
-)
+from pyfmto.utilities.io import load_msgpack
 from pyfmto.utilities.schemas import STPConfig
-from pyfmto.utilities import load_msgpack
 from tests.helpers import PyfmtoTestCase
 from tests.helpers.generators import ExpDataGenerator
 

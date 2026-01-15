@@ -1,7 +1,8 @@
 from typing import Union
 
 import numpy as np
-from pyfmto.problem import SingleTaskProblem, MultiTaskProblem
+
+from pyfmto.problem import MultiTaskProblem, SingleTaskProblem
 
 __all__ = ['ClassPrefixProb']
 

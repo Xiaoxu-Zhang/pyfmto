@@ -1,11 +1,12 @@
 import unittest
-import numpy as np
 from itertools import product
 
+import numpy as np
+
 from pyfmto.utilities.schemas import (
-    STPConfig,
-    PlottingArgs,
     FunctionInputs,
+    PlottingArgs,
+    STPConfig,
     TransformerConfig,
 )
 

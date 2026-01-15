@@ -1,6 +1,6 @@
 from datetime import date
 
-from pyfmto.framework import Server, ClientPackage, Client, record_runtime
+from pyfmto.framework import Client, ClientPackage, Server, record_runtime
 from pyfmto.problem import SingleTaskProblem
 
 

@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 
 from pyfmto.framework import Client
-from pyfmto.utilities import terminate_popen
+from pyfmto.utilities.tools import terminate_popen
 
 
 @contextmanager

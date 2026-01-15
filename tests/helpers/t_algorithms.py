@@ -1,6 +1,6 @@
 from typing import Any
 
-from pyfmto.framework import Client, Server, ClientPackage
+from pyfmto.framework import Client, ClientPackage, Server
 
 
 class ClassPrefixClient(Client):

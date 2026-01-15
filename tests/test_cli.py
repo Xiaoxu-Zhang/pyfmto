@@ -1,11 +1,10 @@
 import sys
 from pathlib import Path
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from pyfmto.experiment import list_report_formats
 from pyfmto.utilities.cli import main
-from tests.helpers import gen_code, PyfmtoTestCase
+from tests.helpers import PyfmtoTestCase, gen_code
 from tests.helpers.generators import gen_config
 
 

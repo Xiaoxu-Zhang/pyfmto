@@ -1,12 +1,13 @@
-import numpy as np
 from pathlib import Path
-from typing import Union, Literal
+from typing import Literal, Union
+
+import numpy as np
+
 from pyfmto.experiment import RunSolutions
 from pyfmto.experiment.utils import MergedResults, MetaData
 from pyfmto.problem import Solution
-from pyfmto.utilities import save_yaml, parse_yaml
+from pyfmto.utilities.io import parse_yaml, save_yaml
 from pyfmto.utilities.schemas import STPConfig
-
 
 __all__ = ['gen_code', 'gen_config', 'ExpDataGenerator']
 

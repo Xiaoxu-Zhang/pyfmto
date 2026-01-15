@@ -1,6 +1,7 @@
 import numpy as np
 
-from pyfmto.problem import SingleTaskProblem, MultiTaskProblem as _MultiTaskProblem
+from pyfmto.problem import MultiTaskProblem as _MultiTaskProblem
+from pyfmto.problem import SingleTaskProblem
 
 TASK_NUM = 4
 

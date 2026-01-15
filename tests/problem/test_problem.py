@@ -1,14 +1,14 @@
-import numpy as np
 import shutil
 import unittest
-import pyvista
 from itertools import product
-from unittest.mock import patch, MagicMock
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
+import numpy as np
+import pyvista
 from numpy import ndarray
 
-from tests.problem import ConstantProblem, SimpleProblem, MtpSynthetic, MtpRealworld, MtpNonIterableReturn
+from tests.problem import ConstantProblem, MtpNonIterableReturn, MtpRealworld, MtpSynthetic, SimpleProblem
 
 
 class TestProblemBase(unittest.TestCase):

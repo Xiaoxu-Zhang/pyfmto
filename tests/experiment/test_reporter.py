@@ -1,10 +1,10 @@
 import time
-
-import matplotlib as plt
 from unittest.mock import patch
 
-from pyfmto.experiment import RunSolutions, Reports
-from pyfmto.experiment.reporter import ReportGenerator, Reporter
+import matplotlib as plt
+
+from pyfmto.experiment import Reports, RunSolutions
+from pyfmto.experiment.reporter import Reporter, ReportGenerator
 from tests.experiment import ExpTestCase
 
 plt.use('Agg')

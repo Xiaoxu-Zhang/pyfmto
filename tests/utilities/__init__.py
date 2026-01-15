@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pyfmto.utilities.loaders import ConfigLoader
 from tests.helpers import PyfmtoTestCase
-from tests.helpers.generators import gen_config, gen_code
+from tests.helpers.generators import gen_code, gen_config
 
 
 class LoadersTestCase(PyfmtoTestCase):

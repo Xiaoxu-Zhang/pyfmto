@@ -1,9 +1,8 @@
 import logging.config
+from pathlib import Path
 from unittest.mock import patch
 
 from pyfmto.utilities.loggers import LOG_CONF, SafeFileHandler
-from pathlib import Path
-
 from tests.helpers import PyfmtoTestCase
 
 

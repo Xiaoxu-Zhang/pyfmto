@@ -22,7 +22,6 @@ class TestLauncher(ExpTestCase):
             self.assertGreater(exp.num_results, 0, msg=f"[{exp.algorithm.name}][{exp.problem.name}] num_results is 0")
 
     def test_not_save(self):
-        Path('out/logs').mkdir(parents=True, exist_ok=True)
         self.conf.config['launcher'].update({'save': False})
         launcher = Launcher(self.conf.launcher)
         self.assertFalse(launcher.conf.save, msg="self.conf.launcher.save is True")

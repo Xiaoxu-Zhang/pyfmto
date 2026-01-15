@@ -1,12 +1,12 @@
+from itertools import product
 from pathlib import Path
 
 import numpy as np
-from itertools import product
 
-from pyfmto.framework import Client
 from pyfmto import load_problem
-from pyfmto.utilities import parse_yaml
-from tests.helpers import gen_code, PyfmtoTestCase
+from pyfmto.framework import Client
+from pyfmto.utilities.io import parse_yaml
+from tests.helpers import PyfmtoTestCase, gen_code
 from tests.helpers.generators import gen_config
 
 

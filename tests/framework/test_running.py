@@ -2,13 +2,12 @@ import threading
 import time
 from pathlib import Path
 
-from pyfmto.framework import Client, Server, ClientPackage
-from pyfmto import load_problem
-from tests.framework import (
-    OfflineServer, OnlineClient, OnlineServer
-)
 from requests.exceptions import ConnectionError
-from tests.helpers import gen_code, running_server, start_clients, PyfmtoTestCase
+
+from pyfmto import load_problem
+from pyfmto.framework import Client, ClientPackage, Server
+from tests.framework import OfflineServer, OnlineClient, OnlineServer
+from tests.helpers import PyfmtoTestCase, gen_code, running_server, start_clients
 from tests.helpers.generators import gen_config
 
 N_CLIENTS = 2

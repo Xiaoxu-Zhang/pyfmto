@@ -1,5 +1,6 @@
-import numpy as np
 import unittest
+
+import numpy as np
 
 from pyfmto.problem.solution import Solution
 from pyfmto.utilities.schemas import STPConfig

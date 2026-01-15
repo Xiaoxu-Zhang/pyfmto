@@ -1,11 +1,7 @@
 import shutil
 import unittest
 
-from pyfmto.framework.packages import (
-    Actions,
-    ClientPackage,
-    SyncDataManager
-)
+from pyfmto.framework.packages import Actions, ClientPackage, SyncDataManager
 
 
 class TestPackagesForCoverage(unittest.TestCase):
