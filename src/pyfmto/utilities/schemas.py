@@ -1,7 +1,8 @@
-import numpy as np
 import warnings
-from pydantic import BaseModel, field_validator, model_validator, ConfigDict
-from typing import Union, Optional, cast
+from typing import Optional, Union, cast
+
+import numpy as np
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 T_Bound = Union[int, float, list, tuple, np.ndarray]
 

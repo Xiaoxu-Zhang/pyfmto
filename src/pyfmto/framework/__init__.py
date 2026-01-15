@@ -1,6 +1,6 @@
 from .client import Client, record_runtime
-from .server import Server
 from .packages import ClientPackage, SyncDataManager
+from .server import Server
 
 __all__ = [
     'Client',

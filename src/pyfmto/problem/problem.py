@@ -1,20 +1,21 @@
 import copy
+import textwrap
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import ClassVar, Literal, Optional, Union
+
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import textwrap
-from abc import ABC, abstractmethod
 from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from numpy import ndarray
-from pathlib import Path
 from pyDOE import lhs
-from scipy.stats import kendalltau, spearmanr, pearsonr
+from scipy.stats import kendalltau, pearsonr, spearmanr
 from tabulate import tabulate
-from typing import Union, Optional, Literal, ClassVar
 
-from pyfmto.utilities import StrColors, Cmaps, SeabornStyles
-from pyfmto.utilities.schemas import T_Bound, STPConfig, TransformerConfig, FunctionInputs, PlottingArgs
+from ..utilities.schemas import FunctionInputs, PlottingArgs, STPConfig, T_Bound, TransformerConfig
+from ..utilities.stroptions import Cmaps, SeabornStyles, StrColors
 from .solution import Solution
 
 __all__ = [

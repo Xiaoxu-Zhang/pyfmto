@@ -1,4 +1,4 @@
-from .problem import SingleTaskProblem, MultiTaskProblem
+from .problem import MultiTaskProblem, SingleTaskProblem
 from .solution import Solution
 
 __all__ = [

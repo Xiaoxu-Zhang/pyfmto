@@ -1,10 +1,10 @@
-from .reporter import Reports
+from ..utilities.io import dumps_yaml, parse_yaml
+from ..utilities.tools import matched_str_head
 from .launcher import Launcher
+from .reporter import Reports
 from .utils import (
     RunSolutions,
 )
-
-from ..utilities import parse_yaml, dumps_yaml, matched_str_head
 
 __all__ = [
     'Reports',

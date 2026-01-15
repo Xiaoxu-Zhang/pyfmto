@@ -5,6 +5,7 @@
 import logging.config
 import time
 from pathlib import Path
+
 from concurrent_log_handler import ConcurrentRotatingFileHandler
 
 log_dir = Path("out/logs")

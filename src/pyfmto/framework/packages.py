@@ -1,9 +1,11 @@
 from collections import defaultdict
 from enum import Enum, auto
-from pydantic import validate_call
-from typing import Optional, Any
+from typing import Any, Optional
 
-from pyfmto.utilities import logger, titled_tabulate, tabulate_formats
+from pydantic import validate_call
+
+from ..utilities.loggers import logger
+from ..utilities.tools import tabulate_formats, titled_tabulate
 
 __all__ = ['Actions', 'ClientPackage', 'SyncDataManager']
 

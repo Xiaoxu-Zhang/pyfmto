@@ -1,18 +1,21 @@
 import pickle
-import requests  # type: ignore
 import time
 import traceback
-import wrapt
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 from collections import defaultdict
+from typing import Any, final
+
+import requests  # type: ignore
+import wrapt
 from numpy import ndarray
 from requests.exceptions import ConnectionError  # type: ignore
 from rich.progress import Progress, TaskID
-from typing import final, Any
 
-from .packages import ClientPackage, Actions
-from pyfmto.problem import SingleTaskProblem
-from pyfmto.utilities import logger, colored, titled_tabulate, tabulate_formats as tf
+from ..problem import SingleTaskProblem
+from ..utilities.loggers import logger
+from ..utilities.tools import colored, titled_tabulate
+from ..utilities.tools import tabulate_formats as tf
+from .packages import Actions, ClientPackage
 
 __all__ = [
     'Client',

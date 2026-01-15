@@ -1,8 +1,8 @@
+from pathlib import Path
+from typing import Any, Optional, Union
+
 import msgpack
 import numpy as np
-from pathlib import Path
-from typing import Union, Any, Optional
-
 from pydantic import validate_call
 from ruamel.yaml import YAML, CommentedMap
 from ruamel.yaml.error import MarkedYAMLError

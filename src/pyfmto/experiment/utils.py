@@ -1,19 +1,22 @@
 import copy
-import numpy as np
 import os
-import pandas as pd
-import seaborn
 import shutil
 import time
 from collections import defaultdict, namedtuple
-from PIL import Image
-from matplotlib import pyplot as plt
-from scipy import stats
 from pathlib import Path
 from typing import Optional, Union
 
-from pyfmto.problem import Solution
-from pyfmto.utilities import logger, save_msgpack, titled_tabulate, load_msgpack, colored
+import numpy as np
+import pandas as pd
+import seaborn
+from matplotlib import pyplot as plt
+from PIL import Image
+from scipy import stats
+
+from ..problem import Solution
+from ..utilities.io import load_msgpack, save_msgpack
+from ..utilities.loggers import logger
+from ..utilities.tools import colored, titled_tabulate
 
 StatisData = namedtuple("StatisData", ['mean', 'std', 'se', 'opt'])
 

@@ -3,28 +3,29 @@ import importlib
 import inspect
 import os
 import shutil
-import psutil
-import tabulate
 import textwrap
 from collections import defaultdict
 from datetime import datetime
-from deepdiff import DeepDiff
-from itertools import product, chain
+from itertools import chain, product
 from pathlib import Path
+from textwrap import indent
+from typing import Any, Literal, Union
+
+import psutil
+import tabulate
+from deepdiff import DeepDiff
 from pydantic import BaseModel, ConfigDict
 from rich import box
 from rich.console import Console
 from rich.table import Table
 from ruamel.yaml import CommentedMap
-from textwrap import indent
-from typing import Any, Union, Literal
 
-from pyfmto.framework.client import Client
-from pyfmto.framework.server import Server
-from pyfmto.problem import MultiTaskProblem
-from .io import parse_yaml, dumps_yaml, load_yaml
+from ..framework.client import Client
+from ..framework.server import Server
+from ..problem import MultiTaskProblem
+from .io import dumps_yaml, load_yaml, parse_yaml
 from .loggers import logger
-from .tools import get_os_name, add_sources, titled_tabulate, clear_console, tabulate_formats
+from .tools import add_sources, clear_console, get_os_name, tabulate_formats, titled_tabulate
 
 __all__ = [
     'load_problem',

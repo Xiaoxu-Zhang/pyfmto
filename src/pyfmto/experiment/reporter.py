@@ -1,17 +1,19 @@
 import traceback
+from abc import ABC, abstractmethod
+from typing import Annotated, Literal, final
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scienceplots  # Do not remove this import
 import seaborn
-from abc import ABC, abstractmethod
-from pydantic import validate_call, Field
-from pyfmto.utilities import SeabornPalettes, logger
+from pydantic import Field, validate_call
 from tqdm import tqdm
-from typing import Literal, Annotated, final
 
-from .utils import ReporterUtils, MergedResults, MetaData
 from ..utilities.loaders import ReporterConfig
+from ..utilities.loggers import logger
+from ..utilities.stroptions import SeabornPalettes
+from .utils import MergedResults, MetaData, ReporterUtils
 
 _ = scienceplots.stylesheets  # This is to suppress the 'unused import' warning
 T_Suffix = Literal['.png', '.jpg', '.jpeg', '.svg', '.pdf']

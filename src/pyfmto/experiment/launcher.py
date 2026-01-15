@@ -4,24 +4,26 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 
-from rich import box, progress as rpg
-from rich.console import Group, Console
+from rich import box
+from rich import progress as rpg
+from rich.console import Console, Group
 from rich.live import Live
 from rich.measure import measure_renderables
 from rich.table import Table
 from setproctitle import setproctitle
 from tabulate import tabulate
 
-from pyfmto.utilities import (
-    logger,
-    titled_tabulate,
-    terminate_popen,
-    tabulate_formats as tf, clear_console,
-)
-from .utils import RunSolutions
 from ..framework import Client
 from ..utilities.loaders import ExperimentConfig, LauncherConfig
-from ..utilities.tools import redirect_warnings
+from ..utilities.loggers import logger
+from ..utilities.tools import (
+    clear_console,
+    redirect_warnings,
+    terminate_popen,
+    titled_tabulate,
+)
+from ..utilities.tools import tabulate_formats as tf
+from .utils import RunSolutions
 
 __all__ = ['Launcher']
 
@@ -42,7 +44,7 @@ class Launcher:
 
     def run(self):
         self._setup()
-        for self.exp_idx, self.exp in enumerate(self.conf.experiments):
+        for self.exp_idx, self.exp in enumerate(self.conf.experiments):  # noqa: B020
             logger.info(f"\n{self.exp}")
             if self.conf.save:
                 self._init_root()
@@ -146,7 +148,7 @@ class Launcher:
 
         cmd = [
             sys.executable, "-c",
-            "from pyfmto.utilities import logger; "
+            "from pyfmto.utilities.loggers import logger; "
             "from pyfmto.utilities.loaders import add_sources; "
             "from importlib import import_module; "
             f"add_sources({self.conf.sources}); "

@@ -4,10 +4,11 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Literal
+
 from rich.console import Console
 from rich.table import Table, box
 from tabulate import tabulate
-from typing import Literal
 
 from .loggers import logger
 

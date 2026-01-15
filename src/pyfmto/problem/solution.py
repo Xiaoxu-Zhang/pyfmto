@@ -1,9 +1,10 @@
-import numpy as np
 from typing import Union
+
+import numpy as np
 from numpy import ndarray
 from tabulate import tabulate
 
-from pyfmto.utilities.schemas import STPConfig
+from ..utilities.schemas import STPConfig
 
 __all__ = ['Solution']
 
