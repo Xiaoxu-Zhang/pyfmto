@@ -32,6 +32,9 @@ class TestMainFunction(PyfmtoTestCase):
         mock_launcher.assert_called_once()
         mock_launcher_instance.run.assert_called_once()
 
+        with patch.object(sys, 'argv', ['pyfmto']):
+            main()
+
     @patch('pyfmto.utilities.cli.Reports')
     @patch('pyfmto.utilities.cli.ConfigLoader')
     def test_report_command(self, mock_loader, mock_reports):
@@ -81,10 +84,12 @@ class TestMainFunction(PyfmtoTestCase):
                     test_args = ['pyfmto', 'show', f'{grp}.{option}', '-c', f'{conf_file}']
                     with patch.object(sys, 'argv', test_args):
                         main()
+        with patch.object(sys, 'argv', ['pyfmto', 'show', 'no_dot_in_name']):
+            main()
 
         self.restore_sys_env()
         self.save_sys_env()
-        list_options = ['algorithms', 'problems', 'reports']
+        list_options = ['algorithms', 'problems', 'reports', 'invalid']
         args_lst = [['pyfmto', 'list', f'{option}', '-c', f'{conf_file}'] for option in list_options]
         for test_args in args_lst:
             with self.subTest(test_args=test_args):
