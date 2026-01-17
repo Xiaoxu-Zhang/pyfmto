@@ -38,14 +38,20 @@
 
 ## Usage
 
+PyFMTO's CLI is available in any working directory, just make sure:
+
+1. The Python environment is properly set up and activated
+2. The PyFMTO is installed
+3. A valid configuration file is provided in the current working directory
+
+For more details, please refer to:
+
+1. [Quick Start](#quick-start)
+2. [PyFMTO CLI](#command-line-interface-cli)
+3. [About fmto](#about-fmto)
+
+
 ### Quick Start
-
-Clone the [fmto](https://github.com/Xiaoxu-Zhang/fmto.git) repository ([why?](#about-fmto)):
-
-```bash
-git clone https://github.com/Xiaoxu-Zhang/fmto.git
-cd fmto
-```
 
 Create an environment and install PyFMTO:
 
@@ -53,6 +59,13 @@ Create an environment and install PyFMTO:
 conda create -n fmto python=3.10
 conda activate fmto
 pip install pyfmto
+```
+
+Clone the [fmto](https://github.com/Xiaoxu-Zhang/fmto.git) repository ([why?](#about-fmto)):
+
+```bash
+git clone https://github.com/Xiaoxu-Zhang/fmto.git
+cd fmto
 ```
 
 Start the experiments:
@@ -186,10 +199,10 @@ includes the following components:
 
 - A collection of published FMTO algorithms.
 - A config file (config.yaml) that provides guidance on how to set up and configure the experiments.
-- A template algorithm named "ALG" that you can use as a basis for implementing your own algorithm.
-- A template problem named "PROB" that you can use as a basis for implementing your own problem.
+- A template algorithm named "DEMO" that you can use as a basis for implementing your own algorithm.
+- A template problem named "demo" that you can use as a basis for implementing your own problem.
 
-The `config.yaml`, `algorithms/DEMO` and `problems/DEMO` provided detailed instructions, you can
+The `config.yaml`, `algorithms/DEMO` and `problems/demo` provided detailed instructions, you can
 even start your research without additional documentation. The fmto repository is currently in
 the early stages of development. I'm actively working on improving existing algorithms and adding
 new algorithms.
