@@ -2,8 +2,13 @@ import argparse
 from pathlib import Path
 from typing import Literal, cast
 
+from pyfmto import load_problem
+from pyfmto.utilities.loaders import list_components, load_algorithm
+
 from ..experiment import Launcher, Reports, list_report_formats, show_default_conf
-from .loaders import AlgorithmData, ConfigLoader, ProblemData
+from .. import ConfigLoader
+from ..problem import ProblemData
+from ..framework import AlgorithmData
 from .tools import add_sources, matched_str_head
 
 
@@ -67,7 +72,7 @@ def _handle_report(conf: ConfigLoader):
 def _handle_list(args, conf: ConfigLoader):
     full_name = matched_str_head(args.name, ['problems', 'algorithms', 'reports'])
     if full_name in ('problems', 'algorithms'):
-        conf.show_sources(cast(Literal['algorithms', 'problems'], full_name), print_it=True)
+        list_components(full_name, conf.sources, print_it=True)
     elif full_name == 'reports':
         list_report_formats(print_it=True)
     else:
@@ -83,11 +88,9 @@ def _handle_show(args, conf: ConfigLoader):
     full_name = matched_str_head(t, ['problems', 'algorithms', 'reports'])
 
     if full_name == 'problems':
-        prob = conf.problems.get(v, ProblemData(v, []))
-        print(prob.params_yaml)
+        print(load_problem(v, sources=conf.sources).params_yaml)
     elif full_name == 'algorithms':
-        alg = conf.algorithms.get(v, AlgorithmData(v, []))
-        print(alg.params_yaml)
+        print(load_algorithm(v, sources=conf.sources).params_yaml)
     elif full_name == 'reports':
         show_default_conf(v)
     else:
