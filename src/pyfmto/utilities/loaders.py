@@ -1,33 +1,40 @@
 import importlib
 import inspect
 import os
+import textwrap
 from collections import defaultdict
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast, Union
 
-from pyfmto.framework import AlgorithmData
-from pyfmto.utilities.tools import print_dict_as_table
+import tabulate
 
+from ..framework import AlgorithmData
+from ..problem import ProblemData
 from ..core import ComponentData
-from ..problem import MultiTaskProblem, ProblemData
 from .loggers import logger
-from .tools import add_sources
+from .tools import add_sources, print_dict_as_table
 
 __all__ = [
-    'load_problem',
     'discover',
+    'list_algorithms',
+    'list_components',
+    'list_problems',
+    'load_algorithm',
+    'load_component',
+    'load_problem',
 ]
 
 _DISCOVER_CACHE: dict[str, dict[str, list[ComponentData]]] = {}
 
 
-def load_problem(name: str, sources: list[str], **kwargs) -> MultiTaskProblem:
-    problems = discover(sources).get('problems', {})
-    prob = problems.get(name, ProblemData())
-    if not prob.available:
-        raise ValueError(f"Problem '{name}' is not available")
-    prob.params_update = kwargs
-    return prob.initialize()
+def load_algorithm(name: str, sources: list[str], **kwargs) -> AlgorithmData:
+    alg = load_component('algorithms', name, sources, **kwargs)
+    return cast(AlgorithmData, alg)
+
+
+def load_problem(name: str, sources: list[str], **kwargs) -> ProblemData:
+    prob = load_component('problems', name, sources, **kwargs)
+    return cast(ProblemData, prob)
 
 
 def list_problems(sources: list[str], print_it=False) -> dict[str, list[str]]:
@@ -42,16 +49,42 @@ def list_components(
         target: Literal['algorithms', 'problems'],
         sources: list[str],
         print_it=False
-) -> dict[str, list[str]]:
+) -> dict[str, list]:
     components = discover(sources).get(target, {})
-    res: dict[str, list[str]] = defaultdict(list)
+    res: dict[str, list] = defaultdict(list)
     for _, comp_lst in components.items():
         for comp in comp_lst:
             for key, val in comp.desc.items():
                 res[key].append(val)
+    src_str = textwrap.indent('\n'.join(sources), '  ')
+    if len(res.get('name')) == 0:
+        summary = f"No {target} found in:\n{src_str}"
+        logger.warning(summary)
+    else:
+        n_available = sum(res.get('available', []))
+        n_total = len(res.get('name', []))
+        summary = f"Found {n_available} available (total {n_total}) {target} in:\n{src_str}"
+        logger.debug(f"{summary}\n{tabulate.tabulate(res, headers='keys', tablefmt='rounded_grid')}")
     if print_it:
+        print(summary)
         print_dict_as_table(res)
     return res
+
+
+def load_component(
+        target: Literal['algorithms', 'problems'],
+        name: str,
+        sources: list[str],
+        **kwargs
+) -> Union[AlgorithmData, ProblemData]:
+    components = discover(sources).get(target, {})
+    comp = _empty_data(target)
+    comp.name_orig = name
+    for comp in components.get(name, []):
+        if comp.available:
+            comp.params_update = kwargs
+            break
+    return comp
 
 
 def discover(paths: list[str]) -> dict[str, dict[str, list[ComponentData]]]:
@@ -93,7 +126,7 @@ def _find_components(subdir: Path):
                 obj.source = str(subdir)
                 results[obj.name_orig].append(obj)
     except Exception as e:
-        obj = ComponentData()
+        obj = _empty_data(str(subdir))
         obj.name_orig = subdir.name
         obj.source = str(subdir)
         obj.issues = [str(e)]
@@ -101,3 +134,8 @@ def _find_components(subdir: Path):
         logger.warning(f"Failed to load '{subdir}': {e!s}")
 
     return results
+
+
+def _empty_data(target: str):
+    return AlgorithmData() if 'algorithm' in target else ProblemData()
+
