@@ -4,7 +4,7 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Any
 
 from rich.console import Console
 from rich.table import Table, box
@@ -16,6 +16,7 @@ __all__ = [
     'add_sources',
     'clear_console',
     'colored',
+    'deepmerge',
     'get_cpu_model',
     'get_os_name',
     'get_pkgs_version',
@@ -236,3 +237,31 @@ def get_cpu_model():
 
     # 4. final fallback
     return "Unknown CPU"
+
+
+def deepmerge(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
+    """
+    Merge two dictionaries recursively, 'a' will be updated in place and will be returned.
+    """
+    if not isinstance(a, dict) or not isinstance(b, dict):
+        raise TypeError("Both arguments must be dictionaries.")
+
+    for key in b:
+        if key not in a:
+            continue
+
+        val_a = a[key]
+        val_b = b[key]
+
+        if type(val_a) is not type(val_b):
+            raise TypeError(
+                f"Type mismatch at key '{key}': "
+                f"a has {type(val_a).__name__}, b has {type(val_b).__name__}"
+            )
+
+        if isinstance(val_a, dict):
+            deepmerge(val_a, val_b)
+        else:
+            a[key] = val_b
+
+    return a
