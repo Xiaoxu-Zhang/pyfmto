@@ -1,745 +1,103 @@
-import copy
 import importlib
 import inspect
 import os
-import shutil
-import textwrap
 from collections import defaultdict
-from datetime import datetime
-from itertools import chain, product
 from pathlib import Path
-from textwrap import indent
-from typing import Any, Literal, Union
+from typing import Literal
 
-import psutil
-import tabulate
-from deepdiff import DeepDiff
-from pydantic import BaseModel, ConfigDict
-from rich import box
-from rich.console import Console
-from rich.table import Table
-from ruamel.yaml import CommentedMap
+from pyfmto.framework import AlgorithmData
+from pyfmto.utilities.tools import print_dict_as_table
 
-from ..framework.client import Client
-from ..framework.server import Server
-from ..problem import MultiTaskProblem
-from .io import dumps_yaml, load_yaml, parse_yaml
+from ..core import ComponentData
+from ..problem import MultiTaskProblem, ProblemData
 from .loggers import logger
-from .tools import add_sources, clear_console, get_os_name, tabulate_formats, titled_tabulate
+from .tools import add_sources
 
 __all__ = [
-    'AlgorithmData',
-    'ConfigLoader',
-    'ExperimentConfig',
-    'LauncherConfig',
-    'ProblemData',
-    'ReporterConfig',
     'load_problem',
+    'discover',
 ]
 
-
-def recursive_to_pure_dict(data: Any) -> dict[str, Any]:
-    """
-    Recursively convert nested dict and CommentedMap objects to a pure Python
-    dictionary to avoid YAML serialization issues.
-    """
-    if isinstance(data, (dict, CommentedMap)):
-        for k, v in data.items():
-            data[k] = recursive_to_pure_dict(v)
-    else:
-        return data
-    return data
+_DISCOVER_CACHE: dict[str, dict[str, list[ComponentData]]] = {}
 
 
-def combine_params(params: dict[str, Union[Any, list[Any]]]) -> list[dict[str, Any]]:
-    values = []
-    for v in params.values():
-        if isinstance(v, list):
-            values.append(v)
-        else:
-            values.append([v])
-    result = []
-    for combination in product(*values):
-        result.append(dict(zip(params.keys(), combination)))
-    return result
-
-
-def load_problem(name: str, config: Union[str, Path] = 'config.yaml', **kwargs) -> MultiTaskProblem:
-    conf = ConfigLoader(config)
-    prob = conf.problems.get(name, ProblemData(name, []))
+def load_problem(name: str, sources: list[str], **kwargs) -> MultiTaskProblem:
+    problems = discover(sources).get('problems', {})
+    prob = problems.get(name, ProblemData())
     if not prob.available:
         raise ValueError(f"Problem '{name}' is not available")
     prob.params_update = kwargs
     return prob.initialize()
 
 
-class AlgorithmData:
-    client: type[Client]
-    server: type[Server]
+def list_problems(sources: list[str], print_it=False) -> dict[str, list[str]]:
+    return list_components('problems', sources, print_it)
 
-    def __init__(self, name: str, paths: list[str]):
-        self.name_orig = name
-        self.name_alias = ''
-        self.paths = paths
-        self.params_default: dict[str, dict[str, Any]] = {}
-        self.params_update: dict[str, dict[str, Any]] = {}
-        self.module_detail: dict[str, list] = defaultdict(list)
-        self.__load()
-        if self.available:
-            self.__parse_default_params()
 
-    @property
-    def available(self):
-        return True in self.module_detail['pass']
+def list_algorithms(sources: list[str], print_it=False) -> dict[str, list[str]]:
+    return list_components('algorithms', sources, print_it)
 
-    def verbose(self):
-        return {k: self.module_detail[k] for k in ['name', 'pass', 'path', 'msg']}
 
-    def __load(self):
-        check_res: dict[str, list] = defaultdict(list)
+def list_components(
+        target: Literal['algorithms', 'problems'],
+        sources: list[str],
+        print_it=False
+) -> dict[str, list[str]]:
+    components = discover(sources).get(target, {})
+    res: dict[str, list[str]] = defaultdict(list)
+    for _, comp_lst in components.items():
+        for comp in comp_lst:
+            for key, val in comp.desc.items():
+                res[key].append(val)
+    if print_it:
+        print_dict_as_table(res)
+    return res
 
-        for path in self.paths:
-            try:
-                module = importlib.import_module(path)
-                clt, srv = self._extract_client_server(module)
-                msg = self._build_check_message(clt, srv)
-                check_pass = clt is not None and srv is not None
 
-                # Only set client/server once (first valid module)
-                if check_pass and not hasattr(self, 'client'):
-                    self.client = clt
-                    self.server = srv
+def discover(paths: list[str]) -> dict[str, dict[str, list[ComponentData]]]:
+    global _DISCOVER_CACHE
+    if _DISCOVER_CACHE:
+        return _DISCOVER_CACHE
 
-            except Exception as e:
-                clt, srv = None, None
-                msg = f"Exception: {e!s}"
-                check_pass = False
+    _DISCOVER_CACHE = {
+        'algorithms': defaultdict(list),
+        'problems': defaultdict(list),
+    }
+    add_sources(paths)
+    for target in ['algorithms', 'problems']:
+        for path in paths:
+            target_dir = Path(path).resolve() / target
+            if target_dir.exists():
+                for name in os.listdir(target_dir):
+                    sub_dir = target_dir / name
+                    if sub_dir.is_dir() and not name.startswith(('.', '_')):
+                        for key, res in _find_components(sub_dir).items():
+                            _DISCOVER_CACHE[target][key].extend(res)
+            else:
+                logger.warning(f'{target_dir} does not exist')
+    return _DISCOVER_CACHE
 
-            check_res['name'].append(self.name)
-            check_res['pass'].append(check_pass)
-            check_res['path'].append(path)
-            check_res['client'].append(clt)
-            check_res['server'].append(srv)
-            check_res['msg'].append(msg)
 
-        self.module_detail = check_res
-
-    def _extract_client_server(self, module):
-        clt, srv = None, None
+def _find_components(subdir: Path):
+    results: dict[str, list[ComponentData]] = defaultdict(list)
+    try:
+        module = importlib.import_module('.'.join(subdir.parts[-3:]))
         for attr_name in dir(module):
             if attr_name.startswith('__'):
                 continue
             attr = getattr(module, attr_name)
-            is_client = inspect.isclass(attr) and issubclass(attr, Client) and attr is not Client
-            is_server = inspect.isclass(attr) and issubclass(attr, Server) and attr is not Server
-            if is_client:
-                clt = attr
-            if is_server:
-                srv = attr
-            if clt and srv:
-                break  # Early exit: both found
-        return clt, srv
-
-    def _build_check_message(self, clt, srv):
-        msg_parts = []
-        if not clt:
-            msg_parts.append("The subclass of 'Client' not found.")
-        if not srv:
-            msg_parts.append("The subclass of 'Server' not found.")
-        return '\n'.join(msg_parts)
-
-    def __parse_default_params(self):
-        c_doc = self.client.__doc__ if self.client else None
-        s_doc = self.server.__doc__ if self.server else None
-        c_args = parse_yaml(c_doc) if c_doc else {}
-        s_args = parse_yaml(s_doc) if s_doc else {}
-        if c_args:
-            self.params_default.update({'client': c_args})
-        if s_args:
-            self.params_default.update({'server': s_args})
-
-    def copy(self) -> 'AlgorithmData':
-        return copy.deepcopy(self)
-
-    @property
-    def params(self) -> dict[str, dict[str, Any]]:
-        kwargs = copy.deepcopy(self.params_default)
-        for k in ['client', 'server']:
-            for k2, v2 in self.params_update.get(k, {}).items():
-                if k not in kwargs:
-                    kwargs[k] = {}
-                kwargs[k][k2] = v2
-        return kwargs
-
-    @property
-    def params_diff(self) -> str:
-        return DeepDiff(self.params_default, self.params).pretty()
-
-    @property
-    def name(self) -> str:
-        return self.name_orig if not self.name_alias else self.name_alias
-
-    @property
-    def params_yaml(self) -> str:
-        if self.params_default:
-            return dumps_yaml(self.params_default)
-        else:
-            return f"Algorithm '{self.name}' no configurable parameters."
-
-
-class ProblemData:
-    problem: type[MultiTaskProblem]
-
-    def __init__(self, name, paths: list[str]):
-        self.name_orig = name
-        self.paths = paths
-        self.params_default: dict[str, Any] = {
-            'npd': 1,
-            'random_ctrl': 'weak',
-            'seed': 123,
-        }
-        self.params_update: dict[str, Any] = {}
-        self.module_detail: dict[str, list] = defaultdict(list)
-        self.__load()
-        if self.available:
-            self.__parse_default_params()
-
-    @property
-    def available(self):
-        return hasattr(self, 'problem')
-
-    def verbose(self):
-        return {k: self.module_detail[k] for k in ['name', 'pass', 'path', 'msg']}
-
-    def __load(self):
-        check_res: dict[str, list] = defaultdict(list)
-
-        for path in self.paths:
-            try:
-                module = importlib.import_module(path)
-                problem = self._find_problem_class(module)
-                if problem is not None:
-                    if not hasattr(self, 'problem'):
-                        self.problem = problem
-                    check_pass = True
-                    msg = ""
-                else:
-                    check_pass = False
-                    msg = "The subclass of 'MultiTaskProblem' not found."
-            except Exception as e:
-                problem = None
-                check_pass = False
-                msg = str(e)
-
-            check_res['name'].append(self.name_orig)
-            check_res['pass'].append(check_pass)
-            check_res['path'].append(path)
-            check_res['problem'].append(problem)
-            check_res['msg'].append(msg)
-
-        self.module_detail = check_res
-
-    def _find_problem_class(self, module):
-        for attr_name in dir(module):
-            if attr_name.startswith('__'):
+            if attr in [AlgorithmData, ProblemData]:
                 continue
-            attr = getattr(module, attr_name)
-            if (
-                    inspect.isclass(attr)
-                    and issubclass(attr, MultiTaskProblem)
-                    and attr is not MultiTaskProblem
-            ):
-                return attr
-        return None
-
-    def __parse_default_params(self):
-        p_doc = self.problem.__doc__
-        self.params_default.update(parse_yaml(p_doc))
-
-    def copy(self) -> 'ProblemData':
-        return copy.deepcopy(self)
-
-    @property
-    def params(self) -> dict[str, Any]:
-        params = copy.deepcopy(self.params_default)
-        params.update(self.params_update)
-        dim = params.get('dim', 0)
-        if dim > 0:
-            if 'fe_init' not in params:
-                params.update(fe_init=5 * dim)
-            if 'fe_max' not in params:
-                params.update(fe_max=11 * dim)
-        return params
-
-    @property
-    def params_diff(self) -> str:
-        return DeepDiff(self.params_default, self.params).pretty()
-
-    def initialize(self) -> MultiTaskProblem:
-        if self.available:
-            return self.problem(**self.params)
-        else:
-            raise ValueError(f"Problem {self.name_orig} not available.")
-
-    @property
-    def name(self) -> str:
-        name_with_dim = f"{self.name_orig}_{self.task_str}_{self.dim_str}"
-        name_no_dim = f"{self.name_orig}_{self.task_str}"
-        return name_with_dim if self.dim > 0 else name_no_dim
-
-    @property
-    def npd(self) -> int:
-        return self.params.get('npd', 0)
-
-    @property
-    def npd_str(self) -> str:
-        return f"NPD{self.npd}" if self.npd > 0 else ""
-
-    @property
-    def dim(self) -> int:
-        return self.params.get('dim', 0)
-
-    @property
-    def dim_str(self) -> str:
-        if self.dim > 0:
-            return f"{self.dim}D"
-        else:
-            return ""
-
-    @property
-    def n_task(self) -> int:
-        if self.available:
-            return len(self.problem(**{'_init_solutions': False}, **self.params))
-        else:
-            raise ValueError(f"Problem {self.name_orig} not available.")
-
-    @property
-    def task_str(self) -> str:
-        return f"{self.n_task}T"
-
-    @property
-    def params_yaml(self) -> str:
-        if self.params_default:
-            return dumps_yaml(self.params_default)
-        else:
-            return f"Problem '{self.name}' no configurable parameters."
-
-
-class ExperimentConfig:
-
-    def __init__(
-            self,
-            algorithm: AlgorithmData,
-            problem: ProblemData,
-            root: str
-    ):
-        self.algorithm = algorithm
-        self.problem = problem
-        self._root = Path(root)
-        self.success = False
-
-    @property
-    def root(self) -> Path:
-        return self._root / self.algorithm.name / self.problem.name / self.problem.npd_str
-
-    @property
-    def code_dest(self) -> Path:
-        today = datetime.now().strftime("%Y-%m-%d")
-        return self.root.parent / "snapshot" / f"code {today}"
-
-    @property
-    def markdown_dest(self) -> Path:
-        today = datetime.now().strftime("%Y-%m-%d")
-        return self.root.parent / "snapshot" / f"markdown {today}.md"
-
-    @property
-    def prefix(self) -> str:
-        fe_init = self.problem.params.get('fe_init')
-        fe_max = self.problem.params.get('fe_max')
-        seed = self.problem.params.get('seed')
-        fe_i = "" if fe_init is None else f"FEi{fe_init}_"
-        fe_m = "" if fe_max is None else f"FEm{fe_max}_"
-        seed = "" if seed is None else f"Seed{seed}_"
-        return f"{fe_i}{fe_m}{seed}"
-
-    def result_name(self, file_id: int):
-        return self.root / f"{self.prefix}Rep{file_id:02d}.msgpack"
-
-    @property
-    def num_results(self) -> int:
-        if not self.root.exists():
-            return 0
-        prefix = self.result_name(0).name.split('Rep')[0]
-        suffix = '.msgpack'
-        results = [f for f in os.listdir(self.root) if f.startswith(prefix) and f.endswith(suffix)]
-        return len(results)
-
-    @property
-    def params_dict(self) -> dict[str, Any]:
-        data = {
-            'algorithm': {
-                self.algorithm.name: {
-                    'base': self.algorithm.name_orig,
-                    'params': self.algorithm.params,
-                    'default': self.algorithm.params_default,
-                    'update': self.algorithm.params_update,
-                },
-            },
-            'problem': {
-                self.problem.name: {
-                    'params': self.problem.params,
-                    'default': self.problem.params_default,
-                    'update': self.problem.params_update,
-                }
-            }
-        }
-        return recursive_to_pure_dict(data)
-
-    @staticmethod
-    def desc_sys():
-        from pyfmto.utilities.tools import get_cpu_model
-        data = {
-            'OS': get_os_name(),
-            "CPU": get_cpu_model(),
-            "MEM": f"{round(psutil.virtual_memory().total / (1024 ** 3), 1)} GB"
-        }
-        return '\n'.join([f"- {k}: {v}" for k, v in data.items()])
-
-    @staticmethod
-    def desc_env(packages: list[str]):
-        import platform
-
-        from pyfmto.utilities.tools import get_pkgs_version
-        data = {
-            'python': platform.python_version(),
-            **get_pkgs_version(packages)
-        }
-        return '\n'.join([f"- {k}: `{v}`" for k, v in data.items()])
-
-    def create_snapshot(self, packages: list[str]):
-        date = datetime.now().strftime("%Y-%m-%d")
-        time = datetime.now().strftime("%H:%M:%S")
-        template = f"""
-            # Experiment information
-
-            The experiment was performed on `{date}` at `{time}`
-
-            ---
-
-            ## system
-
-            <system>
-
-            ## environment
-
-            <environment>
-
-            ## Configuration
-
-            ### Algorithm
-
-            ``` yaml
-            <algorithm>
-            ```
-
-            ### Problem
-
-            ``` yaml
-            <problem>
-            ```
-        """
-        md_str = textwrap.dedent(template)
-        md_str = md_str.replace('<system>', self.desc_sys())
-        md_str = md_str.replace('<environment>', self.desc_env(packages))
-        md_str = md_str.replace('<algorithm>', dumps_yaml(self.params_dict['algorithm']))
-        md_str = md_str.replace('<problem>', dumps_yaml(self.params_dict['problem']))
-
-        file_src = inspect.getfile(self.algorithm.client)
-        for p in Path(file_src).resolve().parents:
-            if p.parent.name == 'algorithms' and not self.code_dest.exists():
-                shutil.copytree(p, self.code_dest)
-        if not self.markdown_dest.exists():
-            with open(self.markdown_dest, 'w') as f:
-                f.write(md_str)
-
-    def init_root(self):
-        self.root.mkdir(parents=True, exist_ok=True)
-
-    def __str__(self):
-        tab = {
-            'Algorithm': [self.algorithm.name],
-            'Problem': [self.problem.name],
-            'NPD': [self.problem.npd_str],
-            'Dimension': [self.problem.dim_str],
-        }
-        return titled_tabulate("Experiment", '=', tab, tablefmt='rounded_grid')
-
-    def __repr__(self):
-        info = [
-            f"Alg({self.algorithm.name})",
-            f"Prob({self.problem.name})",
-            f"NPD({self.problem.params['npd']})",
-            f"Dim({self.problem.params.get('dim', '-')})",
-        ]
-
-        return ' '.join(info)
-
-
-class LauncherConfig(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-    sources: list[str]
-    results: str
-    repeat: int
-    seed: int
-    save: bool
-    loglevel: str
-    snapshot: bool
-    verbose: bool
-    packages: list[str]
-    algorithms: list[str]
-    problems: list[str]
-    experiments: list[ExperimentConfig] = []
-
-    def show_summary(self):
-        tab = Table(
-            title="Experiments Summary",
-            title_justify="center",
-            box=box.ROUNDED,
-        )
-        tab.add_column('Algorithm', justify='center', style="cyan")
-        tab.add_column('Original', justify='center', style="cyan")
-        tab.add_column('Problem', justify='center', style="magenta")
-        tab.add_column('NPD', justify='center', style="yellow")
-        tab.add_column('Success', justify='center')
-
-        for exp in self.experiments:
-            tab.add_row(
-                exp.algorithm.name,
-                exp.algorithm.name_orig,
-                exp.problem.name,
-                exp.problem.npd_str,
-                '[green]yes[/green]' if exp.success else '[red]no[/red]'
-            )
-        clear_console()
-        Console().print(tab)
-
-    @property
-    def n_exp(self) -> int:
-        return len(self.experiments)
-
-    @property
-    def total_repeat(self) -> int:
-        return self.n_exp * self.repeat
-
-
-class ReporterConfig(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-    results: str
-    algorithms: list[list[str]]
-    problems: list[str]
-    formats: list[str]
-    params: dict[str, Any] = {}
-    experiments: list[ExperimentConfig] = []
-    groups: list[tuple[list[str], str, str]] = []
-
-    @property
-    def root(self) -> Path:
-        return Path(self.results)
-
-
-class ConfigLoader:
-    """
-    launcher:
-        sources: []           # load alg/prob in these directory
-        results: out/results  # [optional] save results to this directory
-        repeat: 2             # [optional] repeat each experiment for this number of times
-        seed: 123             # [optional] random seed
-        save: true            # [optional] save results to disk
-        loglevel: INFO        # [optional] log level [CRITICAL, ERROR, WARNING, INFO, DEBUG], default INFO
-        snapshot: true        # [optional] If create snapshot of the experiment
-        verbose: false        # [optional] Save detailed information for each repeat run
-        packages: []          # [optional] Record the version of these packages
-        algorithms: []        # run these algorithms
-        problems: []          # run each algorithm on these problems
-    reporter:
-        formats: [excel]      # [optional] generate these reports
-    """
-
-    def __init__(self, config: Union[str, Path] = 'config.yaml'):
-        self.config_default = parse_yaml(self.__class__.__doc__)
-        self.config_update = load_yaml(config, ignore_errors=True)
-        self.config = copy.deepcopy(self.config_default)
-        self.merge_global_config_from_updates()
-        self.fill_reporter_config_from_launcher()
-        self.algorithms: dict[str, AlgorithmData] = {}
-        self.problems: dict[str, ProblemData] = {}
-        add_sources(self.sources)
-        self.__list_sources()
-
-    @property
-    def sources(self) -> list[str]:
-        return self.config['launcher']['sources']
-
-    def merge_global_config_from_updates(self):
-        for key, value in self.config_update.items():
-            if key in self.config:
-                self.config[key].update(value)
-            else:
-                self.config[key] = value
-        cwd = str(Path().cwd().resolve())
-        if cwd not in self.config['launcher']['sources']:
-            self.config['launcher']['sources'].append(cwd)
-        logger.setLevel(self.config['launcher']['loglevel'])
-
-    def fill_reporter_config_from_launcher(self) -> None:
-        launcher_params = self.config['launcher']
-        for key in ['results', 'problems', 'algorithms']:
-            if key in self.config['reporter']:
-                continue
-            if key == 'algorithms':
-                self.config['reporter'][key] = [launcher_params[key]]
-            else:
-                self.config['reporter'][key] = launcher_params[key]
-
-    def __list_sources(self):
-        for target in ['algorithms', 'problems']:
-            source_indices: dict[str, list[str]] = defaultdict(list)
-            for path in self.sources:
-                target_dir = Path(path).resolve() / target
-                if target_dir.exists():
-                    for name in os.listdir(target_dir):
-                        sub_dir = target_dir / name
-                        if sub_dir.is_dir() and not name.startswith(('.', '_')):
-                            source_indices[name].append('.'.join(sub_dir.parts[-3:]))
-            if target == 'algorithms':
-                for name, paths in source_indices.items():
-                    self.algorithms[name] = AlgorithmData(name, paths)
-            else:
-                for name, paths in source_indices.items():
-                    self.problems[name] = ProblemData(name, paths)
-        logger.debug(self.show_sources('algorithms'))
-        logger.debug(self.show_sources('problems'))
-
-    def show_sources(self, target: Literal['algorithms', 'problems'], print_it: bool = False) -> str:
-        res: dict[str, list[Any]] = defaultdict(list)
-        src_str = '\n'.join(self.sources)
-        target_values = list(getattr(self, target).values())
-        if len(target_values) == 0:
-            summary = f"No {target} found in {src_str}"
-        else:
-            dicts = [data.verbose() for data in getattr(self, target).values()]
-            keys = dicts[0].keys()
-
-            for k in keys:
-                for d in dicts:
-                    res[k] += d[k]
-
-            summary = f"Found {sum(res['pass'])} available (total {len(res['pass'])}) {target} in\n{src_str}"
-        if print_it:
-            print(summary)
-            from pyfmto.utilities.tools import print_dict_as_table
-            print_dict_as_table(res)
-        tab = tabulate.tabulate(res, headers='keys', tablefmt=tabulate_formats.rounded_grid) if res != {} else ''
-        return f"{summary}\n{tab}"
-
-    @property
-    def launcher(self) -> LauncherConfig:
-        self.check_config_issues('launcher')
-        conf = LauncherConfig(**self.config['launcher'])
-        logger.setLevel(conf.loglevel)
-        algorithms = self.gen_alg_list(conf.algorithms)
-        problems = self.gen_prob_list(conf.problems)
-        logger.debug(f"algorithms: {[alg.name for alg in algorithms]}")
-        logger.debug(f"problems: {[prob.name for prob in problems]}")
-        conf.experiments = [ExperimentConfig(alg, prob, conf.results) for alg, prob in product(algorithms, problems)]
-        return conf
-
-    @property
-    def reporter(self) -> ReporterConfig:
-        self.check_config_issues('reporter')
-        conf = ReporterConfig(**self.config['reporter'])
-        alg_names = list(set(chain.from_iterable(conf.algorithms)))
-        algorithms = [AlgorithmData(name, []) for name in alg_names]
-        problems = self.gen_prob_list(conf.problems)
-        conf.experiments = [
-            ExperimentConfig(alg, prob, conf.results)
-            for alg, prob in product(algorithms, problems)
-        ]
-        conf.groups = [
-            (algs, prob.name, prob.npd_str)
-            for algs, prob in list(product(conf.algorithms, problems))
-        ]
-        return conf
-
-    def gen_alg_list(self, names: list[str]) -> list[AlgorithmData]:
-        algorithms: list[AlgorithmData] = []
-        for name_alias in names:
-            alg_params = self.config.get('algorithms', {}).get(name_alias, {})
-            alg_name = alg_params.pop('base', name_alias)
-            if alg_name not in self.algorithms or not self.algorithms[alg_name].available:
-                logger.error(f"Algorithm '{alg_name}' is not available")
-                continue
-            alg_data = self.algorithms[alg_name].copy()
-            alg_data.name_alias = name_alias
-            alg_data.params_update = alg_params
-            algorithms.append(alg_data)
-        return algorithms
-
-    def gen_prob_list(self, names: list[str]) -> list[ProblemData]:
-        problems: list[ProblemData] = []
-        for n in names:
-            if n not in self.problems or not self.problems[n].available:
-                logger.error(f"Problem {n} is not available.")
-                continue
-            prob_params = self.config.get('problems', {}).get(n, {})
-            params_variations = combine_params(prob_params)
-            for params in params_variations:
-                prob_data = self.problems[n].copy()
-                prob_data.params_update = params
-                problems.append(prob_data)
-        return problems
-
-    def check_config_issues(self, name: Literal['launcher', 'reporter']) -> None:
-        if name == 'launcher':
-            issues = self.check_launcher_config()
-        else:
-            issues = self.check_reporter_config()
-        if issues:
-            detail = indent('\n'.join(issues), ' ' * 4)
-            msg = f"{name.title()} configuration issues:\n{detail}"
-            logger.error(msg)
-            raise ValueError(msg)
-
-    def check_launcher_config(self) -> list[str]:
-        issues = []
-        launcher = self.config['launcher']
-        if not launcher.get('results'):
-            issues.append("No results directory specified in launcher.")
-        if launcher.get('repeat') <= 0:
-            issues.append("Invalid repeat number specified in launcher. Must be greater than 0.")
-        if not isinstance(launcher.get('save'), bool):
-            issues.append("Invalid save option specified in launcher. Must be True or False.")
-        if not launcher.get('algorithms'):
-            issues.append("No algorithms specified in launcher.")
-        if not launcher.get('problems'):
-            issues.append("No problems specified in launcher.")
-        return issues
-
-    def check_reporter_config(self) -> list[str]:
-        issues = []
-        reporter = self.config['reporter']
-        if not reporter.get('results'):
-            issues.append("No results directory specified in reporter or launcher.")
-        if not reporter.get('algorithms', []):
-            issues.append("No algorithms specified in reporter or launcher.")
-        else:
-            validate_values: list[list[str]] = []
-            for item in reporter['algorithms']:
-                if isinstance(item, str) and item:
-                    validate_values.append([item])
-                elif isinstance(item, list) and item:
-                    validate_values.append(item)
-                else:
-                    issues.append(f"Invalid value [type:{type(item)}, value:{item}] specified in reporter.")
-                reporter['algorithms'] = validate_values
-        return issues
+            if inspect.isclass(attr) and issubclass(attr, ComponentData):
+                obj = attr()
+                obj.source = str(subdir)
+                results[obj.name_orig].append(obj)
+    except Exception as e:
+        obj = ComponentData()
+        obj.name_orig = subdir.name
+        obj.source = str(subdir)
+        obj.issues = [str(e)]
+        results[obj.name_orig].append(obj)
+        logger.warning(f"Failed to load '{subdir}': {e!s}")
+
+    return results
