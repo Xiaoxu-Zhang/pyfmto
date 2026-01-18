@@ -4,13 +4,14 @@ import os
 import textwrap
 from collections import defaultdict
 from pathlib import Path
-from typing import Literal, cast, Union
 
 import tabulate
+from pyfmto.core.typing import (
+    TComponentList, TDiscoverResult, TComponentNames, TComponent
+)
 
 from ..framework import AlgorithmData
 from ..problem import ProblemData
-from ..core import ComponentData
 from .loggers import logger
 from .tools import add_sources, print_dict_as_table
 
@@ -24,17 +25,15 @@ __all__ = [
     'load_problem',
 ]
 
-_DISCOVER_CACHE: dict[str, dict[str, list[ComponentData]]] = {}
+_DISCOVER_CACHE: TDiscoverResult = {}
 
 
 def load_algorithm(name: str, sources: list[str], **kwargs) -> AlgorithmData:
-    alg = load_component('algorithms', name, sources, **kwargs)
-    return cast(AlgorithmData, alg)
+    return load_component('algorithms', name, sources, **kwargs)
 
 
 def load_problem(name: str, sources: list[str], **kwargs) -> ProblemData:
-    prob = load_component('problems', name, sources, **kwargs)
-    return cast(ProblemData, prob)
+    return load_component('problems', name, sources, **kwargs)
 
 
 def list_problems(sources: list[str], print_it=False) -> dict[str, list[str]]:
@@ -46,7 +45,7 @@ def list_algorithms(sources: list[str], print_it=False) -> dict[str, list[str]]:
 
 
 def list_components(
-        target: Literal['algorithms', 'problems'],
+        target: TComponentNames,
         sources: list[str],
         print_it=False
 ) -> dict[str, list]:
@@ -57,7 +56,7 @@ def list_components(
             for key, val in comp.desc.items():
                 res[key].append(val)
     src_str = textwrap.indent('\n'.join(sources), '  ')
-    if len(res.get('name')) == 0:
+    if len(res.get('name', [])) == 0:
         summary = f"No {target} found in:\n{src_str}"
         logger.warning(summary)
     else:
@@ -72,22 +71,23 @@ def list_components(
 
 
 def load_component(
-        target: Literal['algorithms', 'problems'],
+        target: TComponentNames,
         name: str,
         sources: list[str],
         **kwargs
-) -> Union[AlgorithmData, ProblemData]:
+) -> TComponent:
+
     components = discover(sources).get(target, {})
     comp = _empty_data(target)
     comp.name_orig = name
     for comp in components.get(name, []):
         if comp.available:
             comp.params_update = kwargs
-            break
+            return comp
     return comp
 
 
-def discover(paths: list[str]) -> dict[str, dict[str, list[ComponentData]]]:
+def discover(paths: list[str]) -> TDiscoverResult:
     global _DISCOVER_CACHE
     if _DISCOVER_CACHE:
         return _DISCOVER_CACHE
@@ -111,8 +111,8 @@ def discover(paths: list[str]) -> dict[str, dict[str, list[ComponentData]]]:
     return _DISCOVER_CACHE
 
 
-def _find_components(subdir: Path):
-    results: dict[str, list[ComponentData]] = defaultdict(list)
+def _find_components(subdir: Path) -> dict[str, TComponentList]:
+    results: dict[str, TComponentList] = defaultdict(list)
     try:
         module = importlib.import_module('.'.join(subdir.parts[-3:]))
         for attr_name in dir(module):
@@ -121,7 +121,7 @@ def _find_components(subdir: Path):
             attr = getattr(module, attr_name)
             if attr in [AlgorithmData, ProblemData]:
                 continue
-            if inspect.isclass(attr) and issubclass(attr, ComponentData):
+            if inspect.isclass(attr) and issubclass(attr, (AlgorithmData, ProblemData)):
                 obj = attr()
                 obj.source = str(subdir)
                 results[obj.name_orig].append(obj)
