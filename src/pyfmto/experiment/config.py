@@ -341,7 +341,7 @@ class ConfigLoader:
         res: TComponentList = []
         for name_alias in names:
             settings = self.config.get(target, {}).get(name_alias, {})
-            name_orig = settings.get('base', name_alias)
+            name_orig = settings.pop('base', name_alias)
             logger.debug(f"Looking for {target.title()} '{name_orig}' settings={repr(settings)}")
             for data in components.get(target).get(name_orig, []):
                 if data.available:
