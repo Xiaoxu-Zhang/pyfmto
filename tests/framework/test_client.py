@@ -1,5 +1,4 @@
 from itertools import product
-from pathlib import Path
 
 import numpy as np
 
@@ -7,22 +6,14 @@ from pyfmto import load_problem
 from pyfmto.framework import Client
 from pyfmto.utilities.io import parse_yaml
 from tests.helpers import PyfmtoTestCase, gen_code
-from tests.helpers.generators import gen_config
 
 
 class TestClient(PyfmtoTestCase):
     def setUp(self):
         self.save_sys_env()
-        self.tmp_dir = Path('temp_dir_for_test')
+        self.init_log_dir()
         gen_code('problems', ['PROB'], self.tmp_dir)
-        self.conf_file = gen_config(
-            f"""
-            launcher:
-                sources: [{self.tmp_dir}]
-            """,
-            self.tmp_dir
-        )
-        self.problems = load_problem('PROB', self.conf_file)
+        self.problems = load_problem('PROB', self.sources).initialize()
 
     def tearDown(self):
         self.delete(self.tmp_dir)

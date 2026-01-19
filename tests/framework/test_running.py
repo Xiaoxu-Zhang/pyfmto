@@ -1,14 +1,12 @@
 import threading
 import time
-from pathlib import Path
 
 from requests.exceptions import ConnectionError
 
-from pyfmto import load_problem
+from pyfmto import list_problems, load_problem
 from pyfmto.framework import Client, ClientPackage, Server
 from tests.framework import OfflineServer, OnlineClient, OnlineServer
 from tests.helpers import PyfmtoTestCase, gen_code, running_server, start_clients
-from tests.helpers.generators import gen_config
 
 N_CLIENTS = 2
 
@@ -17,16 +15,9 @@ class TestClientSide(PyfmtoTestCase):
 
     def setUp(self):
         self.save_sys_env()
-        self.tmp_dir = Path('temp_dir_for_test')
-        gen_code('problems', ['PROB'], self.tmp_dir)
-        self.conf_file = gen_config(
-            f"""
-            launcher:
-                sources: [{self.tmp_dir}]
-            """,
-            self.tmp_dir
-        )
-        self.problems = load_problem('PROB', self.conf_file, dim=5, fe_init=20, fe_max=30)
+        gen_code('problems', 'PROB', self.tmp_dir)
+        list_problems(self.sources)
+        self.problems = load_problem('PROB', self.sources, dim=5, fe_init=20, fe_max=30).initialize()
 
     def tearDown(self):
         self.restore_sys_env()
@@ -75,7 +66,7 @@ class TestClientSide(PyfmtoTestCase):
 
     def test_valid_server(self):
         server = OnlineServer()
-        problems = load_problem('PROB', self.conf_file, dim=5, fe_init=20, fe_max=30)
+        problems = load_problem('PROB', self.sources, dim=5, fe_init=20, fe_max=30).initialize()
         clients = [OnlineClient(prob) for prob in problems[:N_CLIENTS]]
         thread = threading.Thread(target=server.start)
         thread.start()

@@ -1,4 +1,3 @@
-from pyfmto.framework import AlgorithmData
 from tests.utilities import LoadersTestCase
 
 
