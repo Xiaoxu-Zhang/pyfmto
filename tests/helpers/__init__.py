@@ -19,6 +19,8 @@ __all__ = [
 
 
 class PyfmtoTestCase(unittest.TestCase):
+    def tearDown(self):
+        self.delete()
 
     @property
     def tmp_dir(self) -> Path:
