@@ -4,7 +4,7 @@ from typing import Any, Optional, Union
 import msgpack
 import numpy as np
 from pydantic import validate_call
-from ruamel.yaml import YAML, CommentedMap, CommentedSeq
+from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 
 yaml = YAML()
@@ -36,7 +36,7 @@ def load_yaml(filename: T_Path, ignore_errors: bool = False):
         raise
 
 
-def save_yaml(data: Union[dict, CommentedMap], filename: T_Path):
+def save_yaml(data: dict, filename: T_Path):
     with open(filename, 'w') as f:
         f.write(dumps_yaml(data))
 
@@ -52,7 +52,7 @@ def parse_yaml(text: Optional[str]):
         raise
 
 
-def dumps_yaml(data: Union[dict, CommentedMap]):
+def dumps_yaml(data: dict):
     from io import StringIO
     string_stream = StringIO()
     yaml.dump(data, string_stream)
@@ -119,7 +119,7 @@ def _decode_hook(obj: dict) -> Any:
     return obj
 
 
-def recursive_to_pure_dict(data: Union[dict, CommentedMap]) -> dict[str, Any]:
+def recursive_to_pure_dict(data: dict) -> dict[str, Any]:
     """
     Recursively convert nested dict and CommentedMap objects to a pure Python
     dictionary to avoid YAML serialization issues.
@@ -143,7 +143,7 @@ def recursive_to_pure_dict(data: Union[dict, CommentedMap]) -> dict[str, Any]:
 
     data = dict(data)
     for k, v in data.items():
-        if isinstance(v, (dict, CommentedMap)):
+        if isinstance(v, dict):
             data[k] = recursive_to_pure_dict(dict(v))
         elif isinstance(v, list):
             data[k] = list(map(_to_builtin_type, v))
