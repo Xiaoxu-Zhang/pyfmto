@@ -56,7 +56,6 @@ class ExperimentData:
         self.algorithm = algorithm
         self.problem = problem
         self._result_root = Path(results)
-        self.success = False
 
     @property
     def result_dir(self) -> Path:
@@ -245,7 +244,6 @@ class LauncherConfig(Config):
                 exp.algorithm.name_orig,
                 exp.problem.name,
                 exp.problem.npd_str,
-                '[green]yes[/green]' if exp.success else '[red]no[/red]'
             )
         clear_console()
         Console().print(tab)
@@ -259,10 +257,6 @@ class ReporterConfig(Config):
     comparisons: list[list[str]]
     formats: list[str]
     params: dict[str, Any] = {}
-
-    @property
-    def root(self) -> Path:
-        return Path(self.results)
 
     @property
     def groups(self) -> Iterable[tuple[list[str], str, str]]:

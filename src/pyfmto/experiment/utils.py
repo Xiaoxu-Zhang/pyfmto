@@ -188,11 +188,11 @@ class MetaData:
             data: dict[str, MergedResults],
             problem: str,
             npd: str,
-            root: Path):
+            results: str):
         self.data = data
         self.problem = problem
         self.npd = npd
-        self.root = root
+        self.results = Path(results)
 
     def __len__(self):
         return len(self.data)
@@ -241,7 +241,7 @@ class MetaData:
         if self.is_empty():
             raise ValueError(f"Empty data for analysis on [{self.problem}] with [{self.npd}]")
         else:
-            filedir = self.root / f"{time.strftime('%Y-%m-%d')}" / f"{self.alg_names[-1]}" / f"{self.problem}"
+            filedir = self.results / f"{time.strftime('%Y-%m-%d')}" / f"{self.alg_names[-1]}" / f"{self.problem}"
             filedir.mkdir(parents=True, exist_ok=True)
             file_name = filedir / self.npd
             return file_name

@@ -334,7 +334,7 @@ class GeneratorManager:
                 logger.debug(f"Data of key '{cache_key}' found in cache")
             else:
                 logger.warning(f"Data of key '{cache_key}' not found in cache")
-        return MetaData(data, problem, npd_name, self.conf.root)
+        return MetaData(data, problem, npd_name, self.conf.results)
 
 
 class Reporter:
