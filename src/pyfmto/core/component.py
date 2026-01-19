@@ -43,7 +43,7 @@ class ComponentData:
             f"  orig({self.name_orig})",
             f"  alias({self.name_alias})",
         ]
-        return '\n'.join(info_lst)
+        return ''.join(info_lst)
 
     @property
     def available(self) -> bool:
@@ -86,10 +86,12 @@ class ComponentData:
     def params_diff(self) -> str:
         return DeepDiff(self.params_default, self.params).pretty()
 
-    def _merged_params(self):
+    @property
+    def _merged_params(self) -> dict[str, Any]:
         return deepmerge(
             copy.deepcopy(self.params_default),
             copy.deepcopy(self.params_update),
+            False,
         )
 
     def _parse_default_params(self, attr_name: str):
