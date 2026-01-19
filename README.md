@@ -145,13 +145,13 @@ pyfmto
 ### Use PyFMTO in Python
 
 ```python
-from pyfmto.utilities.loaders import ConfigLoader
-from pyfmto import Launcher, Reports
+
+from pyfmto import Launcher, Reporter, ConfigLoader
 
 if __name__ == '__main__':
     conf = ConfigLoader()
     launcher = Launcher(conf.launcher)
-    reports = Reports(conf.reporter)
+    reports = Reporter(conf.reporter)
     reports.to_excel()
 ```
 
