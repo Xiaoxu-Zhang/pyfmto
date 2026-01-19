@@ -3,32 +3,32 @@ import inspect
 import os
 import shutil
 import textwrap
+from collections.abc import Iterable
 from datetime import datetime
-from itertools import product, chain
+from itertools import chain, product
 from pathlib import Path
 from textwrap import indent
-from typing import Union, Any, Literal, Iterable
+from typing import Any, Literal, Union, no_type_check
 
 import psutil
 from pydantic import BaseModel, ConfigDict
-
-from rich.console import Console
 from rich import box
+from rich.console import Console
 from rich.table import Table
 
 from ..core.typing import TComponentList, TComponentNames
-from ..utilities.loaders import discover
 from ..framework import AlgorithmData
 from ..problem import ProblemData
-from ..utilities.io import parse_yaml, load_yaml, recursive_to_pure_dict
+from ..utilities.io import load_yaml, parse_yaml, recursive_to_pure_dict
+from ..utilities.loaders import discover
 from ..utilities.loggers import logger
-from ..utilities.tools import clear_console, get_os_name, titled_tabulate, deepmerge
+from ..utilities.tools import clear_console, deepmerge, get_os_name, titled_tabulate
 
 __all__ = [
+    "ConfigLoader",
     "ExperimentData",
     "LauncherConfig",
     "ReporterConfig",
-    "ConfigLoader",
 ]
 
 
@@ -72,7 +72,7 @@ class ExperimentData:
 
     @property
     def markdown_dest(self) -> Path:
-        return self.snapshot_dir / f"environment.md"
+        return self.snapshot_dir / "environment.md"
 
     @property
     def prefix(self) -> str:
@@ -331,6 +331,7 @@ class ConfigLoader:
         conf.algorithms = list(set(chain.from_iterable(conf.comparisons)))
         return self.fill_components(conf)
 
+    @no_type_check
     def fill_components(self, conf: Union[LauncherConfig, ReporterConfig]) -> Union[LauncherConfig, ReporterConfig]:
         conf.algorithms_data = self.collect_components('algorithms', conf.algorithms)
         conf.problems_data = self.collect_components('problems', conf.problems)
@@ -342,8 +343,8 @@ class ConfigLoader:
         for name_alias in names:
             settings = self.config.get(target, {}).get(name_alias, {})
             name_orig = settings.pop('base', name_alias)
-            logger.debug(f"Looking for {target.title()} '{name_orig}' settings={repr(settings)}")
-            for data in components.get(target).get(name_orig, []):
+            logger.debug(f"Looking for {target.title()} '{name_orig}' settings={settings!r}")
+            for data in components.get(target, {}).get(name_orig, []):
                 if data.available:
                     data_copy = copy.deepcopy(data)
                     data_copy.name_alias = name_alias
