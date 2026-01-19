@@ -39,6 +39,11 @@ class ProblemData(ComponentData):
                 params.update(fe_max=11 * dim)
         return params
 
+    @property
+    def name(self) -> str:
+        name = super().name
+        return name if self.name_suffix in name else f"{name}_{self.name_suffix}"
+
     def load_default_params(self):
         params_parsed = self._parse_default_params('problem')
         self.params_default.update(self.params_basic)
@@ -51,10 +56,8 @@ class ProblemData(ComponentData):
             raise ValueError(f"Problem {self.name_orig} not available.")
 
     @property
-    def name_with_suffix(self) -> str:
-        name_with_dim = f"{self.name}_{self.task_num_str}_{self.dim_str}"
-        name_no_dim = f"{self.name}_{self.task_num_str}"
-        return name_with_dim if self.dim > 0 else name_no_dim
+    def name_suffix(self) -> str:
+        return f"{self.task_num_str}_{self.dim_str}" if self.dim > 0 else self.task_num_str
 
     @property
     def npd(self) -> int:
@@ -80,7 +83,7 @@ class ProblemData(ComponentData):
         if self.available:
             return len(self.problem(**{'_init_solutions': False}, **self.params))
         else:
-            raise ValueError(f"Problem {self.name_orig} not available.")
+            return 0
 
     @property
     def task_num_str(self) -> str:
