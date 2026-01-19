@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from pyfmto.utilities.loaders import ConfigLoader
+from pyfmto import load_problem
+from pyfmto.experiment.config import ConfigLoader
+from pyfmto.utilities.loaders import discover, list_algorithms, list_problems, load_algorithm
 from tests.helpers import PyfmtoTestCase
 from tests.helpers.generators import gen_code, gen_config
 
@@ -9,7 +11,6 @@ class LoadersTestCase(PyfmtoTestCase):
 
     def setUp(self):
         self.save_sys_env()
-        self.tmp_dir = Path('temp_dir_for_test')
         self.conf_file = gen_config(
             f"""
             launcher:
@@ -28,9 +29,25 @@ class LoadersTestCase(PyfmtoTestCase):
         self.restore_sys_env()
 
     @property
+    def sources(self) -> list[str]:
+        return self.conf.sources
+
+    @property
     def algorithms(self):
-        return self.conf.algorithms
+        return discover(self.sources).get('algorithms')
 
     @property
     def problems(self):
-        return self.conf.problems
+        return discover(self.sources).get('problems')
+
+    def load_algorithm(self, name: str):
+        return load_algorithm(name, self.sources)
+
+    def load_problem(self, name: str):
+        return load_problem(name, self.sources)
+
+    def list_algorithms(self):
+        list_algorithms(self.sources, print_it=True)
+
+    def list_problems(self):
+        list_problems(self.sources, print_it=True)

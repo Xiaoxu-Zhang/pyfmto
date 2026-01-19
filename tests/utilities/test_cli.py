@@ -1,5 +1,4 @@
 import sys
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 from pyfmto.experiment import list_report_formats
@@ -15,6 +14,7 @@ class TestMainFunction(PyfmtoTestCase):
         self.tmp_file = 'temp_conf.yaml'
 
     def tearDown(self):
+        self.delete()
         self.restore_sys_env()
 
     @patch('pyfmto.utilities.cli.Launcher')
@@ -35,7 +35,7 @@ class TestMainFunction(PyfmtoTestCase):
         with patch.object(sys, 'argv', ['pyfmto']):
             main()
 
-    @patch('pyfmto.utilities.cli.Reports')
+    @patch('pyfmto.utilities.cli.Reporter')
     @patch('pyfmto.utilities.cli.ConfigLoader')
     def test_report_command(self, mock_loader, mock_reports):
         mock_reports_instance = Mock()
@@ -48,7 +48,7 @@ class TestMainFunction(PyfmtoTestCase):
 
         mock_loader.assert_called_once_with(config=self.tmp_file)
         mock_reports.assert_called_once()
-        mock_reports_instance.generate.assert_called_once()
+        mock_reports_instance.report.assert_called_once()
 
     @patch('pyfmto.utilities.cli.ConfigLoader')
     def test_default_config_file(self, mock_loader):
@@ -58,19 +58,18 @@ class TestMainFunction(PyfmtoTestCase):
         mock_loader.assert_called_once_with(config='config.yaml')
 
     def test_show_command(self):
-        tmp_dir = Path('temp_dir_for_test')
         algs = ['ALG1', 'ALG2']
         probs = ['PROB1', 'PROB2']
-        gen_code('algorithms', algs, tmp_dir)
-        gen_code('problems', probs, tmp_dir)
+        gen_code('algorithms', algs, self.tmp_dir)
+        gen_code('problems', probs, self.tmp_dir)
         conf_file = gen_config(
             f"""
             launcher:
-                sources: [{tmp_dir}]
+                sources: [{self.tmp_dir}]
                 algorithms: [{algs[0]}, {algs[1]}]
                 problems: [{probs[0]}, {probs[1]}]
             """,
-            tmp_dir
+            self.tmp_dir
         )
         show_options = {
             'prob': algs,
@@ -95,5 +94,3 @@ class TestMainFunction(PyfmtoTestCase):
             with self.subTest(test_args=test_args):
                 with patch.object(sys, 'argv', test_args):
                     main()
-        self.delete(tmp_dir)
-        self.restore_sys_env()

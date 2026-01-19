@@ -1,7 +1,6 @@
 import subprocess
 import sys
 import warnings
-from pathlib import Path
 from unittest.mock import MagicMock, Mock, mock_open, patch
 
 from pyfmto.utilities.tools import (
@@ -27,15 +26,13 @@ class TestTools(PyfmtoTestCase):
 
     def test_add_sources(self):
         self.save_sys_env()
-
-        self.tmp_dir = Path('temp_dir_for_test')
         add_sources([str(self.tmp_dir)])
         self.assertNotIn(str(self.tmp_dir.parent), sys.path)
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         add_sources([str(self.tmp_dir)])
         self.assertIn(str(self.tmp_dir.resolve().parent), sys.path)
 
-        self.delete(self.tmp_dir)
+        self.delete()
         self.restore_sys_env()
 
     def test_cross_platform_tools(self):
