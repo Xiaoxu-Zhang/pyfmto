@@ -10,7 +10,7 @@ import seaborn
 from pydantic import Field, validate_call
 from tqdm import tqdm
 
-from ..utilities.loaders import ReporterConfig
+from .config import ReporterConfig
 from ..utilities.loggers import logger
 from ..utilities.stroptions import SeabornPalettes
 from .utils import MergedResults, MetaData, ReporterUtils
@@ -28,7 +28,7 @@ __all__ = [
     'ExcelGenerator',
     'LatexGenerator',
     'ReportGenerator',
-    'Reports',
+    'Reporter',
     'TableGenerator',
     'ViolinGenerator',
 ]
@@ -289,7 +289,7 @@ class LatexGenerator(TableGenerator):
             f.write(latex_code)
 
 
-class Reporter:
+class GeneratorManager:
     def __init__(self, conf: ReporterConfig):
         self.conf = conf
         self._cache: dict[str, MergedResults] = {}
@@ -298,11 +298,11 @@ class Reporter:
 
     def _load_data(self):
         for exp in self.conf.experiments:
-            alg, prob, npd = exp.root.parts[-3:]
+            alg, prob, npd = exp.result_dir.parts[-3:]
             key = f"{alg}/{prob}/{npd}"
             if key not in self._cache:
                 logger.debug(f"Processing data [alg:{alg}] on [prob:{prob}] with [NPD:{npd}]")
-                runs_data = ReporterUtils.load_runs_data(exp.root, prefix=exp.prefix)
+                runs_data = ReporterUtils.load_runs_data(exp.result_dir, prefix=exp.prefix)
                 if runs_data:
                     self._cache[key] = MergedResults(runs_data)
                     logger.debug(f"Cached data for key '{key}'")
@@ -310,7 +310,7 @@ class Reporter:
                     logger.warning(
                         "\nResult file not found:\n"
                         f"    CacheKey: {key}\n"
-                        f"    FileRoot: {exp.root}\n"
+                        f"    FileRoot: {exp.result_dir}\n"
                         f"    NameRule: {exp.prefix}[{'Any'}].msgpack\n"
                     )
 
@@ -337,17 +337,17 @@ class Reporter:
         return MetaData(data, problem, npd_name, self.conf.root)
 
 
-class Reports:
+class Reporter:
     def __init__(self, conf: ReporterConfig):
         self.conf = conf
-        self.reporter = Reporter(self.conf)
-        self.reporter.register_generator('to_curve', CurveGenerator())
-        self.reporter.register_generator('to_excel', ExcelGenerator())
-        self.reporter.register_generator('to_violin', ViolinGenerator())
-        self.reporter.register_generator('to_console', ConsoleGenerator())
-        self.reporter.register_generator('to_latex', LatexGenerator())
+        self.manager = GeneratorManager(self.conf)
+        self.manager.register_generator('to_curve', CurveGenerator())
+        self.manager.register_generator('to_excel', ExcelGenerator())
+        self.manager.register_generator('to_violin', ViolinGenerator())
+        self.manager.register_generator('to_console', ConsoleGenerator())
+        self.manager.register_generator('to_latex', LatexGenerator())
 
-    def generate(self):
+    def report(self):
         if not self.conf.formats:
             raise ValueError("No formats specified. Skipping report generation.")
         invalid_formats: list[str] = []
@@ -407,7 +407,7 @@ class Reports:
         need_new_line = True
         for comb in tqdm(self.conf.groups, desc='Saving', unit='Img', ncols=100):
             try:
-                self.reporter.generate_report(
+                self.manager.generate_report(
                     'to_curve',
                     *comb,
                     figsize=figsize,
@@ -456,7 +456,7 @@ class Reports:
         """
         for comb in self.conf.groups:
             try:
-                self.reporter.generate_report(
+                self.manager.generate_report(
                     'to_excel',
                     *comb,
                     pvalue=pvalue,
@@ -482,7 +482,7 @@ class Reports:
         """
         for comb in self.conf.groups:
             try:
-                self.reporter.generate_report(
+                self.manager.generate_report(
                     'to_latex',
                     *comb,
                     pvalue=pvalue
@@ -507,7 +507,7 @@ class Reports:
         """
         for comb in self.conf.groups:
             try:
-                self.reporter.generate_report(
+                self.manager.generate_report(
                     'to_console',
                     *comb,
                     pvalue=pvalue
@@ -546,7 +546,7 @@ class Reports:
         """
         for comb in tqdm(self.conf.groups, desc='Saving', unit='Img', ncols=100):
             try:
-                self.reporter.generate_report(
+                self.manager.generate_report(
                     'to_violin',
                     *comb,
                     suffix=suffix,
