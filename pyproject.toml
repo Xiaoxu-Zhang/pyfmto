@@ -110,6 +110,11 @@ filterwarnings = [
 data_file = "coverage/.coverage"
 source = ["pyfmto"]
 
+[tool.coverage.report]
+exclude_lines = [
+    "raise NotImplementedError",
+]
+
 [tool.coverage.html]
 directory = "coverage/html"
 
