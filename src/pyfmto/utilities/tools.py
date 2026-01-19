@@ -239,28 +239,37 @@ def get_cpu_model():
     return "Unknown CPU"
 
 
-def deepmerge(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
+def deepmerge(a: dict[str, Any], b: dict[str, Any], lock: bool = True) -> dict[str, Any]:
     """
     Merge two dictionaries recursively, 'a' will be updated in place and will be returned.
+
+    Args:
+        a: Dictionary to be updated
+        b: Dictionary containing values to merge
+        lock: If True, only update keys that exist in 'a'; if False, also add new keys from 'b' that don't exist in 'a'
+
+    Returns:
+        Updated dictionary 'a'
     """
     if not isinstance(a, dict) or not isinstance(b, dict):
         raise TypeError("Both arguments must be dictionaries.")
 
     for key in b:
-        if key not in a:
+        if key not in a and lock:
             continue
 
-        val_a = a[key]
+        val_a = a.get(key)
         val_b = b[key]
 
-        if type(val_a) is not type(val_b):
+        if key not in a and not lock:
+            a[key] = val_b
+        elif type(val_a) is not type(val_b):
             raise TypeError(
                 f"Type mismatch at key '{key}': "
                 f"a has {type(val_a).__name__}, b has {type(val_b).__name__}"
             )
-
-        if isinstance(val_a, dict):
-            deepmerge(val_a, val_b)
+        elif isinstance(val_a, dict):
+            deepmerge(val_a, val_b, lock)
         else:
             a[key] = val_b
 
