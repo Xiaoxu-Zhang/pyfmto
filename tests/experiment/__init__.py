@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pyfmto.utilities.loaders import ConfigLoader
+from pyfmto.experiment.config import ConfigLoader
 from tests.helpers import PyfmtoTestCase, gen_code
 from tests.helpers.generators import gen_config
 
