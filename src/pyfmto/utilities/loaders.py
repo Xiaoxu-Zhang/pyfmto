@@ -4,11 +4,11 @@ import os
 import textwrap
 from collections import defaultdict
 from pathlib import Path
+from typing import no_type_check
 
 import tabulate
-from pyfmto.core.typing import (
-    TComponentList, TDiscoverResult, TComponentNames, TComponent
-)
+
+from pyfmto.core.typing import TComponent, TComponentList, TComponentNames, TDiscoverResult
 
 from ..framework import AlgorithmData
 from ..problem import ProblemData
@@ -28,10 +28,12 @@ __all__ = [
 _DISCOVER_CACHE: TDiscoverResult = {}
 
 
+@no_type_check
 def load_algorithm(name: str, sources: list[str], **kwargs) -> AlgorithmData:
     return load_component('algorithms', name, sources, **kwargs)
 
 
+@no_type_check
 def load_problem(name: str, sources: list[str], **kwargs) -> ProblemData:
     return load_component('problems', name, sources, **kwargs)
 
@@ -70,6 +72,7 @@ def list_components(
     return res
 
 
+@no_type_check
 def load_component(
         target: TComponentNames,
         name: str,
@@ -87,6 +90,7 @@ def load_component(
     return comp
 
 
+@no_type_check
 def discover(paths: list[str]) -> TDiscoverResult:
     global _DISCOVER_CACHE
     if _DISCOVER_CACHE:
@@ -111,6 +115,7 @@ def discover(paths: list[str]) -> TDiscoverResult:
     return _DISCOVER_CACHE
 
 
+@no_type_check
 def _find_components(subdir: Path) -> dict[str, TComponentList]:
     results: dict[str, TComponentList] = defaultdict(list)
     try:
