@@ -15,7 +15,7 @@ from scipy.stats import kendalltau, pearsonr, spearmanr
 from tabulate import tabulate
 
 from ..utilities.schemas import FunctionInputs, PlottingArgs, STPConfig, T_Bound, TransformerConfig
-from ..utilities.stroptions import Cmaps, SeabornStyles, StrColors
+from ..utilities.stroptions import Cmaps, StrColors
 from .solution import Solution
 
 __all__ = [
@@ -822,7 +822,7 @@ class MultiTaskProblem(ABC):
     def plot_distribution(
             self,
             dims=(0, 1),
-            style: Union[str, SeabornStyles] = SeabornStyles.whitegrid,
+            style: Literal["white", "dark", "whitegrid", "darkgrid", "ticks"] = 'whitegrid',
             figsize: tuple[float, float, float] = (11., 9., 1.),
             filename=None
     ):
@@ -835,18 +835,18 @@ class MultiTaskProblem(ABC):
 
         Parameters
         ----------
-        dims : tuple of int, default=(0, 1)
+        dims :
             The two dimensions to plot. Only 2D visualization is supported.
 
-        style : str or SeabornStyles, default=SeabornStyles.whitegrid
+        style :
             The seaborn style to use for the plot. Can be any valid seaborn style
             or a SeabornStyles enum value.
 
-        figsize : tuple of float, default=(11., 9., 1.)
+        figsize :
             Figure size specification as (width, height, scale_factor). The final
             figure size will be (width*scale_factor, height*scale_factor).
 
-        filename : str, optional
+        filename :
             Path to save the figure. If None, the figure will be displayed directly.
 
         Notes
@@ -877,7 +877,7 @@ class MultiTaskProblem(ABC):
                 })
         w, h, s = figsize
         plt.figure(figsize=(w * s, h * s))
-        sns.set(style=str(style))
+        sns.set_theme(style=style)
         sns.scatterplot(data=pd.DataFrame(data), x='x', y='y', hue='problem', style='problem', s=80)
         plt.title(f'Initial Solutions of Each Task (npd={npd})')
         plt.xlabel(f'X{dim1}')
