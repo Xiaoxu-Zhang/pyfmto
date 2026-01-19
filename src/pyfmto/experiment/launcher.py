@@ -13,8 +13,8 @@ from rich.table import Table
 from setproctitle import setproctitle
 from tabulate import tabulate
 
+from .config import LauncherConfig, ExperimentData
 from ..framework import Client
-from ..utilities.loaders import ExperimentConfig, LauncherConfig
 from ..utilities.loggers import logger
 from ..utilities.tools import (
     clear_console,
@@ -30,7 +30,7 @@ __all__ = ['Launcher']
 
 class Launcher:
     exp_idx: int
-    exp: ExperimentConfig
+    exp: ExperimentData
     clients: list[Client]
     table: Table
     progress: rpg.Progress
@@ -218,7 +218,7 @@ class Launcher:
 
     def _update_repeat_id(self):
         if self.conf.save:
-            self._repeat_id = self.exp.num_results + 1
+            self._repeat_id = self.exp.n_results + 1
         else:
             self._repeat_id += 1
 
