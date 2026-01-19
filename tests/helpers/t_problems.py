@@ -2,7 +2,7 @@ from typing import Union
 
 import numpy as np
 
-from pyfmto.problem import MultiTaskProblem, SingleTaskProblem
+from pyfmto.problem import MultiTaskProblem, ProblemData, SingleTaskProblem
 
 __all__ = ['ClassPrefixProb']
 
@@ -51,3 +51,7 @@ class ClassPrefixProb(MultiTaskProblem):
 
     def _init_tasks(self, dim, **kwargs) -> Union[list[SingleTaskProblem], tuple[SingleTaskProblem, ...]]:
         return StpA(dim), StpB(dim), StpC(dim), StpD(dim)
+
+
+class ClassPrefix(ProblemData):
+    problem = ClassPrefixProb

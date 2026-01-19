@@ -1,6 +1,6 @@
 from typing import Any
 
-from pyfmto.framework import Client, ClientPackage, Server
+from pyfmto.framework import AlgorithmData, Client, ClientPackage, Server
 
 
 class ClassPrefixClient(Client):
@@ -39,3 +39,8 @@ class ClassPrefixServer(Server):
             return 'OK'
         else:
             return None
+
+
+class ClassPrefix(AlgorithmData):
+    client = ClassPrefixClient
+    server = ClassPrefixServer

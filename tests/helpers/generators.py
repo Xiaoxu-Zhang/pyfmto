@@ -25,7 +25,7 @@ def gen_code(data_type: Literal['algorithms', 'problems'], names: Union[str, lis
         alg_dir = path / data_type / name
         alg_dir.mkdir(parents=True, exist_ok=True)
         with open(Path(__file__).parent / f't_{data_type}.py') as f1:
-            template = f1.read().replace('ClassPrefix', name.title())
+            template = f1.read().replace('ClassPrefix', name)
             with open(alg_dir / '__init__.py', 'w') as f2:
                 f2.write(template)
         print(f"Successfully generated algorithm {name}")
