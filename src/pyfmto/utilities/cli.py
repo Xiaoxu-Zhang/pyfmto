@@ -1,14 +1,10 @@
 import argparse
 from pathlib import Path
-from typing import Literal, cast
 
 from pyfmto import load_problem
 from pyfmto.utilities.loaders import list_components, load_algorithm
 
-from ..experiment import Launcher, Reports, list_report_formats, show_default_conf
-from .. import ConfigLoader
-from ..problem import ProblemData
-from ..framework import AlgorithmData
+from ..experiment import ConfigLoader, Launcher, Reporter, list_report_formats, show_default_conf
 from .tools import add_sources, matched_str_head
 
 
@@ -65,8 +61,8 @@ def _handle_run(conf: ConfigLoader):
 
 
 def _handle_report(conf: ConfigLoader):
-    reports = Reports(conf=conf.reporter)
-    reports.generate()
+    reporter = Reporter(conf=conf.reporter)
+    reporter.report()
 
 
 def _handle_list(args, conf: ConfigLoader):
