@@ -1,9 +1,11 @@
 import argparse
 from pathlib import Path
+from typing import cast
 
 from pyfmto import load_problem
 from pyfmto.utilities.loaders import list_components, load_algorithm
 
+from ..core.typing import TComponentNames
 from ..experiment import ConfigLoader, Launcher, Reporter, list_report_formats, show_default_conf
 from .tools import add_sources, matched_str_head
 
@@ -68,7 +70,7 @@ def _handle_report(conf: ConfigLoader):
 def _handle_list(args, conf: ConfigLoader):
     full_name = matched_str_head(args.name, ['problems', 'algorithms', 'reports'])
     if full_name in ('problems', 'algorithms'):
-        list_components(full_name, conf.sources, print_it=True)
+        list_components(cast(TComponentNames, full_name), conf.sources, print_it=True)
     elif full_name == 'reports':
         list_report_formats(print_it=True)
     else:
