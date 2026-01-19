@@ -29,7 +29,7 @@ class ProblemData(ComponentData):
 
     @property
     def params(self) -> dict[str, Any]:
-        params = self._merged_params()
+        params = self._merged_params
         dim = params.get('dim', 0)
         if dim > 0:
             if 'fe_init' not in params:

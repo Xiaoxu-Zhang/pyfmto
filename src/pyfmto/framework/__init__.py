@@ -38,4 +38,4 @@ class AlgorithmData(ComponentData):
 
     @property
     def params(self) -> dict[str, Any]:
-        return self._merged_params()
+        return self._merged_params
