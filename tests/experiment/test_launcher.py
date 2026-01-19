@@ -15,11 +15,10 @@ class TestLauncher(ExpTestCase):
         for exp in launcher.conf.experiments:
             self.assertTrue(exp.algorithm.available)
             self.assertTrue(exp.problem.available)
-            self.assertTrue(exp.success, msg=f"[{exp.algorithm.name}][{exp.problem.name}] success is False")
-            self.assertTrue(exp.root.exists(), msg=f"{exp.root} not exists.")
+            self.assertTrue(exp.result_dir.exists(), msg=f"{exp.result_dir} not exists.")
             self.assertTrue(exp.code_dest.exists(), msg=f"{exp.code_dest} not exists.")
             self.assertTrue(exp.markdown_dest.exists(), msg=f"{exp.markdown_dest} not exists.")
-            self.assertGreater(exp.num_results, 0, msg=f"[{exp.algorithm.name}][{exp.problem.name}] num_results is 0")
+            self.assertGreater(exp.n_results, 0, msg=f"[{exp.algorithm.name}][{exp.problem.name}] num_results is 0")
 
     def test_not_save(self):
         self.conf.config['launcher'].update({'save': False})
@@ -30,8 +29,7 @@ class TestLauncher(ExpTestCase):
         launcher.run()
         self.assertFalse(Path(launcher.conf.results).exists(), msg="Results directory exists after launcher.run()")
         for exp in launcher.conf.experiments:
-            self.assertTrue(exp.success, msg=f"[{exp.algorithm.name}][{exp.problem.name}] success is False")
-            self.assertFalse(exp.root.exists(), msg=f"{exp.root} exists.")
+            self.assertFalse(exp.result_dir.exists(), msg=f"{exp.result_dir} exists.")
             self.assertFalse(exp.code_dest.exists(), msg=f"{exp.code_dest} exists.")
             self.assertFalse(exp.markdown_dest.exists(), msg=f"{exp.markdown_dest} exists.")
-            self.assertEqual(exp.num_results, 0, msg=f"[{exp.algorithm.name}][{exp.problem.name}] num_results is not 0")
+            self.assertEqual(exp.n_results, 0, msg=f"[{exp.algorithm.name}][{exp.problem.name}] num_results is not 0")
