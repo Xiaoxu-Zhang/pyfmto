@@ -7,23 +7,22 @@ from datetime import datetime
 from itertools import product, chain
 from pathlib import Path
 from textwrap import indent
-from typing import Union, Any, Literal, cast, Iterable
+from typing import Union, Any, Literal, Iterable
 
 import psutil
 from pydantic import BaseModel, ConfigDict
 
-from pyfmto.core.component import recursive_to_pure_dict
-from pyfmto.core.typing import TComponentList, TComponentNames
-from pyfmto.utilities.loaders import discover, list_components
 from rich.console import Console
 from rich import box
 from rich.table import Table
 
-from pyfmto.framework import AlgorithmData
-from pyfmto.problem import ProblemData
-from pyfmto.utilities.io import parse_yaml, load_yaml
-from pyfmto.utilities.loggers import logger
-from pyfmto.utilities.tools import clear_console, get_os_name, titled_tabulate, deepmerge
+from ..core.typing import TComponentList, TComponentNames
+from ..utilities.loaders import discover
+from ..framework import AlgorithmData
+from ..problem import ProblemData
+from ..utilities.io import parse_yaml, load_yaml, recursive_to_pure_dict
+from ..utilities.loggers import logger
+from ..utilities.tools import clear_console, get_os_name, titled_tabulate, deepmerge
 
 __all__ = [
     "ExperimentData",
@@ -206,7 +205,6 @@ class Config(BaseModel):
     algorithms_data: list[AlgorithmData] = []
     problems_data: list[ProblemData] = []
 
-
     @property
     def experiments(self) -> Iterable[ExperimentData]:
         return (
@@ -305,7 +303,7 @@ class ConfigLoader:
         return self.config['launcher']['sources']
 
     def merge_global_config_from_updates(self):
-        deepmerge(self.config, self.config_update)
+        deepmerge(self.config, self.config_update, lock=False)
         cwd = str(Path().cwd().resolve())
         if cwd not in self.config['launcher']['sources']:
             self.config['launcher']['sources'].append(cwd)
@@ -319,9 +317,6 @@ class ConfigLoader:
                 self.config['reporter'][key] = [launcher_params['algorithms']]
             else:
                 self.config['reporter'][key] = launcher_params[key]
-
-    def show_sources(self, target: Literal['algorithms', 'problems'], print_it: bool = False) -> dict:
-        return list_components(target, self.sources, print_it)
 
     @property
     def launcher(self) -> LauncherConfig:
@@ -337,24 +332,24 @@ class ConfigLoader:
         return self.fill_components(conf)
 
     def fill_components(self, conf: Union[LauncherConfig, ReporterConfig]) -> Union[LauncherConfig, ReporterConfig]:
-        algorithms_data: list[AlgorithmData] = self.collect_components('algorithms', conf.algorithms)
-        problems_data: list[ProblemData] = self.collect_components('problems', conf.problems)
-        conf.algorithms_data = cast(list[AlgorithmData], algorithms_data)
-        conf.problems_data = cast(list[ProblemData], problems_data)
+        conf.algorithms_data = self.collect_components('algorithms', conf.algorithms)
+        conf.problems_data = self.collect_components('problems', conf.problems)
         return conf
 
     def collect_components(self, target: TComponentNames, names: list[str]) -> TComponentList:
         components = discover(self.sources)
         res: TComponentList = []
         for name_alias in names:
-            params = self.config.get(target, {}).get(name_alias, {})
-            name_orig = params.pop('base', name_alias)
+            settings = self.config.get(target, {}).get(name_alias, {})
+            name_orig = settings.get('base', name_alias)
+            logger.debug(f"Looking for {target.title()} '{name_orig}' settings={repr(settings)}")
             for data in components.get(target).get(name_orig, []):
                 if data.available:
                     data_copy = copy.deepcopy(data)
                     data_copy.name_alias = name_alias
-                    data_copy.params_update = params
+                    data_copy.params_update = settings
                     res.append(data_copy)
+                    logger.debug(f"Found {target.title()} '{name_orig}' [{data_copy.__repr__()}]")
                     break
                 else:
                     logger.error(f"{target.title()} '{name_orig}' is not available")
