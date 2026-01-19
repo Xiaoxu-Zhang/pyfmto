@@ -1,14 +1,19 @@
 from ..utilities.io import dumps_yaml, parse_yaml
 from ..utilities.tools import matched_str_head
 from .launcher import Launcher
-from .reporter import Reports
+from .reporter import Reporter
+from .config import ReporterConfig, LauncherConfig, ConfigLoader
+
 from .utils import (
     RunSolutions,
 )
 
 __all__ = [
     'Launcher',
-    'Reports',
+    'Reporter',
+    'ReporterConfig',
+    'LauncherConfig',
+    'ConfigLoader',
     'RunSolutions',
     'list_report_formats',
     'show_default_conf',
@@ -16,7 +21,7 @@ __all__ = [
 
 
 def list_report_formats(print_it=False):
-    res = [r[3:] for r in dir(Reports) if 'to_' in r]
+    res = [r[3:] for r in dir(Reporter) if 'to_' in r]
     if print_it:
         print('\n'.join(res))
     return res
