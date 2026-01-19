@@ -1,8 +1,8 @@
-import unittest
 from pyfmto.core import ComponentData
+from tests.helpers import PyfmtoTestCase
 
 
-class TestComponent(unittest.TestCase):
+class TestComponent(PyfmtoTestCase):
     def test_default(self):
         component = ComponentData()
         self.assertIsInstance(component.desc, dict)
