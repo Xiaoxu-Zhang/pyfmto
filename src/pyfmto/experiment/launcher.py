@@ -13,7 +13,6 @@ from rich.table import Table
 from setproctitle import setproctitle
 from tabulate import tabulate
 
-from .config import LauncherConfig, ExperimentData
 from ..framework import Client
 from ..utilities.loggers import logger
 from ..utilities.tools import (
@@ -23,6 +22,7 @@ from ..utilities.tools import (
     titled_tabulate,
 )
 from ..utilities.tools import tabulate_formats as tf
+from .config import ExperimentData, LauncherConfig
 from .utils import RunSolutions
 
 __all__ = ['Launcher']

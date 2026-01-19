@@ -10,9 +10,9 @@ import seaborn
 from pydantic import Field, validate_call
 from tqdm import tqdm
 
-from .config import ReporterConfig
 from ..utilities.loggers import logger
 from ..utilities.stroptions import SeabornPalettes
+from .config import ReporterConfig
 from .utils import MergedResults, MetaData, ReporterUtils
 
 _ = scienceplots.stylesheets  # This is to suppress the 'unused import' warning

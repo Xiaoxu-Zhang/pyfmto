@@ -1,9 +1,10 @@
 import copy
 import inspect
 from typing import Any
+
 from deepdiff import DeepDiff
 
-from ..utilities.io import parse_yaml, dumps_yaml, recursive_to_pure_dict
+from ..utilities.io import dumps_yaml, parse_yaml, recursive_to_pure_dict
 from ..utilities.tools import deepmerge
 
 
