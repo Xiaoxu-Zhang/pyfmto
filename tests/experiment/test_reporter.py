@@ -1,10 +1,11 @@
 import time
+from pathlib import Path
 from unittest.mock import patch
 
 import matplotlib as plt
 
-from pyfmto.experiment import Reports, RunSolutions
-from pyfmto.experiment.reporter import Reporter, ReportGenerator
+from pyfmto.experiment import Reporter, RunSolutions
+from pyfmto.experiment.reporter import GeneratorManager, ReportGenerator
 from tests.experiment import ExpTestCase
 
 plt.use('Agg')
@@ -14,7 +15,7 @@ class ReporterTestBase(ExpTestCase):
     def gen_fake_data(self):
         for exp in self.conf.reporter.experiments:
             exp.init_root()
-            print(f"initialized data root: {exp.root}")
+            print(f"initialized data root: {exp.result_dir}")
             for run in range(5):
                 prob = exp.problem.initialize()
                 run_data = RunSolutions()
@@ -38,49 +39,49 @@ class TestGenerators(ReporterTestBase):
 
             def _generate(self, *args, **kwargs):
                 pass
-        reports = Reports(self.conf.reporter)
-        reports.reporter.register_generator('fake', FakeGenerator())
-        reports.to_curve()
-        reports.to_curve(showing_size=10)
-        reports.to_curve(suffix='.svg')
-        reports.to_violin()
-        reports.to_excel()
-        reports.to_latex()
-        reports.to_console()
+        reporter = Reporter(self.conf.reporter)
+        reporter.manager.register_generator('fake', FakeGenerator())
+        reporter.to_curve()
+        reporter.to_curve(showing_size=10)
+        reporter.to_curve(suffix='.svg')
+        reporter.to_violin()
+        reporter.to_excel()
+        reporter.to_latex()
+        reporter.to_console()
 
-        self.assertEqual(str(self.conf.launcher.results), str(self.conf.reporter.results))
-        reports_dir = self.conf.reporter.root / time.strftime('%Y-%m-%d')
+        self.assertEqual(self.conf.launcher.results, self.conf.reporter.results)
+        reports_dir = Path(self.conf.reporter.results) / time.strftime('%Y-%m-%d')
         self.assertTrue(reports_dir.exists())
         with self.assertRaises(ValueError):
-            reports.reporter.generate_report('fake', [], '', '')
+            reporter.manager.generate_report('fake', [], '', '')
 
 
 class TestReportsGenerate(ReporterTestBase):
 
     def test_generate_invalid_format(self):
-        reports = Reports(self.conf.reporter)
+        reporter = Reporter(self.conf.reporter)
         with self.assertRaises(ValueError):
-            reports.reporter.generate_report('invalid', [], '', '')
+            reporter.manager.generate_report('invalid', [], '', '')
 
-        reports.conf.formats = []
+        reporter.conf.formats = []
         with self.assertRaises(ValueError):
-            reports.generate()
+            reporter.report()
 
-        reports.conf.formats = ['invalid', 'curve']
+        reporter.conf.formats = ['invalid', 'curve']
         with self.assertRaises(ValueError):
-            reports.generate()
+            reporter.report()
 
         with self.assertRaises(ValueError):
-            reports.reporter.generate_report('to_curve', ['ALGG'], 'PROB', 'NPD1')
+            reporter.manager.generate_report('to_curve', ['ALGG'], 'PROB', 'NPD1')
         with patch('pyfmto.experiment.reporter.ReporterUtils.load_runs_data', return_value=[]):
-            Reporter(self.conf.reporter)
+            GeneratorManager(self.conf.reporter)
 
     def test_generate_report_raises(self):
-        reports = Reports(self.conf.reporter)
+        reporter = Reporter(self.conf.reporter)
 
-        class ReportWithError(Reporter):
+        class ReportWithError(GeneratorManager):
             def generate_report(self, *args, **kwargs):
                 raise ValueError("Test error")
-        reports.reporter = ReportWithError(self.conf.reporter)
-        reports.conf.formats = ['curve', 'excel', 'latex', 'console', 'violin']
-        reports.generate()
+        reporter.manager = ReportWithError(self.conf.reporter)
+        reporter.conf.formats = ['curve', 'excel', 'latex', 'console', 'violin']
+        reporter.report()
