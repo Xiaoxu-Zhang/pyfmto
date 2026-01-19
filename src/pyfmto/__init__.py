@@ -2,16 +2,16 @@ __version__ = "0.3.1"
 
 from .experiment import (
     Launcher,
-    Reports,
+    Reporter,
 )
 from .utilities.loaders import (
-    ConfigLoader,
     load_problem,
 )
+from .experiment.config import ConfigLoader
 
 __all__ = [
     "ConfigLoader",
     "Launcher",
-    "Reports",
+    "Reporter",
     "load_problem",
 ]
