@@ -1,13 +1,12 @@
 from typing import Any
 
+from ..core import ComponentData
 from .problem import MultiTaskProblem, SingleTaskProblem
 from .solution import Solution
 
-from ..core import ComponentData
-
 __all__ = [
-    'ProblemData',
     'MultiTaskProblem',
+    'ProblemData',
     'SingleTaskProblem',
     'Solution',
 ]

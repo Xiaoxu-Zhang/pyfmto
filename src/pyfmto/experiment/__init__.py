@@ -1,19 +1,18 @@
 from ..utilities.io import dumps_yaml, parse_yaml
 from ..utilities.tools import matched_str_head
+from .config import ConfigLoader, LauncherConfig, ReporterConfig
 from .launcher import Launcher
 from .reporter import Reporter
-from .config import ReporterConfig, LauncherConfig, ConfigLoader
-
 from .utils import (
     RunSolutions,
 )
 
 __all__ = [
+    'ConfigLoader',
     'Launcher',
+    'LauncherConfig',
     'Reporter',
     'ReporterConfig',
-    'LauncherConfig',
-    'ConfigLoader',
     'RunSolutions',
     'list_report_formats',
     'show_default_conf',

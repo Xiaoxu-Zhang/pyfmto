@@ -1,8 +1,9 @@
 from typing import Any
+
+from ..core import ComponentData
 from .client import Client, record_runtime
 from .packages import ClientPackage, SyncDataManager
 from .server import Server
-from ..core import ComponentData
 
 __all__ = [
     'AlgorithmData',
