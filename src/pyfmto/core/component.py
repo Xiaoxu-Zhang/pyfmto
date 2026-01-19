@@ -2,23 +2,9 @@ import copy
 import inspect
 from typing import Any
 from deepdiff import DeepDiff
-from ruamel.yaml import CommentedMap
 
-from pyfmto.utilities.io import parse_yaml, dumps_yaml
-from pyfmto.utilities.tools import deepmerge
-
-
-def recursive_to_pure_dict(data: Any) -> dict[str, Any]:
-    """
-    Recursively convert nested dict and CommentedMap objects to a pure Python
-    dictionary to avoid YAML serialization issues.
-    """
-    if isinstance(data, (dict, CommentedMap)):
-        for k, v in data.items():
-            data[k] = recursive_to_pure_dict(v)
-    else:
-        return data
-    return data
+from ..utilities.io import parse_yaml, dumps_yaml, recursive_to_pure_dict
+from ..utilities.tools import deepmerge
 
 
 class ComponentData:

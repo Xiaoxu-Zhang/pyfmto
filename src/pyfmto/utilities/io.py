@@ -4,7 +4,7 @@ from typing import Any, Optional, Union
 import msgpack
 import numpy as np
 from pydantic import validate_call
-from ruamel.yaml import YAML, CommentedMap
+from ruamel.yaml import YAML, CommentedMap, CommentedSeq
 from ruamel.yaml.error import MarkedYAMLError
 
 yaml = YAML()
@@ -19,6 +19,7 @@ __all__ = [
     'load_msgpack',
     'load_yaml',
     'parse_yaml',
+    'recursive_to_pure_dict',
     'save_msgpack',
     'save_yaml',
 ]
@@ -116,3 +117,47 @@ def _decode_hook(obj: dict) -> Any:
     elif "__set__" in obj:
         return set(obj["items"])
     return obj
+
+
+def recursive_to_pure_dict(data: Union[dict, CommentedMap]) -> dict[str, Any]:
+    """
+    Recursively convert nested dict and CommentedMap objects to a pure Python
+    dictionary to avoid YAML serialization issues.
+
+    This function traverses nested dictionaries and converts any CommentedMap
+    or CommentedSeq objects to standard Python dict and list objects, making
+    the data structure suitable for serialization without ruamel.yaml-specific
+    types.
+
+    Args:
+        data: A dictionary or CommentedMap object that may contain nested
+            CommentedMap, CommentedSeq, or other objects
+
+    Returns:
+        A pure Python dictionary with all CommentedMap and CommentedSeq objects
+        converted to standard dict and list objects
+
+    Raises:
+        TypeError: If an unsupported object type is encountered during conversion
+    """
+
+    data = dict(data)
+    for k, v in data.items():
+        if isinstance(v, (dict, CommentedMap)):
+            data[k] = recursive_to_pure_dict(dict(v))
+        elif isinstance(v, list):
+            data[k] = list(map(_to_builtin_type, v))
+        elif isinstance(v, str):
+            data[k] = str(v)
+        elif isinstance(v, bool):
+            data[k] = bool(v)
+        else:
+            data[k] = v
+    return data
+
+
+def _to_builtin_type(v: Any) -> Any:
+    for t in [list, int, float, str, bool]:
+        if isinstance(v, t):
+            return t(v)
+    return v
