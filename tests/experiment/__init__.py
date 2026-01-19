@@ -12,7 +12,6 @@ class ExpTestCase(PyfmtoTestCase):
         Path('out/logs').mkdir(parents=True, exist_ok=True)
         self.algs = ['ALG1', 'ALG2']
         self.probs = ['PROB1']
-        self.tmp_dir = Path('temp_dir_for_test')
         gen_code('algorithms', self.algs, self.tmp_dir)
         gen_code('problems', self.probs, self.tmp_dir)
         self.conf_file = gen_config(
@@ -30,6 +29,6 @@ class ExpTestCase(PyfmtoTestCase):
         self.conf = ConfigLoader(self.conf_file)
 
     def tearDown(self):
-        self.delete(self.tmp_dir)
+        self.delete()
         self.delete('out')
         self.restore_sys_env()
