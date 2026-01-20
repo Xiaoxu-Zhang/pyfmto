@@ -43,7 +43,7 @@ class TestMetaData(PyfmtoTestCase):
         self.restore_sys_env()
 
     def test_empty(self):
-        md = MetaData({}, 'P1', 'NIID', Path('tmp'))
+        md = MetaData({}, 'P1', 'NIID', 'tmp')
         self.assertEqual(md.alg_num, 0)
         self.assertEqual(md.clt_num, 0)
         self.assertEqual(md.alg_names, [])
@@ -214,7 +214,6 @@ class TestRunSolutions(PyfmtoTestCase):
 
     def setUp(self):
         self.save_sys_env()
-        self.tmp_dir = Path('temp_dir_for_test')
         self.tmp_dir.mkdir(exist_ok=True)
 
     def tearDown(self):
