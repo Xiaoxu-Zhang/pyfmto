@@ -297,7 +297,7 @@ class ConfigLoader:
         return self.config['launcher']['sources']
 
     def merge_global_config_from_updates(self):
-        deepmerge(self.config, self.config_update, lock=False)
+        deepmerge(self.config, self.config_update, frozen_keys=False, frozen_type=False)
         cwd = str(Path().cwd().resolve())
         if cwd not in self.config['launcher']['sources']:
             self.config['launcher']['sources'].append(cwd)
