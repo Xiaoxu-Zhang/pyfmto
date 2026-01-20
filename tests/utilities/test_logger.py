@@ -1,5 +1,4 @@
 import logging.config
-from pathlib import Path
 from unittest.mock import patch
 
 from pyfmto.utilities.loggers import LOG_CONF, SafeFileHandler
@@ -8,15 +7,10 @@ from tests.helpers import PyfmtoTestCase
 
 class TestPyfmtoRotatingFileHandler(PyfmtoTestCase):
     def setUp(self):
-        self.log_dir = Path("out/logs")
-        self.log_dir.mkdir(exist_ok=True, parents=True)
-
+        super().setUp()
         # Configure logging
         logging.config.dictConfig(LOG_CONF)
         self.logger = logging.getLogger('pyfmto')
-
-    def tearDown(self):
-        self.delete(self.log_dir)
 
     @patch("time.strftime", return_value="2023-10-10_12-00-00")
     def test_rotation_filename(self, mock_strftime):
