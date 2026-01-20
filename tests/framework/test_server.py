@@ -4,9 +4,10 @@ from unittest.mock import AsyncMock
 
 from pyfmto.framework.server import load_body
 from tests.framework import OfflineServer
+from tests.helpers import PyfmtoTestCase
 
 
-class TestEmptyServer(unittest.TestCase):
+class TestEmptyServer(PyfmtoTestCase):
 
     def test_attributes(self):
         server = OfflineServer()
