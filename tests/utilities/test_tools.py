@@ -1,12 +1,15 @@
+import copy
 import subprocess
 import sys
 import warnings
 from unittest.mock import MagicMock, Mock, mock_open, patch
 
+from pyfmto.utilities.io import dumps_yaml
 from pyfmto.utilities.tools import (
     add_sources,
     clear_console,
     colored,
+    deepmerge,
     get_cpu_model,
     get_os_name,
     get_pkgs_version,
@@ -20,20 +23,6 @@ from tests.helpers import PyfmtoTestCase
 
 
 class TestTools(PyfmtoTestCase):
-
-    def tearDown(self):
-        self.delete()
-
-    def test_add_sources(self):
-        self.save_sys_env()
-        add_sources([str(self.tmp_dir)])
-        self.assertNotIn(str(self.tmp_dir.parent), sys.path)
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        add_sources([str(self.tmp_dir)])
-        self.assertIn(str(self.tmp_dir.resolve().parent), sys.path)
-
-        self.delete()
-        self.restore_sys_env()
 
     def test_cross_platform_tools(self):
         with patch('os.system') as mock_system:
@@ -276,3 +265,85 @@ model name      : AMD EPYC 7763 64-Core Processor
         with patch('sys.platform', 'win32'):
             # Doesn't enter macOS/Linux branches
             self.assertEqual(get_cpu_model(), 'Unknown CPU')
+
+
+class TestAddSources(PyfmtoTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.deep_dir = self.tmp_dir / 'a' / 'b' / 'c'
+        self.deep_dir.mkdir(parents=True, exist_ok=True)
+
+    def test_add_sources(self):
+        will_success = [self.tmp_dir, self.deep_dir]
+        will_failure = [self.tmp_dir / 'no_exist', self.deep_dir / 'no_exist']
+        add_sources([str(d) for d in will_success])
+        add_sources([str(d) for d in will_failure])
+        sys_p_str = '\n'.join(sys.path)
+        for d in will_success:
+            self.assertIn(str(d.parent.resolve()), sys.path, msg=f"\n{d.resolve()}\n{'-'*20}\n{sys_p_str}")
+        for d in will_failure:
+            self.assertNotIn(str(d.resolve()), sys.path, msg=f"\n{d.resolve()}\n{'-'*20}\n{sys_p_str}")
+
+
+class TestDeepMerge(PyfmtoTestCase):
+    def test_invalid_args_raises(self):
+        for args in [([], {}), ({}, []), ([], [])]:
+            with self.assertRaises(TypeError):
+                deepmerge(*args)
+
+    def test_mismatched_types_raises(self):
+        d1 = {'a': 1}
+        d2_lst = [{'a': '1'}, {'a': 1.0}, {'a': [1]}]
+        for d2 in d2_lst:
+            d1_cp = copy.deepcopy(d1)
+            deepmerge(d1_cp, d2, frozen_type=False)
+            self.assertEqual(d1_cp, d2)
+        for d2 in d2_lst:
+            with self.assertRaises(TypeError):
+                deepmerge(d1, d2, frozen_type=True)
+
+    def test_deep_merge(self):
+        d1 = {
+            'a': 1,
+            'b': {
+                'b1': 2,
+                'b2': [3, 4]
+            },
+            'c': [5, 6]
+        }
+        d2 = {
+            'a': 2,
+            'b': {
+                'b2': [7, 8],
+                'new_key': 'new_value'
+            },
+            'new_key': 'new_value'
+        }
+        d1_cp = copy.deepcopy(d1)
+        res = deepmerge(d1_cp, d2, frozen_keys=True)
+        expected = {
+                'a': 2,
+                'b': {
+                    'b1': 2,
+                    'b2': [7, 8]
+                },
+                'c': [5, 6]
+            }
+        self.assertEqual(res, d1_cp)
+        self.assertEqual(res, expected, msg=f"{dumps_yaml(res)}\n{'-'*20}\n{dumps_yaml(expected)}")
+
+        d1_cp = copy.deepcopy(d1)
+        res = deepmerge(d1_cp, d2, frozen_keys=False)
+        expected = {
+                'a': 2,
+                'b': {
+                    'b1': 2,
+                    'b2': [7, 8],
+                    'new_key': 'new_value'
+                },
+                'c': [5, 6],
+                'new_key': 'new_value',
+            }
+        self.assertEqual(res, d1_cp)
+        self.assertEqual(res, expected, msg=f"\n{dumps_yaml(res)}\n{'-'*20}\n{dumps_yaml(expected)}")
