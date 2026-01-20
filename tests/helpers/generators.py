@@ -12,9 +12,8 @@ from pyfmto.utilities.schemas import STPConfig
 __all__ = ['ExpDataGenerator', 'gen_code', 'gen_config']
 
 
-def gen_config(conf_str: str, path: Path):
-    path.mkdir(parents=True, exist_ok=True)
-    filename = path / 'config.yaml'
+def gen_config(conf_str: str, filename: Path):
+    filename.parent.mkdir(parents=True, exist_ok=True)
     save_yaml(parse_yaml(conf_str), filename)
     return filename
 
