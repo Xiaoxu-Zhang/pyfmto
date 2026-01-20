@@ -3,19 +3,14 @@ from unittest.mock import Mock, patch
 
 from pyfmto.experiment import list_report_formats
 from pyfmto.utilities.cli import main
-from tests.helpers import PyfmtoTestCase, gen_code
-from tests.helpers.generators import gen_config
+from tests.helpers import PyfmtoTestCase
 
 
 class TestMainFunction(PyfmtoTestCase):
 
     def setUp(self):
-        self.save_sys_env()
+        super().setUp()
         self.tmp_file = 'temp_conf.yaml'
-
-    def tearDown(self):
-        self.delete()
-        self.restore_sys_env()
 
     @patch('pyfmto.utilities.cli.Launcher')
     @patch('pyfmto.utilities.cli.ConfigLoader')
@@ -60,16 +55,15 @@ class TestMainFunction(PyfmtoTestCase):
     def test_show_command(self):
         algs = ['ALG1', 'ALG2']
         probs = ['PROB1', 'PROB2']
-        gen_code('algorithms', algs, self.tmp_dir)
-        gen_code('problems', probs, self.tmp_dir)
-        conf_file = gen_config(
+        self.gen_algs(algs)
+        self.gen_probs(probs)
+        conf_file = self.gen_config(
             f"""
             launcher:
                 sources: [{self.tmp_dir}]
                 algorithms: [{algs[0]}, {algs[1]}]
                 problems: [{probs[0]}, {probs[1]}]
-            """,
-            self.tmp_dir
+            """
         )
         show_options = {
             'prob': algs,
