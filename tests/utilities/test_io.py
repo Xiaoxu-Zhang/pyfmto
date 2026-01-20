@@ -1,8 +1,16 @@
 import numpy as np
 from ruamel.yaml.error import MarkedYAMLError
 
-from pyfmto.utilities.io import dumps_yaml, load_msgpack, load_yaml, parse_yaml, save_msgpack, save_yaml, \
-    recursive_to_pure_dict, _to_builtin_type
+from pyfmto.utilities.io import (
+    _to_builtin_type,
+    dumps_yaml,
+    load_msgpack,
+    load_yaml,
+    parse_yaml,
+    recursive_to_pure_dict,
+    save_msgpack,
+    save_yaml,
+)
 from tests.helpers import PyfmtoTestCase
 
 YAML_OK = """
@@ -24,7 +32,7 @@ key: [value
 class TestYaml(PyfmtoTestCase):
 
     def setUp(self):
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        super().setUp()
         self.yaml_ok = self.tmp_dir / 'yaml_ok.yaml'
         self.yaml_bad = self.tmp_dir / 'yaml_bad.yaml'
         self.not_exists = self.tmp_dir / 'not_exists.yaml'
@@ -125,17 +133,17 @@ class TestRecursiveToPureDict(PyfmtoTestCase):
         """
         yml_dict = parse_yaml(yml)
         pure_dict = recursive_to_pure_dict(yml_dict)
-        self.assertEqual(type(pure_dict['a']), type(''))
+        self.assertEqual(type(pure_dict['a']), str)
         self.assertEqual(type(pure_dict['b']), type([]))
-        self.assertEqual(type(pure_dict['b'][0]), type(0))
+        self.assertEqual(type(pure_dict['b'][0]), int)
         self.assertEqual(type(pure_dict['c']), type([]))
-        self.assertEqual(type(pure_dict['c'][0]), type(''))
-        self.assertEqual(type(pure_dict['d']), type(True))
+        self.assertEqual(type(pure_dict['c'][0]), str)
+        self.assertEqual(type(pure_dict['d']), bool)
         self.assertEqual(type(pure_dict['e']), type({}))
-        self.assertEqual(type(pure_dict['e']['d1']), type(0))
+        self.assertEqual(type(pure_dict['e']['d1']), int)
         self.assertEqual(type(pure_dict['e']['d2']), type([]))
-        self.assertEqual(type(pure_dict['e']['d2'][0]), type(''))
-        self.assertEqual(type(pure_dict['e']['d2'][1]), type(0))
+        self.assertEqual(type(pure_dict['e']['d2'][0]), str)
+        self.assertEqual(type(pure_dict['e']['d2'][1]), int)
 
     def test_to_builtin_type(self):
         class NoBuiltinType:
