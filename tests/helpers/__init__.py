@@ -19,6 +19,9 @@ __all__ = [
 
 
 class PyfmtoTestCase(unittest.TestCase):
+    def setUp(self):
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+
     def tearDown(self):
         self.delete()
 

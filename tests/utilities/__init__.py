@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from pyfmto import load_problem
 from pyfmto.experiment.config import ConfigLoader
 from pyfmto.utilities.loaders import discover, list_algorithms, list_problems, load_algorithm
