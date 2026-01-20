@@ -30,17 +30,13 @@ def create_solution():
 
 class TestMetaData(PyfmtoTestCase):
     def setUp(self):
-        self.save_sys_env()
+        super().setUp()
         self.algs = ['ALG1', 'ALG2']
         self.probs = ['PROB1', 'PROB2']
         self.npd_names = ['NPD1', 'NPD2']
         self.n_task = 5
         self.n_run = 3
         self.generator = ExpDataGenerator(dim=10, lb=0, ub=1)
-
-    def tearDown(self):
-        self.delete('out')
-        self.restore_sys_env()
 
     def test_empty(self):
         md = MetaData({}, 'P1', 'NIID', 'tmp')
@@ -74,6 +70,7 @@ class TestMetaData(PyfmtoTestCase):
 
 class TestMergedResults(PyfmtoTestCase):
     def setUp(self):
+        super().setUp()
         self.generator = ExpDataGenerator(dim=10, lb=0, ub=1)
 
     def test_methods(self):
@@ -88,6 +85,7 @@ class TestMergedResults(PyfmtoTestCase):
 
 class TestClientDataStatis(PyfmtoTestCase):
     def setUp(self):
+        super().setUp()
         self.conf = STPConfig(dim=10, obj=1, lb=0, ub=1)
         self.generator = ExpDataGenerator(dim=10, lb=0, ub=1)
 
@@ -122,12 +120,8 @@ class TestClientDataStatis(PyfmtoTestCase):
 class TestReporterUtils(PyfmtoTestCase):
 
     def setUp(self):
-        self.save_sys_env()
+        super().setUp()
         self.utils = ReporterUtils
-
-    def tearDown(self):
-        self.delete('out')
-        self.restore_sys_env()
 
     def test_load_runs_data(self):
         self.assertEqual(self.utils.load_runs_data(Path('out')), [])
@@ -211,14 +205,6 @@ class TestReporterUtils(PyfmtoTestCase):
 
 
 class TestRunSolutions(PyfmtoTestCase):
-
-    def setUp(self):
-        self.save_sys_env()
-        self.tmp_dir.mkdir(exist_ok=True)
-
-    def tearDown(self):
-        self.delete(self.tmp_dir)
-        self.restore_sys_env()
 
     def test_initialization(self):
         rs = RunSolutions()
