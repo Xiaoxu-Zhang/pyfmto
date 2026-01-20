@@ -90,8 +90,8 @@ class TestCaseAlgProbConf(PyfmtoTestCase):
                 results: {self.tmp_dir / 'out' / 'results'}
                 save: true
                 repeat: 2
-                algorithms: [{self.alg_names[0]}]
-                problems: [{', '.join(self.prob_names)}]
+                algorithms: [{', '.join(self.alg_names)}]
+                problems: [{self.prob_names[0]}]
             """
         )
         self.config = ConfigLoader(self.conf_filename)
