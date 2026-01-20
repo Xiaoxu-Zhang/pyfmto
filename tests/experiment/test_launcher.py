@@ -1,14 +1,14 @@
 from pathlib import Path
 
 from pyfmto.experiment import Launcher
-from tests.experiment import ExpTestCase
+from tests.helpers.testcases import TestCaseAlgProbConf
 
 
-class TestLauncher(ExpTestCase):
+class TestLauncher(TestCaseAlgProbConf):
 
     def test_save(self):
-        self.conf.config['launcher'].update({'verbose': True})
-        launcher = Launcher(self.conf.launcher)
+        self.config.config['launcher'].update({'verbose': True})
+        launcher = Launcher(self.config.launcher)
         launcher.run()
         self.assertGreater(launcher.conf.n_exp, 0)
         self.assertTrue(launcher.conf.save, msg="self.conf.launcher.save is False")
@@ -21,8 +21,8 @@ class TestLauncher(ExpTestCase):
             self.assertGreater(exp.n_results, 0, msg=f"[{exp.algorithm.name}][{exp.problem.name}] num_results is 0")
 
     def test_not_save(self):
-        self.conf.config['launcher'].update({'save': False})
-        launcher = Launcher(self.conf.launcher)
+        self.config.config['launcher'].update({'save': False})
+        launcher = Launcher(self.config.launcher)
         self.assertFalse(launcher.conf.save, msg="self.conf.launcher.save is True")
         self.assertFalse(launcher.conf.verbose, msg="self.conf.launcher.verbose is True")
         self.assertFalse(Path(launcher.conf.results).exists(), msg="Results directory exists before launcher.run()")
