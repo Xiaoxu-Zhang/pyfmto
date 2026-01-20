@@ -1,26 +1,19 @@
-import shutil
-import unittest
 from itertools import product
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pyvista
 from numpy import ndarray
 
+from tests.helpers import PyfmtoTestCase
 from tests.problem import ConstantProblem, MtpNonIterableReturn, MtpRealworld, MtpSynthetic, SimpleProblem
 
 
-class TestProblemBase(unittest.TestCase):
+class TestProblemBase(PyfmtoTestCase):
 
     def setUp(self):
+        super().setUp()
         self.dims = [2, 5, 10]
-        self.tmp_dir = Path('tmp')
-        if not self.tmp_dir.exists():
-            self.tmp_dir.mkdir(parents=True)
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp_dir)
 
     def test_attributes(self):
         for dim, obj in product(self.dims, range(2, 5)):
@@ -239,14 +232,7 @@ class TestProblemBase(unittest.TestCase):
         self.assertEqual(prob.solutions.size, prob.fe_init+10)
 
 
-class TestMultiTaskProblem(unittest.TestCase):
-
-    def setUp(self):
-        self.tmp_dir = Path('tmp')
-        self.tmp_dir.mkdir()
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp_dir)
+class TestMultiTaskProblem(PyfmtoTestCase):
 
     def test_init(self):
         self.assertRaises(TypeError, MtpNonIterableReturn)
