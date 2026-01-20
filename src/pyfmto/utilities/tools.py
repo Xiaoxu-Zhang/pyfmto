@@ -239,14 +239,26 @@ def get_cpu_model():
     return "Unknown CPU"
 
 
-def deepmerge(a: dict[str, Any], b: dict[str, Any], lock: bool = True) -> dict[str, Any]:
+def deepmerge(
+        a: dict[str, Any],
+        b: dict[str, Any],
+        frozen_keys: bool = False,
+        frozen_type: bool = False
+) -> dict[str, Any]:
     """
     Merge two dictionaries recursively, 'a' will be updated in place and will be returned.
 
     Args:
         a: Dictionary to be updated
         b: Dictionary containing values to merge
-        lock: If True, only update keys that exist in 'a'; if False, also add new keys from 'b' that don't exist in 'a'
+        frozen_keys: If True, only update keys that exist in 'a'; if False, also add new keys
+         from 'b' that don't exist in 'a'
+        frozen_type: If True, only update values with same type; if False, allow type conversion
+
+    Raises:
+        TypeError:
+          - If either argument is not a dictionary
+          - If type mismatch occurs and frozen_type is True
 
     Returns:
         Updated dictionary 'a'
@@ -255,162 +267,22 @@ def deepmerge(a: dict[str, Any], b: dict[str, Any], lock: bool = True) -> dict[s
         raise TypeError("Both arguments must be dictionaries.")
 
     for key in b:
-        if key not in a and lock:
+        if key not in a and frozen_keys:
             continue
 
         val_a = a.get(key)
         val_b = b[key]
 
-        if key not in a and not lock:
+        if key not in a and not frozen_keys:
             a[key] = val_b
-        elif type(val_a) is not type(val_b):
+        elif isinstance(val_a, dict) and isinstance(val_b, dict):
+            deepmerge(val_a, val_b, frozen_keys, frozen_type)
+        elif frozen_type and type(val_a) is not type(val_b):
             raise TypeError(
                 f"Type mismatch at key '{key}': "
                 f"a has {type(val_a).__name__}, b has {type(val_b).__name__}"
             )
-        elif isinstance(val_a, dict):
-            deepmerge(val_a, val_b, lock)
         else:
             a[key] = val_b
 
     return a
-
-#
-# def pretty_diff(a: dict, b: dict, print_it: bool = False) -> str:
-#     """
-#     Calculate the difference between a and b, displaying with rich in the console.
-#     Mark removed content in 'a' and additions/modifications in 'b' relative to 'a'.
-#     For keys newly added in 'b', mark the key and all its values in green.
-#     For values modified in 'b', mark the key and new value in blue.
-#     For keys removed in 'b', mark the key and all its values in red in 'a'.
-#     Print in YAML format in two columns to the console with borders.
-#
-#     Args:
-#         a: Original dictionary
-#         b: Modified dictionary to compare against 'a'
-#         print_it: Whether to print the comparison to console
-#
-#     Returns:
-#         Formatted string representation of the differences
-#     """
-#     import yaml
-#     from rich.columns import Columns
-#     from rich.console import Console
-#     from rich.panel import Panel
-#     from rich.text import Text
-#
-#     def style_add(s: str) -> str:
-#         return f'[green]{s}[/green]'
-#
-#     def style_modify(s: str) -> str:
-#         return f'[blue]{s}[/blue]'
-#
-#     def style_remove(s: str) -> str:
-#         return f'[red]{s}[/red]'
-#
-#     def build_marked_yaml_for_original(original, modified):
-#         """Create a marked-up version of the original dict to highlight removed items."""
-#         result_lines = []
-#
-#         # Get all keys that appear in original but not in modified (these are removed)
-#         removed_keys = set(original.keys()) - set(modified.keys())
-#
-#         for key in sorted(original.keys()):
-#             if key in removed_keys:
-#                 # Key was removed in modified
-#                 if isinstance(original[key], dict):
-#                     result_lines.append(style_remove(f"{key}: "))
-#                     sub_dict_yaml = yaml.dump(original[key], default_flow_style=False)
-#                     for line in sub_dict_yaml.strip().split('\n'):
-#                         if line.strip():  # Skip empty lines
-#                             result_lines.append(style_remove(f'  {line}'))
-#                 else:
-#                     result_lines.append(style_remove(f"{key}: {original[key]}"))
-#             else:
-#                 # Key exists in both, show normally
-#                 if isinstance(original[key], dict):
-#                     result_lines.append(f'{key}: ')
-#                     sub_dict_yaml = yaml.dump(original[key], default_flow_style=False)
-#                     for line in sub_dict_yaml.strip().split('\n'):
-#                         if line.strip():  # Skip empty lines
-#                             result_lines.append(f'  {line}')
-#                 else:
-#                     result_lines.append(f'{key}: {original[key]}')
-#
-#         return '\n'.join(result_lines)
-#
-#     def build_marked_yaml_for_modified(original, modified):
-#         """Create a marked-up version of the modified dict to highlight changes."""
-#         result_lines = []
-#
-#         # Get all keys that appear in either dict
-#         all_keys = sorted(set(original.keys()) | set(modified.keys()))
-#
-#         for key in all_keys:
-#             if key not in original and key in modified:
-#                 # Key was added
-#                 if isinstance(modified[key], dict):
-#                     # For nested dicts, we need to handle recursively
-#                     result_lines.append(style_add(f"{key}: "))
-#                     sub_dict_yaml = yaml.dump(modified[key], default_flow_style=False)
-#                     for line in sub_dict_yaml.strip().split('\n'):
-#                         if line.strip():  # Skip empty lines
-#                             result_lines.append(style_add(f'  {line}'))
-#                 else:
-#                     result_lines.append(style_add(f"{key}: {modified[key]}"))
-#             elif key in original and key not in modified:
-#                 # Key was removed - this shouldn't appear in modified, so skip
-#                 continue
-#             elif original[key] != modified[key]:
-#                 # Key exists in both but values differ
-#                 if isinstance(modified[key], dict) and isinstance(original[key], dict):
-#                     result_lines.append(style_modify(f"{key}: "))
-#                     # Here we would recursively handle nested differences
-#                     sub_dict_yaml = yaml.dump(modified[key], default_flow_style=False)
-#                     for line in sub_dict_yaml.strip().split('\n'):
-#                         if line.strip():  # Skip empty lines
-#                             result_lines.append(style_modify(f'  {line}'))
-#                 else:
-#                     result_lines.append(style_modify(f"{key}: {original[key]} -> {modified[key]}"))
-#             else:
-#                 # Key exists in both and values are the same
-#                 if isinstance(modified[key], dict):
-#                     result_lines.append(f'{key}: ')
-#                     sub_dict_yaml = yaml.dump(modified[key], default_flow_style=False)
-#                     for line in sub_dict_yaml.strip().split('\n'):
-#                         if line.strip():  # Skip empty lines
-#                             result_lines.append(f'  {line}')
-#                 else:
-#                     result_lines.append(f'{key}: {modified[key]}')
-#
-#         return '\n'.join(result_lines)
-#
-#     # Create marked-up versions for both a and b
-#     marked_yaml_a = build_marked_yaml_for_original(a, b)
-#     marked_yaml_b = build_marked_yaml_for_modified(a, b)
-#
-#     # Combine for output
-#     output = f"Original (A):\n{marked_yaml_a}\nModified (B):\n{marked_yaml_b}"
-#
-#     if print_it:
-#         console = Console()
-#
-#         # Create panels for side-by-side display
-#         panel_a = Panel(
-#             Text.from_markup(marked_yaml_a),
-#             title="Original (A) - Red:Removed",
-#             border_style="red",
-#             padding=(1, 1)
-#         )
-#
-#         panel_b = Panel(
-#             Text.from_markup(marked_yaml_b),
-#             title="Modified (B) - Green:Added, Blue:Modified",
-#             border_style="blue",
-#             padding=(1, 1)
-#         )
-#
-#         # Print the side-by-side comparison
-#         console.print(Columns([panel_a, panel_b], equal=True))
-#
-#     return output
