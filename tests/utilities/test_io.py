@@ -1,11 +1,9 @@
-import shutil
-import unittest
-from pathlib import Path
-
 import numpy as np
 from ruamel.yaml.error import MarkedYAMLError
 
-from pyfmto.utilities.io import dumps_yaml, load_msgpack, load_yaml, parse_yaml, save_msgpack, save_yaml
+from pyfmto.utilities.io import dumps_yaml, load_msgpack, load_yaml, parse_yaml, save_msgpack, save_yaml, \
+    recursive_to_pure_dict, _to_builtin_type
+from tests.helpers import PyfmtoTestCase
 
 YAML_OK = """
 key1:
@@ -23,19 +21,14 @@ key: [value
 """
 
 
-class TestYaml(unittest.TestCase):
+class TestYaml(PyfmtoTestCase):
 
     def setUp(self):
-        self.tmp_dir = Path('tmp')
-        if not self.tmp_dir.exists():
-            self.tmp_dir.mkdir()
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
         self.yaml_ok = self.tmp_dir / 'yaml_ok.yaml'
         self.yaml_bad = self.tmp_dir / 'yaml_bad.yaml'
         self.not_exists = self.tmp_dir / 'not_exists.yaml'
         self.create_yaml_files()
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp_dir)
 
     def create_yaml_files(self):
         with open(self.yaml_ok, 'w') as f:
@@ -64,15 +57,7 @@ class TestYaml(unittest.TestCase):
         self.assertEqual(load_yaml(self.not_exists, True), {})
 
 
-class TestMsgpack(unittest.TestCase):
-
-    def setUp(self):
-        self.tmp_dir = Path('tmp')
-        if not self.tmp_dir.exists():
-            self.tmp_dir.mkdir()
-
-    def tearDown(self):
-        shutil.rmtree('tmp')
+class TestMsgpack(PyfmtoTestCase):
 
     def test_pack_with_ndarray(self):
         data = {
@@ -123,3 +108,37 @@ class TestMsgpack(unittest.TestCase):
         }
         pack_unsupported_type = self.tmp_dir / 'pack_unsupported_type.msgpack'
         self.assertRaises(TypeError, save_msgpack, data, pack_unsupported_type)
+
+
+class TestRecursiveToPureDict(PyfmtoTestCase):
+    def test_recursive_pure_dict(self):
+        yml = """
+        a: x  # comment1
+        b: [1, 2]  # comment2
+        c: [a, b]  # comment3
+        d: false  # comment4
+        e:  # comment5
+          d1: 4  # comment6
+          d2:  # comment7
+          - abc  # comment8
+          - 1  # comment9
+        """
+        yml_dict = parse_yaml(yml)
+        pure_dict = recursive_to_pure_dict(yml_dict)
+        self.assertEqual(type(pure_dict['a']), type(''))
+        self.assertEqual(type(pure_dict['b']), type([]))
+        self.assertEqual(type(pure_dict['b'][0]), type(0))
+        self.assertEqual(type(pure_dict['c']), type([]))
+        self.assertEqual(type(pure_dict['c'][0]), type(''))
+        self.assertEqual(type(pure_dict['d']), type(True))
+        self.assertEqual(type(pure_dict['e']), type({}))
+        self.assertEqual(type(pure_dict['e']['d1']), type(0))
+        self.assertEqual(type(pure_dict['e']['d2']), type([]))
+        self.assertEqual(type(pure_dict['e']['d2'][0]), type(''))
+        self.assertEqual(type(pure_dict['e']['d2'][1]), type(0))
+
+    def test_to_builtin_type(self):
+        class NoBuiltinType:
+            def __init__(self):
+                pass
+        self.assertEqual(type(_to_builtin_type(NoBuiltinType())), type(NoBuiltinType()))

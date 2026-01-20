@@ -157,7 +157,7 @@ def recursive_to_pure_dict(data: dict) -> dict[str, Any]:
 
 
 def _to_builtin_type(v: Any) -> Any:
-    for t in [list, int, float, str, bool]:
+    for t in [dict, list, tuple, set, int, float, str, bool, bytes, complex]:
         if isinstance(v, t):
             return t(v)
     return v
