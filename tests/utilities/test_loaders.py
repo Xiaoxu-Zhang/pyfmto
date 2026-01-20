@@ -4,10 +4,13 @@ from ruamel.yaml import CommentedMap
 import pyfmto.experiment.config
 import pyfmto.experiment.utils
 import pyfmto.utilities.io
+from pyfmto import list_algorithms, list_problems
 from pyfmto.experiment import list_report_formats, show_default_conf
 from pyfmto.problem import ProblemData
 from pyfmto.utilities import loaders
+from pyfmto.utilities.io import dumps_yaml, recursive_to_pure_dict
 from tests.helpers import PyfmtoTestCase, gen_code
+from tests.helpers.testcases import TestCaseAlgProbConf
 
 
 class TestUtilities(PyfmtoTestCase):
@@ -53,3 +56,17 @@ class TestUtilities(PyfmtoTestCase):
         self.assertFalse(prob.available)
         self.delete(self.tmp_dir)
         self.restore_sys_env()
+
+
+class TestComponentUtils(TestCaseAlgProbConf):
+    def test_list_components(self):
+        res = list_algorithms(self.sources)
+        self.assertEqual(self.alg_names, res['name'], msg=dumps_yaml(recursive_to_pure_dict(res)))
+        res = list_problems(self.sources)
+        self.assertEqual(self.prob_names, res['name'], msg=dumps_yaml(recursive_to_pure_dict(res)))
+
+    def test_list_components_not_exist(self):
+        res = list_algorithms([str(self.tmp_dir / 'not_exist')])
+        self.assertEqual(res['name'], [], msg=dumps_yaml(recursive_to_pure_dict(res)))
+        res = list_problems([str(self.tmp_dir / 'not_exist')])
+        self.assertEqual(res['name'], [], msg=dumps_yaml(recursive_to_pure_dict(res)))
