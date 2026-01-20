@@ -2,22 +2,15 @@ from itertools import product
 
 import numpy as np
 
-from pyfmto import load_problem
 from pyfmto.framework import Client
 from pyfmto.utilities.io import parse_yaml
-from tests.helpers import PyfmtoTestCase, gen_code
+from tests.helpers.testcases import TestCaseAlgProbConf
 
 
-class TestClient(PyfmtoTestCase):
+class TestClient(TestCaseAlgProbConf):
     def setUp(self):
-        self.save_sys_env()
-        self.init_log_dir()
-        gen_code('problems', ['PROB'], self.tmp_dir)
-        self.problems = load_problem('PROB', self.sources).initialize()
-
-    def tearDown(self):
-        self.delete(self.tmp_dir)
-        self.restore_sys_env()
+        super().setUp()
+        self.problem = self.load_problem(self.prob_names[0]).initialize()
 
     def test_empty_client_attributes(self):
 
@@ -25,7 +18,7 @@ class TestClient(PyfmtoTestCase):
             def optimize(self):
                 pass
 
-        task = self.problems[0]
+        task = self.problem[0]
         client = EmptyClient(task)
         self.assertEqual(client.name, f"Client {task.id: <2d}")
         self.assertEqual(client.id, task.id)
@@ -53,13 +46,13 @@ class TestClient(PyfmtoTestCase):
             def optimize(self):
                 pass
 
-        prob = self.problems[0]
+        task = self.problem[0]
         defaults = parse_yaml(ConfigurableClient.__doc__)
-        default_config = ConfigurableClient(prob, **defaults)
+        default_config = ConfigurableClient(task, **defaults)
         for k, v in defaults.items():
             self.assertEqual(getattr(default_config, k), v, f'Client parameter {k} is not equal to {v}')
         for alpha, beta in product([0.1, 0.2, 0.3], [0.4, 0.5, 0.6]):
             with self.subTest(alpha=alpha, beta=beta):
-                client = ConfigurableClient(prob, alpha=alpha, beta=beta)
+                client = ConfigurableClient(task, alpha=alpha, beta=beta)
                 self.assertEqual(client.alpha, alpha, f'Client parameter alpha is not equal to {alpha}')
                 self.assertEqual(client.beta, beta, f'Client parameter beta is not equal to {beta}')
