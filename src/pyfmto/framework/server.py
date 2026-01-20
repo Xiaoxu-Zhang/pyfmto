@@ -134,11 +134,11 @@ class Server(ABC):
 
     @abstractmethod
     def handle_request(self, pkg: ClientPackage) -> Any:
-        ...  # pragma: no cover
+        raise NotImplementedError
 
     @abstractmethod
     def aggregate(self):
-        ...  # pragma: no cover
+        raise NotImplementedError
 
     def _add_client(self, client_id):
         self._active_clients.add(client_id)

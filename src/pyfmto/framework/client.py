@@ -121,7 +121,7 @@ class Client(ABC):
 
     @abstractmethod
     def optimize(self):
-        ...  # pragma: no cover
+        raise NotImplementedError
 
     def __register_id(self):
         pkg = ClientPackage(self.id, Actions.REGISTER)
