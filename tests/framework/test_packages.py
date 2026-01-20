@@ -1,10 +1,9 @@
-import shutil
-import unittest
 
 from pyfmto.framework.packages import Actions, ClientPackage, SyncDataManager
+from tests.helpers import PyfmtoTestCase
 
 
-class TestPackagesForCoverage(unittest.TestCase):
+class TestPackagesForCoverage(PyfmtoTestCase):
 
     def test_actions_enum(self):
         self.assertEqual(Actions.REGISTER.name, 'REGISTER')
@@ -21,13 +20,11 @@ class TestPackagesForCoverage(unittest.TestCase):
         self.assertEqual(pkg.action, Actions.QUIT)
 
 
-class TestSyncDataManager(unittest.TestCase):
+class TestSyncDataManager(PyfmtoTestCase):
 
     def setUp(self):
+        super().setUp()
         self.sync_manager = SyncDataManager()
-
-    def tearDown(self):
-        shutil.rmtree('out', ignore_errors=True)
 
     def test_update_src(self):
         self.sync_manager.update_src(1, 100, "test_data")
