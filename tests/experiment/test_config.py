@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from unittest.mock import patch
 
 import pyfmto.experiment
 from pyfmto.experiment.config import Config, ConfigLoader, LauncherConfig, ReporterConfig
@@ -227,3 +228,19 @@ class TestConfigLoader(PyfmtoTestCase):
         self.assertEqual(conf.launcher.n_exp, 4)
         self.assertEqual(len(list(conf.reporter.experiments)), 4)
 
+    @patch('pyfmto.experiment.config.discover')
+    def test_component_not_available(self, mock_discover):
+        mock_discover.return_value = {
+            'algorithms': {
+                'ALG1': [AlgorithmData()],
+                'ALG2': [AlgorithmData()],
+            },
+            'problems': {
+                'PROB1': [ProblemData()],
+                'PROB2': [ProblemData()],
+            }
+        }
+        filename = self.gen_config(self.valid)
+        conf = ConfigLoader(filename)
+        self.assertEqual(conf.launcher.algorithms_data, [])
+        self.assertEqual(conf.launcher.problems_data, [])
