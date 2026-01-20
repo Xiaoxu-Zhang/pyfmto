@@ -1,13 +1,14 @@
 from pyfmto.problem import MultiTaskProblem
-from tests.utilities import LoadersTestCase
+from tests.helpers.testcases import TestCaseAlgProbConf
 
 
-class TestProblemData(LoadersTestCase):
+class TestProblemData(TestCaseAlgProbConf):
 
     def test_default_value(self):
-        prob = self.load_problem('PROB1')
+        prob_name = self.prob_names[0]
+        prob = self.load_problem(prob_name)
         prob.params_default.pop('dim')
-        self.assertIn('PROB1', prob.name)
+        self.assertIn(prob_name, prob.name)
         self.assertEqual(prob.npd, 1)
         self.assertEqual(prob.npd_str, 'NPD1')
         self.assertEqual(prob.params_diff, '')
