@@ -1,3 +1,4 @@
+from unittest.mock import patch
 
 from ruamel.yaml import CommentedMap
 
@@ -9,6 +10,7 @@ from pyfmto.experiment import list_report_formats, show_default_conf
 from pyfmto.problem import ProblemData
 from pyfmto.utilities import loaders
 from pyfmto.utilities.io import dumps_yaml, recursive_to_pure_dict
+from pyfmto.utilities.loaders import discover
 from tests.helpers import PyfmtoTestCase, gen_code
 from tests.helpers.testcases import TestCaseAlgProbConf
 
@@ -70,3 +72,26 @@ class TestComponentUtils(TestCaseAlgProbConf):
         self.assertEqual(res['name'], [], msg=dumps_yaml(recursive_to_pure_dict(res)))
         res = list_problems([str(self.tmp_dir / 'not_exist')])
         self.assertEqual(res['name'], [], msg=dumps_yaml(recursive_to_pure_dict(res)))
+
+
+class TestDiscover(PyfmtoTestCase):
+    def setUp(self):
+        super().setUp()
+        self.gen_algs(['ALG1', 'ALG2'])
+        self.gen_probs(['PROB1', 'PROB2'])
+
+    def test_normal_discover(self):
+        res = discover(self.sources)
+        self.assertIsInstance(res, dict)
+        self.assertEqual(len(res['algorithms']), 2)
+        self.assertEqual(len(res['problems']), 2)
+
+    @patch('importlib.import_module')
+    def test_import_raises_error(self, mock_import):
+        mock_import.side_effect = ImportError
+        res = discover(self.sources)
+        algs = res['algorithms']
+        probs = res['problems']
+        self.assertEqual(len(algs), 2)
+        self.assertEqual(len(probs), 2)
+        self.assertFalse(algs['ALG1'][0].available)
