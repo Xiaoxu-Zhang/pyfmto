@@ -1,4 +1,3 @@
-import unittest
 from itertools import product
 
 import numpy as np
@@ -9,9 +8,10 @@ from pyfmto.utilities.schemas import (
     STPConfig,
     TransformerConfig,
 )
+from tests.helpers import PyfmtoTestCase
 
 
-class TestSTPConfig(unittest.TestCase):
+class TestSTPConfig(PyfmtoTestCase):
 
     def test_default(self):
         for d in range(1, 11):
@@ -72,7 +72,7 @@ class TestSTPConfig(unittest.TestCase):
                 STPConfig(dim=2, obj=1, lb=0, ub=1, npd=npd)
 
 
-class TestTransformerConfig(unittest.TestCase):
+class TestTransformerConfig(PyfmtoTestCase):
 
     def test_default(self):
         trans = TransformerConfig(dim=10)
@@ -106,7 +106,7 @@ class TestTransformerConfig(unittest.TestCase):
         self.assertRaises(ValueError, TransformerConfig, **shift_dim_mismatch)
 
 
-class TestFunctionInputs(unittest.TestCase):
+class TestFunctionInputs(PyfmtoTestCase):
 
     def test_valid_inputs(self):
         for valid_x in [1, [1, 2, 3], [1], (1,)]:
@@ -129,7 +129,7 @@ class TestFunctionInputs(unittest.TestCase):
                     FunctionInputs(dim=1, x=invalid_x)
 
 
-class TestPlottingArgs(unittest.TestCase):
+class TestPlottingArgs(PyfmtoTestCase):
 
     def test_valid_defaults(self):
         dim = 3
