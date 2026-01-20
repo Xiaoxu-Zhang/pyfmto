@@ -1,14 +1,14 @@
-import unittest
 
 import numpy as np
 
 from pyfmto.problem.solution import Solution
 from pyfmto.utilities.schemas import STPConfig
+from tests.helpers import PyfmtoTestCase
 
 
-class TestSolution(unittest.TestCase):
+class TestSolution(PyfmtoTestCase):
     def setUp(self):
-        """Setup common test environment."""
+        super().setUp()
         self.conf = STPConfig(dim=20, obj=1, lb=-1, ub=1)
         self.solution_empty = Solution(self.conf)
         self.solution_initialized = Solution(self.conf)
