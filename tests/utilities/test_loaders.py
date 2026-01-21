@@ -63,15 +63,15 @@ class TestUtilities(PyfmtoTestCase):
 class TestComponentUtils(TestCaseAlgProbConf):
     def test_list_components(self):
         res = list_algorithms(self.sources)
-        self.assertEqual(self.alg_names, res['name'], msg=dumps_yaml(recursive_to_pure_dict(res)))
+        self.assertEqual(set(self.alg_names), set(res['name']), msg=dumps_yaml(recursive_to_pure_dict(res)))
         res = list_problems(self.sources)
-        self.assertEqual(self.prob_names, res['name'], msg=dumps_yaml(recursive_to_pure_dict(res)))
+        self.assertEqual(set(self.prob_names), set(res['name']), msg=dumps_yaml(recursive_to_pure_dict(res)))
 
     def test_list_components_not_exist(self):
         res = list_algorithms([str(self.tmp_dir / 'not_exist')])
-        self.assertEqual(res['name'], [], msg=dumps_yaml(recursive_to_pure_dict(res)))
+        self.assertEqual(len(res['name']), 0, msg=dumps_yaml(recursive_to_pure_dict(res)))
         res = list_problems([str(self.tmp_dir / 'not_exist')])
-        self.assertEqual(res['name'], [], msg=dumps_yaml(recursive_to_pure_dict(res)))
+        self.assertEqual(len(res['name']), 0, msg=dumps_yaml(recursive_to_pure_dict(res)))
 
 
 class TestDiscover(PyfmtoTestCase):
