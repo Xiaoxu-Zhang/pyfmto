@@ -75,7 +75,7 @@ class ComponentData:
     @property
     def params_yaml(self) -> str:
         if not self.available:
-            return f"{self.name} is not available"
+            return f"{self.name_orig} is not available"
         prefix = "Problem" if hasattr(self, 'problem') else "Algorithm"
         if self.params_default:
             return dumps_yaml(self.params_default)
