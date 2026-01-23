@@ -1,15 +1,14 @@
 import importlib
 import inspect
-import os
 import textwrap
 from collections import defaultdict
+from itertools import product
 from pathlib import Path
-from typing import no_type_check
+from typing import cast, no_type_check
 
 import tabulate
 
-from pyfmto.core.typing import TComponent, TComponentList, TComponentNames, TDiscoverResult
-
+from ..core.typing import TComponent, TComponentList, TComponentNames, TDiscoverResult
 from ..framework import AlgorithmData
 from ..problem import ProblemData
 from .loggers import logger
@@ -22,6 +21,7 @@ __all__ = [
     'list_problems',
     'load_algorithm',
     'load_component',
+    'load_empty',
     'load_problem',
 ]
 
@@ -81,7 +81,7 @@ def load_component(
 ) -> TComponent:
 
     components = discover(sources).get(target, {})
-    comp = _empty_data(target)
+    comp = load_empty(target)
     comp.name_orig = name
     for comp in components.get(name, []):
         if comp.available:
@@ -101,17 +101,15 @@ def discover(paths: list[str]) -> TDiscoverResult:
         'problems': defaultdict(list),
     }
     add_sources(paths)
-    for target in ['algorithms', 'problems']:
-        for path in paths:
-            target_dir = Path(path).resolve() / target
-            if target_dir.exists():
-                for name in os.listdir(target_dir):
-                    sub_dir = target_dir / name
-                    if sub_dir.is_dir() and not name.startswith(('.', '_')):
-                        for key, res in _find_components(sub_dir).items():
-                            _DISCOVER_CACHE[target][key].extend(res)
-            else:
-                logger.warning(f'{target_dir} does not exist')
+    for path, target in product(paths, ['algorithms', 'problems']):
+        target_dir = Path(path, target).resolve()
+        try:
+            for subdir in target_dir.iterdir():
+                if subdir.is_dir() and not subdir.name.startswith(('.', '_')):
+                    for key, res in _find_components(subdir).items():
+                        _DISCOVER_CACHE[target][key].extend(res)
+        except FileNotFoundError:
+            logger.warning(f"Source '{target_dir}' does not exist")
     return _DISCOVER_CACHE
 
 
@@ -120,6 +118,7 @@ def _find_components(subdir: Path) -> dict[str, TComponentList]:
     results: dict[str, TComponentList] = defaultdict(list)
     try:
         module = importlib.import_module('.'.join(subdir.parts[-3:]))
+        results_changed = False
         for attr_name in dir(module):
             if attr_name.startswith('__'):
                 continue
@@ -130,17 +129,38 @@ def _find_components(subdir: Path) -> dict[str, TComponentList]:
                 obj = attr()
                 obj.source = str(subdir)
                 results[obj.name_orig].append(obj)
+                logger.debug(f"{subdir.parent.name.title()} '{obj.name_orig}' is found in {subdir}")
+        if not results_changed:
+            logger.debug(f"No {subdir.parent.name.title()} found in {subdir}")
     except Exception as e:
-        obj = _empty_data(str(subdir))
+        e_str = f"{type(e).__name__}: {e}"
+        obj = load_empty(cast(TComponentNames, subdir.parent.name))
         obj.name_orig = subdir.name
         obj.source = str(subdir)
-        obj.issues = [str(e)]
+        obj.issues = [e_str]
         results[obj.name_orig].append(obj)
-        logger.warning(f"Failed to load '{subdir}': {e!s}")
+        logger.warning(e_str)
 
     return results
 
 
-def _empty_data(target: str):
-    return AlgorithmData() if 'algorithm' in target else ProblemData()
+def load_empty(target: TComponentNames) -> TComponent:
+    """
+    Load an empty component of the given target type.
+
+    Args:
+        target: the target type.
+
+    Raises:
+        ValueError: if the target is invalid
+
+    Returns:
+        An empty component of the given target type.
+    """
+    if 'algorithms' == target:
+        return AlgorithmData()
+    elif 'problems' == target:
+        return ProblemData()
+    else:
+        raise ValueError(f'Invalid target: {target}')
 
