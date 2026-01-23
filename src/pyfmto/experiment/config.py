@@ -3,7 +3,6 @@ import inspect
 import os
 import shutil
 import textwrap
-from collections.abc import Iterable
 from datetime import datetime
 from itertools import chain, product
 from pathlib import Path
@@ -20,7 +19,7 @@ from ..core.typing import TComponentList, TComponentNames
 from ..framework import AlgorithmData
 from ..problem import ProblemData
 from ..utilities.io import load_yaml, parse_yaml, recursive_to_pure_dict
-from ..utilities.loaders import discover
+from ..utilities.loaders import discover, load_empty
 from ..utilities.loggers import logger
 from ..utilities.tools import clear_console, deepmerge, get_os_name, titled_tabulate
 
@@ -55,7 +54,18 @@ class ExperimentData:
     ):
         self.algorithm = algorithm
         self.problem = problem
+        self.success = False
+        self.issues: list[str] = []
+        self.tracebacks: list[str] = []
         self._result_root = Path(results)
+
+    @property
+    def available(self) -> bool:
+        return self.algorithm.available and self.problem.available
+
+    @property
+    def component_issues(self) -> str:
+        raise NotImplementedError
 
     @property
     def result_dir(self) -> Path:
@@ -203,13 +213,7 @@ class Config(BaseModel):
     problems: list[str] = []
     algorithms_data: list[AlgorithmData] = []
     problems_data: list[ProblemData] = []
-
-    @property
-    def experiments(self) -> Iterable[ExperimentData]:
-        return (
-            ExperimentData(alg, prob, self.results)
-            for alg, prob in product(self.algorithms_data, self.problems_data)
-        )
+    experiments: list[ExperimentData] = []
 
     @property
     def n_exp(self) -> int:
@@ -259,11 +263,11 @@ class ReporterConfig(Config):
     params: dict[str, Any] = {}
 
     @property
-    def groups(self) -> Iterable[tuple[list[str], str, str]]:
-        return (
+    def groups(self) -> list[tuple[list[str], str, str]]:
+        return [
             (algs, prob.name, prob.npd_str)
             for algs, prob in list(product(self.comparisons, self.problems_data))
-        )
+        ]
 
 
 class ConfigLoader:
@@ -329,25 +333,27 @@ class ConfigLoader:
     def fill_components(self, conf: Union[LauncherConfig, ReporterConfig]) -> Union[LauncherConfig, ReporterConfig]:
         conf.algorithms_data = self.collect_components('algorithms', conf.algorithms)
         conf.problems_data = self.collect_components('problems', conf.problems)
+        conf.experiments = [
+            ExperimentData(alg, prob, conf.results)
+            for alg, prob in product(conf.algorithms_data, conf.problems_data)
+        ]
         return conf
 
+    @no_type_check
     def collect_components(self, target: TComponentNames, names: list[str]) -> TComponentList:
         components = discover(self.sources)
         res: TComponentList = []
         for name_alias in names:
             settings = self.config.get(target, {}).get(name_alias, {})
             name_orig = settings.pop('base', name_alias)
-            logger.debug(f"Looking for {target.title()} '{name_orig}' settings={settings!r}")
+            data = load_empty(target)
             for data in components.get(target, {}).get(name_orig, []):
                 if data.available:
-                    data_copy = copy.deepcopy(data)
-                    data_copy.name_alias = name_alias
-                    data_copy.params_update = settings
-                    res.append(data_copy)
-                    logger.debug(f"Found {target.title()} '{name_orig}' [{data_copy.__repr__()}]")
                     break
-                else:
-                    logger.error(f"{target.title()} '{name_orig}' is not available")
+            data_copy = copy.deepcopy(data)
+            data_copy.name_alias = name_alias
+            data_copy.params_update = settings
+            res.append(data_copy)
         return res
 
     def check_config_issues(self, name: Literal['launcher', 'reporter']) -> None:
