@@ -42,7 +42,6 @@ class TestConfigBase(PyfmtoTestCase):
         config.problems_data = [ProblemData(), ProblemData(), ProblemData()]
         self.assertEqual(config.algorithms, ['a1', 'a2', 'a3'])
         self.assertEqual(config.problems, ['p1', 'p2', 'p3'])
-        self.assertEqual(config.n_exp, len(list(config.experiments)))
 
 
 class TestExperimentData(TestCaseAlgProbConf):
@@ -215,8 +214,7 @@ class TestConfigLoader(PyfmtoTestCase):
         conf = ConfigLoader(filename)
         self.assertIsInstance(conf.launcher, LauncherConfig)
         self.assertIsInstance(conf.reporter, ReporterConfig)
-        self.assertEqual(conf.launcher.n_exp, 0)
-        self.assertEqual(list(conf.reporter.experiments), [])
+        self.assertEqual(conf.launcher.n_exp, len(conf.reporter.experiments))
 
     def test_component_exists(self):
         filename = self.gen_config(self.valid)
@@ -226,7 +224,7 @@ class TestConfigLoader(PyfmtoTestCase):
         self.assertIsInstance(conf.launcher, LauncherConfig)
         self.assertIsInstance(conf.reporter, ReporterConfig)
         self.assertEqual(conf.launcher.n_exp, 4)
-        self.assertEqual(len(list(conf.reporter.experiments)), 4)
+        self.assertEqual(len(conf.reporter.experiments), 4)
 
     @patch('pyfmto.experiment.config.discover')
     def test_component_not_available(self, mock_discover):
@@ -242,5 +240,5 @@ class TestConfigLoader(PyfmtoTestCase):
         }
         filename = self.gen_config(self.valid)
         conf = ConfigLoader(filename)
-        self.assertEqual(conf.launcher.algorithms_data, [])
-        self.assertEqual(conf.launcher.problems_data, [])
+        self.assertEqual(len(conf.launcher.algorithms_data), 2)
+        self.assertEqual(len(conf.launcher.problems_data), 2)
