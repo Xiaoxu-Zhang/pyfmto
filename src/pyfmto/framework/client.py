@@ -14,7 +14,6 @@ from rich.progress import Progress, TaskID
 from ..problem import SingleTaskProblem
 from ..utilities.loggers import logger
 from ..utilities.tools import colored, titled_tabulate
-from ..utilities.tools import tabulate_formats as tf
 from .packages import Actions, ClientPackage
 
 __all__ = [
@@ -82,7 +81,7 @@ class Client(ABC):
         param_dict['MaxFE'].append(str(self.problem.fe_max))
         tab = titled_tabulate(
             f"{self.name} init information", '=',
-            param_dict, headers='keys', tablefmt=tf.rounded_grid
+            param_dict, headers='keys', tablefmt='rounded_grid'
         )
         logger.debug(tab)
 
