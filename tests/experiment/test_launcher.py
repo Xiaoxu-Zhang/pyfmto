@@ -8,11 +8,14 @@ class TestLauncher(TestCaseAlgProbConf):
 
     def test_save(self):
         self.config.config['launcher'].update({'verbose': True})
+        self.config.config['launcher']['algorithms'].append('INVALID')
         launcher = Launcher(self.config.launcher)
         launcher.run()
         self.assertGreater(launcher.conf.n_exp, 0)
         self.assertTrue(launcher.conf.save, msg="self.conf.launcher.save is False")
         for exp in launcher.conf.experiments:
+            if not exp.available:
+                continue
             self.assertTrue(exp.algorithm.available)
             self.assertTrue(exp.problem.available)
             self.assertTrue(exp.result_dir.exists(), msg=f"{exp.result_dir} not exists.")
