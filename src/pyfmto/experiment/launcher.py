@@ -45,6 +45,8 @@ class Launcher:
     def run(self):
         self._setup()
         for self.exp_idx, self.exp in enumerate(self.conf.experiments):  # noqa: B020
+            if not self.exp.available:
+                continue
             logger.info(f"\n{self.exp}")
             if self.conf.save:
                 self._init_root()
