@@ -50,11 +50,11 @@ class ComponentData:
         return False
 
     def load_default_params(self) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @property
     def params(self) -> dict[str, Any]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @property
     def params_snapshot(self) -> str:

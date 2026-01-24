@@ -50,7 +50,7 @@ class ReportGenerator(ABC):
 
     @abstractmethod
     def _generate(self, *args, **kwargs):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @final
     def generate(self, data: MetaData, *args, **kwargs):
