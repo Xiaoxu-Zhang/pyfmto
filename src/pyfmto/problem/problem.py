@@ -11,11 +11,11 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from numpy import ndarray
 from pyDOE import lhs
+from pyvista.plotting._typing import ColorLike, ColormapOptions
 from scipy.stats import kendalltau, pearsonr, spearmanr
 from tabulate import tabulate
 
 from ..utilities.schemas import FunctionInputs, PlottingArgs, STPConfig, T_Bound, TransformerConfig
-from ..utilities.stroptions import Cmaps, StrColors
 from .solution import Solution
 
 __all__ = [
@@ -225,7 +225,7 @@ class SingleTaskProblem(ABC):
             dims: tuple[int, int] = (0, 1),
             n_points: int = 100,
             figsize: tuple[float, float, float] = (5., 4., 1.),
-            cmap: Union[str, Cmaps] = Cmaps.viridis,
+            cmap: ColormapOptions = 'viridis',
             levels: int = 30,
             labels: tuple[Optional[str], Optional[str]] = (None, None),
             title: Optional[str] = None,
@@ -261,7 +261,7 @@ class SingleTaskProblem(ABC):
         w, h, s = figsize
         plt.figure(figsize=(w * s, h * s))
         D1, D2, Z, args = self.gen_plot_data(dims=dims, n_points=n_points, fixed=fixed)
-        cont = plt.contourf(D1, D2, Z, levels=levels, cmap=str(cmap), alpha=alpha)
+        cont = plt.contourf(D1, D2, Z, levels=levels, cmap=cmap, alpha=alpha)
         cbar = plt.colorbar(cont)
         cbar.set_label('Function Value')
         cbar.formatter = FuncFormatter(lambda x, pos: f'{x:.2e}' if abs(x) > 1e4 else f'{x:.2f}')
@@ -286,7 +286,7 @@ class SingleTaskProblem(ABC):
             dims: tuple[int, int] = (0, 1),
             n_points: int = 100,
             figsize: tuple[float, float, float] = (5., 4., 1.),
-            cmap: Union[str, Cmaps] = Cmaps.viridis,
+            cmap: ColormapOptions = 'viridis',
             levels: int = 30,
             labels: tuple[Optional[str], Optional[str], Optional[str]] = (None, None, None),
             title: Optional[str] = None,
@@ -352,8 +352,8 @@ class SingleTaskProblem(ABC):
             dims: tuple[int, int] = (0, 1),
             n_points: int = 100,
             font_size: float = 10,
-            cmap: Union[str, Cmaps] = Cmaps.viridis,
-            color: Union[str, StrColors, tuple[float, float, float], None] = None,
+            cmap: ColormapOptions = 'viridis',
+            color: ColorLike = None,
             show_grid: bool = True,
             scale_mode: Literal['', 'y', 'xy'] = 'y',
             fixed=None,
@@ -400,8 +400,7 @@ class SingleTaskProblem(ABC):
             plotter.add_mesh(grid, scalars=grid.points[:, 2], cmap=str(cmap))
             plotter.remove_scalar_bar()
         else:
-            _color = str(color) if isinstance(color, StrColors) else color
-            plotter.add_mesh(grid, color=_color)
+            plotter.add_mesh(grid, color=color)
         plotter.add_title(f"T{self.id} {self.name}", font_size=font_size)
         if show_grid:
             plotter.show_grid(
@@ -761,8 +760,8 @@ class MultiTaskProblem(ABC):
             shape: tuple[int, int] = (2, 2),
             dims=(0, 1),
             font_size: int = 10,
-            cmap: Union[str, Cmaps] = Cmaps.viridis,
-            color: Union[str, StrColors, tuple[float, float, float], None] = None,
+            cmap: ColormapOptions = 'viridis',
+            color: ColorLike = None,
             n_points: int = 100,
             scale_mode: Literal['xy', 'y'] = 'y',
             show_grid: bool = True,
@@ -897,7 +896,7 @@ class MultiTaskProblem(ABC):
             method: Literal['kendalltau', 'spearmanr', 'pearsonr'] = 'spearmanr',
             p_value: float = 1.,
             figsize: tuple[float, float, float] = (9., 7., 1.),
-            cmap: Optional[Union[str, Cmaps]] = None,
+            cmap: ColormapOptions = None,
             masker: Optional[float] = np.nan,
             font_size: int = 10,
             fmt: str = '.2f',
