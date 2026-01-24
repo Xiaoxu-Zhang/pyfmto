@@ -10,8 +10,8 @@ import seaborn
 from pydantic import Field, validate_call
 from tqdm import tqdm
 
+from ..core.typing import PaletteOptions
 from ..utilities.loggers import logger
-from ..utilities.stroptions import SeabornPalettes
 from .config import ReporterConfig
 from .utils import MergedResults, MetaData, ReporterUtils
 
@@ -67,7 +67,7 @@ class CurveGenerator(ReportGenerator):
             *,
             figsize: tuple[float, float, float] = (3., 2.3, 1.),
             alpha: T_Fraction = .2,
-            palette: SeabornPalettes = SeabornPalettes.bright,
+            palette: PaletteOptions = 'bright',
             suffix: T_Suffix = '.png',
             styles: tuple[str, ...] = ('science', 'ieee', 'no-latex'),
             showing_size: int = -1,
@@ -83,7 +83,7 @@ class CurveGenerator(ReportGenerator):
         _suffix = self.utils.check_suffix(suffix, merge)
         log_tag = ' log' if on_log_scale else ''
         # Plot the data
-        colors = seaborn.color_palette(str(palette), data.alg_num - 1).as_hex()
+        colors = seaborn.color_palette(palette, data.alg_num - 1).as_hex()
         colors.append("#ff0000")
         with plt.style.context(styles):
             filedir = data.report_filename.parent / f"{data.report_filename.name} curve{log_tag}"
@@ -365,7 +365,7 @@ class Reporter:
             *,
             figsize: tuple[float, float, float] = (3., 2.3, 1.),
             alpha: T_Fraction = .2,
-            palette: SeabornPalettes = SeabornPalettes.bright,
+            palette: PaletteOptions = 'bright',
             suffix: T_Suffix = '.png',
             styles: tuple[str, ...] = ('science', 'ieee', 'no-latex'),
             showing_size: int = -1,
@@ -384,8 +384,7 @@ class Reporter:
         alpha : float, optional
             Transparency of the Standard Error region, ranging from 0 (completely transparent) to 1 (completely opaque).
         palette :
-            The palette argument in `seaborn.plotviolin`, the `pyfmto.utilities.SeabornPalette` class can help you try
-            different options easier.
+            The palette argument in `seaborn.plotviolin`
         suffix : str, optional
             File format suffix for the output image. Supported formats include 'png', 'jpg', 'eps', 'svg', 'pdf'.
         styles : Union[list[str], tuple[str]], optional
