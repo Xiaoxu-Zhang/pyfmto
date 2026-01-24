@@ -7,6 +7,7 @@ import pyfmto.experiment.utils
 import pyfmto.utilities.io
 from pyfmto import list_algorithms, list_problems
 from pyfmto.experiment import list_report_formats, show_default_conf
+from pyfmto.framework import AlgorithmData
 from pyfmto.problem import ProblemData
 from pyfmto.utilities import loaders
 from pyfmto.utilities.io import dumps_yaml, recursive_to_pure_dict
@@ -47,8 +48,6 @@ class TestUtilities(PyfmtoTestCase):
                 self.assertIsNone(show_default_conf(fmt))
 
     def test_load_problem(self):
-        self.save_sys_env()
-        self.delete(self.tmp_dir)
         self.prob = 'PROB1'
         gen_code('problems', self.prob, self.tmp_dir)
         res = loaders.load_problem(self.prob, [str(self.tmp_dir)])
@@ -56,8 +55,11 @@ class TestUtilities(PyfmtoTestCase):
         loaders.list_problems([str(self.tmp_dir)], print_it=True)
         prob = loaders.load_problem('PROB2', [str(self.tmp_dir)])
         self.assertFalse(prob.available)
-        self.delete(self.tmp_dir)
-        self.restore_sys_env()
+
+    def test_load_empty(self):
+        self.assertIsInstance(loaders.load_empty('algorithms'), AlgorithmData)
+        self.assertIsInstance(loaders.load_empty('problems'), ProblemData)
+        self.assertRaises(ValueError, loaders.load_empty, 'nonexist')
 
 
 class TestComponentUtils(TestCaseAlgProbConf):
