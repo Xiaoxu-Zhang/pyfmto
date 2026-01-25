@@ -239,7 +239,8 @@ class LauncherConfig(Config):
         tab.add_column('Algorithm', justify='center', style="cyan")
         tab.add_column('Original', justify='center', style="cyan")
         tab.add_column('Problem', justify='center', style="magenta")
-        tab.add_column('NPD', justify='center', style="yellow")
+        tab.add_column('NPD', justify='center', style="green")
+        tab.add_column('Dim', justify='center', style="green")
         tab.add_column('Success', justify='center')
 
         for exp in self.experiments:
@@ -247,7 +248,9 @@ class LauncherConfig(Config):
                 exp.algorithm.name,
                 exp.algorithm.name_orig,
                 exp.problem.name,
-                exp.problem.npd_str,
+                str(exp.problem.npd),
+                str(exp.problem.dim),
+                str(exp.success),
             )
         clear_console()
         Console().print(tab)
