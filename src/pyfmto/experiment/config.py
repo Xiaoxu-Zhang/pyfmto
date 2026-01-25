@@ -69,7 +69,7 @@ class ExperimentData:
 
     @property
     def result_dir(self) -> Path:
-        return self._result_root / self.algorithm.name / self.problem.name / self.problem.npd_str
+        return self._result_root / self.algorithm.name / self.problem.name_verbose / self.problem.npd_str
 
     @property
     def snapshot_dir(self) -> Path:
@@ -265,7 +265,7 @@ class ReporterConfig(Config):
     @property
     def groups(self) -> list[tuple[list[str], str, str]]:
         return [
-            (algs, prob.name, prob.npd_str)
+            (algs, prob.name_verbose, prob.npd_str)
             for algs, prob in list(product(self.comparisons, self.problems_data))
         ]
 
