@@ -129,6 +129,7 @@ def _find_components(subdir: Path) -> dict[str, TComponentList]:
                 obj = attr()
                 obj.source = str(subdir)
                 results[obj.name_orig].append(obj)
+                results_changed = True
                 logger.debug(f"{subdir.parent.name.title()} '{obj.name_orig}' is found in {subdir}")
         if not results_changed:
             logger.debug(f"No {subdir.parent.name.title()} found in {subdir}")
