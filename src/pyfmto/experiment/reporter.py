@@ -1,3 +1,5 @@
+import textwrap
+import time
 import traceback
 from abc import ABC, abstractmethod
 from typing import Annotated, Literal, final
@@ -8,19 +10,17 @@ import pandas as pd
 import scienceplots  # Do not remove this import
 import seaborn
 from pydantic import Field, validate_call
-from tqdm import tqdm
+from rich.progress import track
 
 from ..core.typing import PaletteOptions
-from ..utilities.loggers import logger
+from ..utilities.loggers import clogger
 from .config import ReporterConfig
-from .utils import MergedResults, MetaData, ReporterUtils
+from .utils import FILL, INDENT, SLEEP_TIME, MergedResults, MetaData, ReporterUtils, min_time_lapse
 
 _ = scienceplots.stylesheets  # This is to suppress the 'unused import' warning
 T_Suffix = Literal['.png', '.jpg', '.jpeg', '.svg', '.pdf']
 T_Fraction = Annotated[float, Field(ge=0., le=1.)]
 T_Levels10 = Annotated[int, Field(ge=1, le=10)]
-
-logger.setLevel('DEBUG')
 
 __all__ = [
     'ConsoleGenerator',
@@ -42,17 +42,22 @@ class ReportGenerator(ABC):
 
     @final
     def _check_data(self, data: MetaData):
+        time.sleep(SLEEP_TIME)
+        clogger.debug(f"{INDENT}Checking data size...")
         if len(data) >= self.data_size_req:
             return True
         else:
-            raise ValueError(f"{self.__class__.__name__} require at least {self.data_size_req} "
-                             f"data to generate report, got {len(data)} instead.")
+            time.sleep(SLEEP_TIME)
+            clogger.warn(
+                f"{self.__class__.__name__} require at least {self.data_size_req} "
+                f"data to generate report, got {len(data)} instead.")
 
     @abstractmethod
     def _generate(self, *args, **kwargs):
         raise NotImplementedError  # pragma: no cover
 
     @final
+    @min_time_lapse(0.5)
     def generate(self, data: MetaData, *args, **kwargs):
         self._check_data(data)
         self._generate(data, *args, **kwargs)
@@ -81,14 +86,16 @@ class CurveGenerator(ReportGenerator):
         _figsize = w * s, h * s
         _quality = {'dpi': 100 * quality}
         _suffix = self.utils.check_suffix(suffix, merge)
-        log_tag = ' log' if on_log_scale else ''
+        log_tag = '-log' if on_log_scale else ''
         # Plot the data
         colors = seaborn.color_palette(palette, data.alg_num - 1).as_hex()
         colors.append("#ff0000")
         with plt.style.context(styles):
-            filedir = data.report_filename.parent / f"{data.report_filename.name} curve{log_tag}"
+            filedir = data.report_filename.parent / f"{data.report_filename.name}-curve{log_tag}"
             filedir.mkdir(parents=True, exist_ok=True)
-            for c_name in data.clt_names:
+            time.sleep(SLEEP_TIME)
+            clogger.debug(f"{INDENT}Generating single curve...")
+            for c_name in track(data.clt_names, description="SubImg", transient=True):
                 plt.figure(figsize=_figsize, **_quality)
                 for (alg_name, merged_data), color in zip(data.items(), colors):
                     start_idx = self.utils.plotting(
@@ -105,6 +112,7 @@ class CurveGenerator(ReportGenerator):
                 plt.close()
 
             if merge:
+                clogger.debug(f"{INDENT}Merging images...")
                 self.utils.merge_images_in(filedir, clear)
 
 
@@ -128,7 +136,7 @@ class ViolinGenerator(ReportGenerator):
         _figsize = w * s, h * s
         _quality = 100. * quality
         alg_res: MergedResults = data[data.alg_names[-1]]
-        for clt_name, sta in alg_res.items():
+        for clt_name, sta in track(alg_res.items(), description="SubImg", transient=True):
             title = f"{clt_name} of {data.alg_names[-1]} on {data.problem}"
             self.utils.plot_violin(sta, _figsize, filedir / f"{clt_name}{_suffix}", title=title, dpi=_quality)
         if merge:
@@ -143,19 +151,19 @@ class TableGenerator(ReportGenerator, ABC):
             data: MetaData,
             pvalue: float
     ):
-        str_table, float_table = self._tabling(data, pvalue)
+        str_table, float_table, counter = self._tabling(data, pvalue)
         mask = self.utils.get_optimality_mask_mat(float_table)
 
-        global_counter = np.sum(mask, axis=0).reshape(1, -1)
+        # global_counter = np.sum(mask, axis=0).reshape(1, -1)
 
         df = pd.DataFrame(str_table, index=None)
         columns = data.alg_names
         columns.insert(0, "Clients")
 
-        global_counter_df = pd.DataFrame(global_counter, columns=columns, index=None)
+        global_counter_df = pd.DataFrame(counter, columns=columns, index=None)
         global_df = pd.concat([df, global_counter_df], ignore_index=True)
 
-        global_df.iloc[-1, 0] = 'Sum'
+        # global_df.iloc[-1, 0] = 'Sum'
         return global_df, mask
 
     def _tabling(
@@ -167,9 +175,11 @@ class TableGenerator(ReportGenerator, ABC):
         obj_alg_merged = data[obj_alg]
         str_table = {"Clients": data.clt_names}
         float_table = {}
+        counter: list[str] = ['+/-/≈']
         for alg in data.alg_names[:-1]:
             str_res = []
             float_res = []
+            _cnt = {'+': 0, '-': 0, '≈': 0}
             for c_name in data.clt_names:
                 c_data = data[alg].get_statis(c_name)
                 c_data_obj = obj_alg_merged.get_statis(c_name)
@@ -179,15 +189,18 @@ class TableGenerator(ReportGenerator, ABC):
                 mean2 = np.mean(opt_list2)
                 suffix = self.utils.get_t_test_suffix(opt_list1, opt_list2, mean1, mean2, pvalue)
                 str_res.append(f"{mean1:.2e}{suffix}")
+                _cnt[suffix] += 1
                 float_res.append(mean1)
+            counter.append(f"{_cnt['+']}/{_cnt['-']}/{_cnt['≈']}")
             str_table.update({alg: str_res})
             float_table.update({alg: float_res})
+        counter.append('')
         obj_alg_runs_opt = [obj_alg_merged.get_statis(c_name).y_dec_statis.opt for c_name in data.clt_names]
         obj_alg_opt_runs_mean = np.mean(obj_alg_runs_opt, axis=1)
         str_res = [f"{mean:.2e}" for mean in obj_alg_opt_runs_mean]
         str_table.update({obj_alg: str_res})
         float_table.update({obj_alg: obj_alg_opt_runs_mean.tolist()})
-        return str_table, float_table
+        return str_table, float_table, [counter]
 
 
 class ExcelGenerator(TableGenerator):
@@ -244,10 +257,10 @@ class ConsoleGenerator(TableGenerator):
             *,
             pvalue: T_Fraction = 0.05,
     ):
-        str_table, _ = self._tabling(data, pvalue)
+        str_table, _, _ = self._tabling(data, pvalue)
         pd.set_option('display.colheader_justify', 'center')
         df = pd.DataFrame(str_table)
-        print(f"Total {data.clt_num} clients")
+        clogger.debug(f"{INDENT}Total {data.clt_num} clients")
         print(df.to_string(index=False))
 
 
@@ -297,43 +310,60 @@ class GeneratorManager:
         self._load_data()
 
     def _load_data(self):
+        clogger.debug(f"{'Loading data':=^5}")
         for exp in self.conf.experiments:
             alg, prob, npd = exp.result_dir.parts[-3:]
+            clogger.debug(f"{INDENT}Loading {alg}-{prob}({npd})")
             key = f"{alg}/{prob}/{npd}"
             if key not in self._cache:
-                logger.debug(f"Processing data [alg:{alg}] on [prob:{prob}] with [NPD:{npd}]")
                 runs_data = ReporterUtils.load_runs_data(exp.result_dir, prefix=exp.prefix)
                 if runs_data:
                     self._cache[key] = MergedResults(runs_data)
-                    logger.debug(f"Cached data for key '{key}'")
                 else:
-                    logger.warning(
-                        "\nResult file not found:\n"
-                        f"    CacheKey: {key}\n"
-                        f"    FileRoot: {exp.result_dir}\n"
-                        f"    NameRule: {exp.prefix}[{'Any'}].msgpack\n"
+                    clogger.warning(
+                        textwrap.indent("\nResult file not found:\n"
+                        f"  CacheKey: {key}\n"
+                        f"  FileRoot: {exp.result_dir}\n"
+                        f"  NameRule: {exp.prefix}[{'Any'}].msgpack\n", INDENT)
                     )
 
     def register_generator(self, name: str, generator: ReportGenerator):
         self._generators[name] = generator
 
     def generate_report(self, generator_name: str, algorithms: list[str], problem: str, npd_name: str, **kwargs):
+        alg_str = ', '.join(algorithms)
+        msg = f"""
+          Algs: [green]{alg_str}[/green]
+          Prob: [green]{problem}({npd_name})[/green]
+        """
+        time.sleep(0.2)
+        clogger.debug(textwrap.dedent(msg))
         if generator_name not in self._generators:
-            raise ValueError(f"No generator registered for {generator_name}")
-        data = self._prepare_data(algorithms, problem, npd_name)
-        return self._generators[generator_name].generate(data, **kwargs)
+            clogger.warn(f"{INDENT}No generator registered for {generator_name}")
+            return None
+        try:
+            data = self._prepare_data(algorithms, problem, npd_name)
+            return self._generators[generator_name].generate(data, **kwargs)
+        except Exception:
+            clogger.error(traceback.format_exc())
 
+    @min_time_lapse(0.5)
     def _prepare_data(self, algorithms: list[str], problem: str, npd_name: str) -> MetaData:
+        time.sleep(SLEEP_TIME)
+        clogger.debug(f"{INDENT}Preparing data...")
         data: dict[str, MergedResults] = {}
-        logger.debug(f"Loading data for [alg:{algorithms}] on [prob:{problem}] with [NPD:{npd_name}]")
         for algorithm in algorithms:
             cache_key = f"{algorithm}/{problem}/{npd_name}"
             merged_res = self._cache.get(cache_key)
             if merged_res:
                 data[algorithm] = merged_res
-                logger.debug(f"Data of key '{cache_key}' found in cache")
-            else:
-                logger.warning(f"Data of key '{cache_key}' not found in cache")
+        str_bad = ', '.join(set(algorithms) - set(data.keys()))
+        str_good = ', '.join(list(data.keys()))
+        time.sleep(SLEEP_TIME)
+        clogger.info(f"{INDENT}Available data: [green]{str_good}[/green]")
+        if str_bad:
+            time.sleep(SLEEP_TIME)
+            clogger.warn(f"{INDENT}Unavailable data: [red]{str_bad}[/red]")
         return MetaData(data, problem, npd_name, self.conf.results)
 
 
@@ -341,23 +371,21 @@ class Reporter:
     def __init__(self, conf: ReporterConfig):
         self.conf = conf
         self.manager = GeneratorManager(self.conf)
-        self.manager.register_generator('to_curve', CurveGenerator())
-        self.manager.register_generator('to_excel', ExcelGenerator())
-        self.manager.register_generator('to_violin', ViolinGenerator())
-        self.manager.register_generator('to_console', ConsoleGenerator())
-        self.manager.register_generator('to_latex', LatexGenerator())
+        self.manager.register_generator('curve', CurveGenerator())
+        self.manager.register_generator('excel', ExcelGenerator())
+        self.manager.register_generator('violin', ViolinGenerator())
+        self.manager.register_generator('console', ConsoleGenerator())
+        self.manager.register_generator('latex', LatexGenerator())
 
     def report(self):
         if not self.conf.formats:
-            raise ValueError("No formats specified. Skipping report generation.")
-        invalid_formats: list[str] = []
+            clogger.warn(f"{'No formats specified':=^5}")
+            return
         for fmt in self.conf.formats:
             if hasattr(self, f'to_{fmt}'):
                 getattr(self, f'to_{fmt}')(**self.conf.params.get(fmt, {}))
             else:
-                invalid_formats.append(fmt)
-        if invalid_formats:
-            raise ValueError(f"Invalid format(s) specified: {', '.join(invalid_formats)}")
+                clogger.warn(f"Format [red]{fmt}[/red] is invalid")
 
     @validate_call
     def to_curve(
@@ -403,29 +431,22 @@ class Reporter:
         on_log_scale : bool, optional
             If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
         """
-        need_new_line = True
-        for comb in tqdm(self.conf.groups, desc='Saving', unit='Img', ncols=100):
-            try:
-                self.manager.generate_report(
-                    'to_curve',
-                    *comb,
-                    figsize=figsize,
-                    alpha=alpha,
-                    palette=palette,
-                    suffix=suffix,
-                    styles=styles,
-                    showing_size=showing_size,
-                    quality=quality,
-                    merge=merge,
-                    clear=clear,
-                    on_log_scale=on_log_scale,
-                )
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                if need_new_line:
-                    print('\n')
-                    need_new_line = False
-                print(e)
+        clogger.debug(f"{FILL}Generating [green bold]Curve[/green bold]{FILL}")
+        for group in track(self.conf.groups, description='Curve', transient=True):
+            self.manager.generate_report(
+                'curve',
+                *group,
+                figsize=figsize,
+                alpha=alpha,
+                palette=palette,
+                suffix=suffix,
+                styles=styles,
+                showing_size=showing_size,
+                quality=quality,
+                merge=merge,
+                clear=clear,
+                on_log_scale=on_log_scale,
+            )
 
     @validate_call
     def to_excel(
@@ -453,17 +474,15 @@ class Reporter:
              supported colors are in [])
              - ``type-font-[bold|italic|underline]`` ---Font types (multiple can be applied, supported types are in [])
         """
-        for comb in self.conf.groups:
-            try:
-                self.manager.generate_report(
-                    'to_excel',
-                    *comb,
-                    pvalue=pvalue,
-                    styles=styles,
-                )
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                print(e)
+        clogger.debug(f"{FILL}Generating [green bold]Excel[/green bold]{FILL}")
+        for group in track(self.conf.groups, description='Excel', transient=True):
+            self.manager.generate_report(
+                'excel',
+                *group,
+                pvalue=pvalue,
+                styles=styles,
+            )
+            time.sleep(0.5)
 
     @validate_call
     def to_latex(
@@ -479,16 +498,14 @@ class Reporter:
         pvalue : float, optional
             T-test threshold parameter to determine statistical significance. Default is 0.05.
         """
-        for comb in self.conf.groups:
-            try:
-                self.manager.generate_report(
-                    'to_latex',
-                    *comb,
-                    pvalue=pvalue
-                )
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                print(e)
+        clogger.debug(f"{FILL}Generating [green bold]LaTeX[/green bold]{FILL}")
+        for group in track(self.conf.groups, description='LaTeX', transient=True):
+            self.manager.generate_report(
+                'latex',
+                *group,
+                pvalue=pvalue
+            )
+            time.sleep(0.5)
 
     @validate_call
     def to_console(
@@ -504,16 +521,13 @@ class Reporter:
         pvalue : float, optional
             T-test threshold for determining statistical significance. Default is 0.05.
         """
-        for comb in self.conf.groups:
-            try:
-                self.manager.generate_report(
-                    'to_console',
-                    *comb,
-                    pvalue=pvalue
-                )
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                print(e)
+        clogger.debug(f"{FILL}Printing to [green bold]Console[/green bold]{FILL}")
+        for comb in track(self.conf.groups, description='Console', transient=True):
+            self.manager.generate_report(
+                'console',
+                *comb,
+                pvalue=pvalue
+            )
 
     @validate_call
     def to_violin(
@@ -543,17 +557,14 @@ class Reporter:
         -------
             None
         """
-        for comb in tqdm(self.conf.groups, desc='Saving', unit='Img', ncols=100):
-            try:
-                self.manager.generate_report(
-                    'to_violin',
-                    *comb,
-                    suffix=suffix,
-                    figsize=figsize,
-                    merge=merge,
-                    clear=clear,
-                    quality=quality,
-                )
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                print(e)
+        clogger.debug(f"{FILL}Generating [green bold]Violin[/green bold]{FILL}")
+        for group in track(self.conf.groups, description='Violin', transient=True):
+            self.manager.generate_report(
+                'violin',
+                *group,
+                suffix=suffix,
+                figsize=figsize,
+                merge=merge,
+                clear=clear,
+                quality=quality,
+            )
