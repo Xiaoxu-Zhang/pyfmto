@@ -59,7 +59,7 @@ class TestExperimentData(TestCaseAlgProbConf):
         self.assertIsInstance(exp.result_dir, Path)
         self.assertEqual(
             exp.result_dir,
-            Path('out/results') / exp.algorithm.name / exp.problem.name / exp.problem.npd_str
+            Path('out/results') / exp.algorithm.name / exp.problem.name_verbose / exp.problem.npd_str
         )
         self.assertIn("FEi", exp.prefix)
         self.assertIn('FEm', exp.prefix)

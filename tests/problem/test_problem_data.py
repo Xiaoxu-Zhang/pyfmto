@@ -8,7 +8,7 @@ class TestProblemData(TestCaseAlgProbConf):
         prob_name = self.prob_names[0]
         prob = self.load_problem(prob_name)
         prob.params_default.pop('dim')
-        self.assertIn(prob_name, prob.name)
+        self.assertIn(prob_name, prob.name_verbose)
         self.assertEqual(prob.npd, 1)
         self.assertEqual(prob.npd_str, 'NPD1')
         self.assertEqual(prob.params_diff, '')
