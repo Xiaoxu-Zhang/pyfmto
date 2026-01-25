@@ -9,13 +9,14 @@ from typing import Optional, Union
 import numpy as np
 import pandas as pd
 import seaborn
+import wrapt
 from matplotlib import pyplot as plt
 from PIL import Image
 from scipy import stats
 
 from ..problem import Solution
 from ..utilities.io import load_msgpack, save_msgpack
-from ..utilities.loggers import logger
+from ..utilities.loggers import clogger, logger
 from ..utilities.tools import colored, titled_tabulate
 
 StatisData = namedtuple("StatisData", ['mean', 'std', 'se', 'opt'])
@@ -423,15 +424,52 @@ class ReporterUtils:
             resized_img = img.resize((width, height), Image.Resampling.LANCZOS)
             merged.paste(resized_img, (col_id * width, row_id * height))
 
-        merged.save(file_dir.parent / f'{merge_from}{suffix}')
+        filename = file_dir.parent / f'{merge_from}{suffix}'
+        merged.save(filename)
+        time.sleep(SLEEP_TIME)
+        clogger.debug(
+            f"  Saved image to:\n"
+            f"    {filename}"
+        )
         if clear:
+            time.sleep(SLEEP_TIME)
+            clogger.debug(
+                f"  Removed directory:\n"
+                f"    {file_dir}"
+            )
             shutil.rmtree(file_dir)
 
     @staticmethod
     def check_suffix(suffix: str, merge: bool):
         if merge and (suffix not in ['.png', '.jpg']):
-            print(f"Only support suffix {colored('.png or .jpg', 'green')} "
-                  f"when {colored('merge is True', 'green')}, defaulted to '.png'")
+            time.sleep(SLEEP_TIME)
+            clogger.warn(
+                f"  Only support suffix {colored('.png or .jpg', 'green')} "
+                f"when [orange]'merge is True'[/orange], defaulted to '.png'"
+            )
             return '.png'
         else:
             return suffix
+
+
+def min_time_lapse(min_lapse: float):
+    """A decorator to ensure the wrapped function is not executed too frequently.
+
+    Args:
+        min_lapse: The minimum time-lapse in seconds.
+    """
+    @wrapt.decorator
+    def decorator(wrapped, instance, args, kwargs):
+        start_time = time.time()
+        result = wrapped(*args, **kwargs)
+        end_time = time.time()
+        lapse = end_time - start_time
+        if lapse < min_lapse:
+            time.sleep(min_lapse - lapse)
+        return result
+    return decorator
+
+
+INDENT = '  '
+FILL = '='*30
+SLEEP_TIME = 0.1
