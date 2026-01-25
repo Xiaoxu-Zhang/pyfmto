@@ -113,8 +113,8 @@ class Launcher:
             'progress': f"[{curr_rep}/{total_rep}][{100 * curr_rep / total_rep:.2f}%]",
             'algorithm': self.exp.algorithm.name,
             'problem': self.exp.problem.name,
-            'NPD': self.clients[0].problem.npd,
-            'clients': len(self.clients),
+            'NPD': self.exp.problem.npd,
+            'Dim': self.exp.problem.dim,
             'save': self.conf.save
         }
 
