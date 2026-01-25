@@ -38,6 +38,15 @@ LOG_CONF = {
             'maxBytes': 2 * 1024 * 1024,
             'backupCount': 10,
             'encoding': 'utf-8'
+        },
+        'console_handler': {
+            'class': 'rich.logging.RichHandler',
+            'level': 'DEBUG',
+            'markup': True,
+            'rich_tracebacks': True,
+            'show_time': False,
+            'show_level': True,
+            'show_path': False,
         }
     },
     'loggers': {
@@ -45,9 +54,15 @@ LOG_CONF = {
             'level': 'DEBUG',
             'handlers': ['pyfmto_handler'],
             'propagate': False
+        },
+        'clogger': {
+            'level': 'DEBUG',
+            'handlers': ['console_handler', 'pyfmto_handler'],
+            'propagate': False
         }
     }
 }
 
 logging.config.dictConfig(LOG_CONF)
 logger = logging.getLogger('pyfmto')
+clogger = logging.getLogger('clogger')
