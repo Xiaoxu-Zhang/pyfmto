@@ -55,13 +55,12 @@ class ExperimentData:
         self.algorithm = algorithm
         self.problem = problem
         self.success = False
-        self.issues: list[str] = []
         self.tracebacks: list[str] = []
         self._result_root = Path(results)
 
     @property
     def issues_str(self) -> str:
-        issues = self.issues + self.algorithm.issues + self.problem.issues
+        issues = self.algorithm.issues + self.problem.issues
         return '\n'.join(issues) if issues else '-'
 
     @property
