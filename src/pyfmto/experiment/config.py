@@ -276,7 +276,9 @@ class ReporterConfig(Config):
 class ConfigLoader:
     """
     launcher:
-        sources: []           # load alg/prob in these directory
+        algorithms: []        # run these algorithms
+        problems: []          # run each algorithm on these problems
+        sources: []           # [optional] load alg/prob in these directory
         results: out/results  # [optional] save results to this directory
         repeat: 2             # [optional] repeat each experiment for this number of times
         seed: 123             # [optional] random seed
@@ -285,8 +287,6 @@ class ConfigLoader:
         snapshot: true        # [optional] If create snapshot of the experiment
         verbose: false        # [optional] Save detailed information for each repeat run
         packages: []          # [optional] Record the version of these packages
-        algorithms: []        # run these algorithms
-        problems: []          # run each algorithm on these problems
     reporter:
         formats: [excel]      # [optional] generate these reports
     """
