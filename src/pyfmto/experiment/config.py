@@ -60,6 +60,11 @@ class ExperimentData:
         self._result_root = Path(results)
 
     @property
+    def issues_str(self) -> str:
+        issues = self.issues + self.algorithm.issues + self.problem.issues
+        return '\n'.join(issues) if issues else '-'
+
+    @property
     def available(self) -> bool:
         return self.algorithm.available and self.problem.available
 
@@ -242,6 +247,7 @@ class LauncherConfig(Config):
         tab.add_column('NPD', justify='center', style="green")
         tab.add_column('Dim', justify='center', style="green")
         tab.add_column('Success', justify='center')
+        tab.add_column('Issues', justify='left', style="yellow")
 
         for exp in self.experiments:
             tab.add_row(
@@ -250,7 +256,8 @@ class LauncherConfig(Config):
                 exp.problem.name,
                 str(exp.problem.npd),
                 str(exp.problem.dim),
-                '[green]Yes[/green]' if exp.success is not None else '[red]No[/red]',
+                '[green]Yes[/green]' if exp.success else '[red]No[/red]',
+                exp.issues_str,
             )
         clear_console()
         Console().print(tab)
