@@ -443,7 +443,7 @@ class ReporterUtils:
     def check_suffix(suffix: str, merge: bool):
         if merge and (suffix not in ['.png', '.jpg']):
             time.sleep(SLEEP_TIME)
-            clogger.warn(
+            clogger.warning(
                 f"  Only support suffix {colored('.png or .jpg', 'green')} "
                 f"when [orange]'merge is True'[/orange], defaulted to '.png'"
             )

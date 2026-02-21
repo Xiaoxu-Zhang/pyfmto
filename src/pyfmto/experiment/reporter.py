@@ -48,7 +48,7 @@ class ReportGenerator(ABC):
             return True
         else:
             time.sleep(SLEEP_TIME)
-            clogger.warn(
+            clogger.warning(
                 f"{self.__class__.__name__} require at least {self.data_size_req} "
                 f"data to generate report, got {len(data)} instead.")
 
@@ -341,7 +341,7 @@ class GeneratorManager:
         time.sleep(0.2)
         clogger.info(textwrap.dedent(msg))
         if generator_name not in self._generators:
-            clogger.warn(f"{INDENT}No generator registered for {generator_name}")
+            clogger.warning(f"{INDENT}No generator registered for {generator_name}")
             return None
         try:
             data = self._prepare_data(algorithms, problem, npd_name)
@@ -365,7 +365,7 @@ class GeneratorManager:
         clogger.info(f"{INDENT}Available data: [green]{str_good}[/green]")
         if str_bad:
             time.sleep(SLEEP_TIME)
-            clogger.warn(f"{INDENT}Unavailable data: [red]{str_bad}[/red]")
+            clogger.warning(f"{INDENT}Unavailable data: [red]{str_bad}[/red]")
         return MetaData(data, problem, npd_name, self.conf.results)
 
 
@@ -381,13 +381,13 @@ class Reporter:
 
     def report(self):
         if not self.conf.formats:
-            clogger.warn(f"{'No formats specified':=^5}")
+            clogger.warning(f"{'No formats specified':=^5}")
             return
         for fmt in self.conf.formats:
             if hasattr(self, f'to_{fmt}'):
                 getattr(self, f'to_{fmt}')(**self.conf.params.get(fmt, {}))
             else:
-                clogger.warn(f"Format [red]{fmt}[/red] is invalid")
+                clogger.warning(f"Format [red]{fmt}[/red] is invalid")
 
     @validate_call
     def to_curve(
