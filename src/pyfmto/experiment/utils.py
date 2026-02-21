@@ -1,4 +1,5 @@
 import copy
+import functools
 import os
 import shutil
 import time
@@ -9,7 +10,6 @@ from typing import Optional, Union
 import numpy as np
 import pandas as pd
 import seaborn
-import wrapt
 from matplotlib import pyplot as plt
 from PIL import Image
 from scipy import stats
@@ -458,15 +458,17 @@ def min_time_lapse(min_lapse: float):
     Args:
         min_lapse: The minimum time-lapse in seconds.
     """
-    @wrapt.decorator
-    def decorator(wrapped, instance, args, kwargs):
-        start_time = time.time()
-        result = wrapped(*args, **kwargs)
-        end_time = time.time()
-        lapse = end_time - start_time
-        if lapse < min_lapse:
-            time.sleep(min_lapse - lapse)
-        return result
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            result = func(*args, **kwargs)
+            end_time = time.time()
+            lapse = end_time - start_time
+            if lapse < min_lapse:
+                time.sleep(min_lapse - lapse)
+            return result
+        return wrapper
     return decorator
 
 
