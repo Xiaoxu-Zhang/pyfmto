@@ -250,7 +250,7 @@ class LauncherConfig(Config):
                 exp.problem.name,
                 str(exp.problem.npd),
                 str(exp.problem.dim),
-                str(exp.success),
+                '[green]Yes[/green]' if exp.success is not None else '[red]No[/red]',
             )
         clear_console()
         Console().print(tab)

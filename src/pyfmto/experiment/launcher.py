@@ -76,6 +76,7 @@ class Launcher:
             self._save_results()
             self._update_repeat_id()
             time.sleep(1)
+        self.exp.success = True
 
     def _init_clients(self):
         problem = self.exp.problem.initialize()
