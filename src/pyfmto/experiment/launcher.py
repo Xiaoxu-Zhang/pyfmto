@@ -108,7 +108,7 @@ class Launcher:
         curr_rep = self.conf.repeat * self.exp_idx + self._repeat_id
         total_rep = self.conf.total_repeat
         tab_dict = {
-            'running': f"{self.exp_idx+1}/{self.conf.n_exp}",
+            'experiment': f"{self.exp_idx+1}/{self.conf.n_exp}",
             'repeating': f"{self._repeat_id}/{self.conf.repeat}",
             'progress': f"[{curr_rep}/{total_rep}][{100 * curr_rep / total_rep:.2f}%]",
             'algorithm': self.exp.algorithm.name,
