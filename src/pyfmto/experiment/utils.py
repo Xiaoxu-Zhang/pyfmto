@@ -427,13 +427,13 @@ class ReporterUtils:
         filename = file_dir.parent / f'{merge_from}{suffix}'
         merged.save(filename)
         time.sleep(SLEEP_TIME)
-        clogger.debug(
+        clogger.info(
             f"  Saved image to:\n"
             f"    {filename}"
         )
         if clear:
             time.sleep(SLEEP_TIME)
-            clogger.debug(
+            clogger.info(
                 f"  Removed directory:\n"
                 f"    {file_dir}"
             )
