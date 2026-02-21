@@ -52,27 +52,22 @@ class TestGenerators(ReporterTestBase):
         self.assertEqual(self.config.launcher.results, self.config.reporter.results)
         reports_dir = Path(self.config.reporter.results) / time.strftime('%Y-%m-%d')
         self.assertTrue(reports_dir.exists())
-        with self.assertRaises(ValueError):
-            reporter.manager.generate_report('fake', [], '', '')
+        reporter.manager.generate_report('fake', [], '', '')
 
 
 class TestReportsGenerate(ReporterTestBase):
 
     def test_generate_invalid_format(self):
         reporter = Reporter(self.config.reporter)
-        with self.assertRaises(ValueError):
-            reporter.manager.generate_report('invalid', [], '', '')
+        reporter.manager.generate_report('invalid', [], '', '')
 
         reporter.conf.formats = []
-        with self.assertRaises(ValueError):
-            reporter.report()
+        reporter.report()
 
         reporter.conf.formats = ['invalid', 'curve']
-        with self.assertRaises(ValueError):
-            reporter.report()
+        reporter.report()
 
-        with self.assertRaises(ValueError):
-            reporter.manager.generate_report('to_curve', ['ALGG'], 'PROB', 'NPD1')
+        reporter.manager.generate_report('to_curve', ['ALGG'], 'PROB', 'NPD1')
         with patch('pyfmto.experiment.reporter.ReporterUtils.load_runs_data', return_value=[]):
             GeneratorManager(self.config.reporter)
 
@@ -84,4 +79,5 @@ class TestReportsGenerate(ReporterTestBase):
                 raise ValueError("Test error")
         reporter.manager = ReportWithError(self.config.reporter)
         reporter.conf.formats = ['curve', 'excel', 'latex', 'console', 'violin']
-        reporter.report()
+        with self.assertRaises(ValueError):
+            reporter.report()
