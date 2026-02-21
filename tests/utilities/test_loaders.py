@@ -50,6 +50,7 @@ class TestUtilities(PyfmtoTestCase):
     def test_load_problem(self):
         self.prob = 'PROB1'
         gen_code('problems', self.prob, self.tmp_dir)
+        (self.tmp_dir / 'problems' / 'Empty').mkdir(parents=True, exist_ok=True)
         res = loaders.load_problem(self.prob, [str(self.tmp_dir)])
         self.assertIsInstance(res, ProblemData)
         loaders.list_problems([str(self.tmp_dir)], print_it=True)
