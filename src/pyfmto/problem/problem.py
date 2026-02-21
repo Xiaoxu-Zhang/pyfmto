@@ -10,7 +10,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from numpy import ndarray
-from pyDOE import lhs
+from pyDOE3 import lhs
 from pyvista.plotting._typing import ColorLike, ColormapOptions
 from scipy.stats import kendalltau, pearsonr, spearmanr
 from tabulate import tabulate

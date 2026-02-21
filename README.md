@@ -375,7 +375,7 @@ projects:
 
 I would also like to acknowledge the maintainers and contributors of other open-source libraries
 that supported this work, including:  
-`jinja2`, `msgpack`, `openpyxl`, `opfunu`, `pillow`, `pydantic`, `pydantic_core`, `pyDOE`,
+`jinja2`, `msgpack`, `openpyxl`, `opfunu`, `pillow`, `pydantic`, `pydantic_core`, `pyDOE3`,
 `pyyaml`, `requests`, `ruamel-yaml`, `scienceplots`, `setproctitle`, `tabulate`, `tqdm`,
 `uvicorn`, and `wrapt`.  
 

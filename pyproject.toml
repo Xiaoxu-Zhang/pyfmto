@@ -22,7 +22,7 @@ dependencies = [
     "pillow",
     "pydantic",
     "pydantic_core",
-    "pyDOE",
+    "pyDOE3",
     "pyvista",
     "pyyaml",
     "requests",
