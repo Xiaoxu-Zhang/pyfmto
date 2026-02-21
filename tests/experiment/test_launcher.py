@@ -21,7 +21,10 @@ class TestLauncher(TestCaseAlgProbConf):
             self.assertTrue(exp.result_dir.exists(), msg=f"{exp.result_dir} not exists.")
             self.assertTrue(exp.code_dest.exists(), msg=f"{exp.code_dest} not exists.")
             self.assertTrue(exp.markdown_dest.exists(), msg=f"{exp.markdown_dest} not exists.")
-            self.assertGreater(exp.n_results, 0, msg=f"[{exp.algorithm.name}][{exp.problem.name_verbose}] num_results is 0")
+            self.assertGreater(
+                exp.n_results, 0,
+                msg=f"[{exp.algorithm.name}][{exp.problem.name_verbose}] num_results is 0"
+            )
 
     def test_not_save(self):
         self.config.config['launcher'].update({'save': False})
