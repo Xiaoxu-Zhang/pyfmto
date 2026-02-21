@@ -43,7 +43,7 @@ class ReportGenerator(ABC):
     @final
     def _check_data(self, data: MetaData):
         time.sleep(SLEEP_TIME)
-        clogger.debug(f"{INDENT}Checking data size...")
+        clogger.info(f"{INDENT}Checking data size...")
         if len(data) >= self.data_size_req:
             return True
         else:
@@ -61,6 +61,7 @@ class ReportGenerator(ABC):
     def generate(self, data: MetaData, *args, **kwargs):
         self._check_data(data)
         self._generate(data, *args, **kwargs)
+        clogger.info(f"{INDENT}Report generated")
 
 
 class CurveGenerator(ReportGenerator):
@@ -94,7 +95,7 @@ class CurveGenerator(ReportGenerator):
             filedir = data.report_filename.parent / f"{data.report_filename.name}-curve{log_tag}"
             filedir.mkdir(parents=True, exist_ok=True)
             time.sleep(SLEEP_TIME)
-            clogger.debug(f"{INDENT}Generating single curve...")
+            clogger.info(f"{INDENT}Generating single curve...")
             for c_name in track(data.clt_names, description="SubImg", transient=True):
                 plt.figure(figsize=_figsize, **_quality)
                 for (alg_name, merged_data), color in zip(data.items(), colors):
@@ -112,7 +113,7 @@ class CurveGenerator(ReportGenerator):
                 plt.close()
 
             if merge:
-                clogger.debug(f"{INDENT}Merging images...")
+                clogger.info(f"{INDENT}Merging images...")
                 self.utils.merge_images_in(filedir, clear)
 
 
@@ -260,7 +261,7 @@ class ConsoleGenerator(TableGenerator):
         str_table, _, _ = self._tabling(data, pvalue)
         pd.set_option('display.colheader_justify', 'center')
         df = pd.DataFrame(str_table)
-        clogger.debug(f"{INDENT}Total {data.clt_num} clients")
+        clogger.info(f"{INDENT}Total {data.clt_num} clients")
         print(df.to_string(index=False))
 
 
@@ -298,6 +299,8 @@ class LatexGenerator(TableGenerator):
         latex_code = latex_code.replace('background-colorgray', 'cellcolor{gray!30}')
         latex_code = latex_code.replace('≈', r'$\approx$')
         latex_code = latex_code.replace('_', r'\_')
+        latex_code = latex_code.replace('e-', r'e$-$')
+        latex_code = latex_code.replace('- ', r'$-$ ')
         with open(data.report_filename.with_suffix('.txt'), 'w') as f:
             f.write(latex_code)
 
@@ -310,10 +313,10 @@ class GeneratorManager:
         self._load_data()
 
     def _load_data(self):
-        clogger.debug(f"{'Loading data':=^5}")
+        clogger.info(f"{'Loading data':=^5}")
         for exp in self.conf.experiments:
             alg, prob, npd = exp.result_dir.parts[-3:]
-            clogger.debug(f"{INDENT}Loading {alg}-{prob}({npd})")
+            clogger.info(f"{INDENT}Loading {alg}-{prob}({npd})")
             key = f"{alg}/{prob}/{npd}"
             if key not in self._cache:
                 runs_data = ReporterUtils.load_runs_data(exp.result_dir, prefix=exp.prefix)
@@ -334,10 +337,9 @@ class GeneratorManager:
         alg_str = ', '.join(algorithms)
         msg = f"""
           Algs: [green]{alg_str}[/green]
-          Prob: [green]{problem}({npd_name})[/green]
-        """
+          Prob: [green]{problem}({npd_name})[/green]"""
         time.sleep(0.2)
-        clogger.debug(textwrap.dedent(msg))
+        clogger.info(textwrap.dedent(msg))
         if generator_name not in self._generators:
             clogger.warn(f"{INDENT}No generator registered for {generator_name}")
             return None
@@ -350,7 +352,7 @@ class GeneratorManager:
     @min_time_lapse(0.5)
     def _prepare_data(self, algorithms: list[str], problem: str, npd_name: str) -> MetaData:
         time.sleep(SLEEP_TIME)
-        clogger.debug(f"{INDENT}Preparing data...")
+        clogger.info(f"{INDENT}Preparing data...")
         data: dict[str, MergedResults] = {}
         for algorithm in algorithms:
             cache_key = f"{algorithm}/{problem}/{npd_name}"
@@ -431,7 +433,7 @@ class Reporter:
         on_log_scale : bool, optional
             If True, the plot is generated on a logarithmic scale. If False, the plot is generated on an original scale.
         """
-        clogger.debug(f"{FILL}Generating [green bold]Curve[/green bold]{FILL}")
+        clogger.info(f"{FILL} [green bold]Generating Curve[/green bold] {FILL}")
         for group in track(self.conf.groups, description='Curve', transient=True):
             self.manager.generate_report(
                 'curve',
@@ -474,7 +476,7 @@ class Reporter:
              supported colors are in [])
              - ``type-font-[bold|italic|underline]`` ---Font types (multiple can be applied, supported types are in [])
         """
-        clogger.debug(f"{FILL}Generating [green bold]Excel[/green bold]{FILL}")
+        clogger.info(f"{FILL} [green bold]Generating-Excel[/green bold] {FILL}")
         for group in track(self.conf.groups, description='Excel', transient=True):
             self.manager.generate_report(
                 'excel',
@@ -498,7 +500,7 @@ class Reporter:
         pvalue : float, optional
             T-test threshold parameter to determine statistical significance. Default is 0.05.
         """
-        clogger.debug(f"{FILL}Generating [green bold]LaTeX[/green bold]{FILL}")
+        clogger.info(f"{FILL} [green bold]Generating LaTeX[/green bold] {FILL}")
         for group in track(self.conf.groups, description='LaTeX', transient=True):
             self.manager.generate_report(
                 'latex',
@@ -521,7 +523,7 @@ class Reporter:
         pvalue : float, optional
             T-test threshold for determining statistical significance. Default is 0.05.
         """
-        clogger.debug(f"{FILL}Printing to [green bold]Console[/green bold]{FILL}")
+        clogger.info(f"{FILL} [green bold]Printing to Console[/green bold] {FILL}")
         for comb in track(self.conf.groups, description='Console', transient=True):
             self.manager.generate_report(
                 'console',
@@ -557,7 +559,7 @@ class Reporter:
         -------
             None
         """
-        clogger.debug(f"{FILL}Generating [green bold]Violin[/green bold]{FILL}")
+        clogger.info(f"{FILL} [green bold]Generating Violin[/green bold] {FILL}")
         for group in track(self.conf.groups, description='Violin', transient=True):
             self.manager.generate_report(
                 'violin',
