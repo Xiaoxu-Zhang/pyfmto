@@ -359,10 +359,11 @@ class ConfigLoader:
             for data in components.get(target, {}).get(name_orig, []):
                 if data.available:
                     break
-            data_copy = copy.deepcopy(data)
-            data_copy.name_alias = name_alias
-            data_copy.params_update = settings
-            res.append(data_copy)
+            for setting in combine_params(settings):
+                data_copy = copy.deepcopy(data)
+                data_copy.name_alias = name_alias
+                data_copy.params_update = setting
+                res.append(data_copy)
         return res
 
     def check_config_issues(self, name: Literal['launcher', 'reporter']) -> None:
