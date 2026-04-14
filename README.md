@@ -14,12 +14,12 @@
 
 [![build](https://github.com/Xiaoxu-Zhang/pyfmto/workflows/build/badge.svg)](https://github.com/Xiaoxu-Zhang/pyfmto/actions?query=workflow%3Abuild)
 [![coverage](https://img.shields.io/codecov/c/github/Xiaoxu-Zhang/pyfmto)](https://codecov.io/gh/Xiaoxu-Zhang/pyfmto)
-[![pypi](https://img.shields.io/pypi/v/pyfmto.svg)](https://pypi.org/project/pyfmto/)
-[![support-version](https://img.shields.io/pypi/pyversions/pyfmto)](https://img.shields.io/pypi/pyversions/pyfmto)
 [![license](https://img.shields.io/github/license/Xiaoxu-Zhang/pyfmto)](https://github.com/Xiaoxu-Zhang/pyfmto/blob/master/LICENSE)
 [![commit](https://img.shields.io/github/last-commit/Xiaoxu-Zhang/pyfmto)](https://github.com/Xiaoxu-Zhang/pyfmto/commits/main)
-[![OS Support](https://img.shields.io/badge/OS-Linux%20%7C%20MacOS%20%7C%20Windows-green)](https://pypi.org/project/pyfmto/)
+[![pypi](https://img.shields.io/pypi/v/pyfmto.svg)](https://pypi.org/project/pyfmto/)
 [![pypi-downloads](https://img.shields.io/pepy/dt/pyfmto?label=PyPI%20downloads&color=rgb(0%2C%2079%2C%20144))](https://pypistats.org/packages/pyfmto)
+[![OS Support](https://img.shields.io/badge/OS-Linux%20%7C%20MacOS%20%7C%20Windows-green)](https://pypi.org/project/pyfmto/)
+[![support-version](https://img.shields.io/pypi/pyversions/pyfmto)](https://img.shields.io/pypi/pyversions/pyfmto)
 
 **PyFMTO** is a pure Python library for federated many-task optimization research
 
@@ -36,22 +36,22 @@
   </tr>
 </table>
 
-## Usage
+## Table of Contents
 
-PyFMTO's CLI is available in any working directory, just make sure:
+- [Quick Start](#quick-start)
+- [Command Line Interface](#command-line-interface-cli)
+- [Use PyFMTO in Python](#use-pyfmto-in-python)
+- [Architecture and Ecosystem](#architecture-and-ecosystem)
+- [About fmto](#about-fmto)
+- [Algorithm Components](#algorithm-components)
+- [Problem Components](#problem-components)
+- [Visualization](#visualization)
+- [Contributing](#contributing)
+- [Bugs/Requests](#bugsrequests)
+- [License](#license)
+- [Acknowledgements](#acknowledgements)
 
-1. The Python environment is properly set up and activated
-2. The PyFMTO is installed
-3. A valid configuration file is provided in the current working directory
-
-For more details, please refer to:
-
-1. [Quick Start](#quick-start)
-2. [PyFMTO CLI](#command-line-interface-cli)
-3. [About fmto](#about-fmto)
-
-
-### Quick Start
+## Quick Start
 
 Create an environment and install PyFMTO:
 
@@ -82,63 +82,67 @@ pyfmto report
 
 The reports will be saved in the folder `out/results/<today>`
 
-### Command-line Interface (CLI)
+## Command Line Interface (CLI)
 
 PyFMTO provides a command-line interface (CLI) for running experiments, analyzing results and
-get helps. The CLI layers are as follows:
+getting help. The CLI structure is as follows:
 
 ```txt
 pyfmto
    ├── -h/--help
    ├── run
    ├── report
-   ├── list algorithms/problems/reports
+   ├── list algorithms/problems
    └── show algorithms.<alg_name>/problems.<prob_name>
 ```
 
-**Examples:**
+### CLI Commands
 
-- Get help:
+#### Get help
 
-    ```bash
-    pyfmto -h # or ↓
-    # pyfmto --help
-    # pyfmto list -h
-    ```
+```bash
+pyfmto -h
+pyfmto --help
+pyfmto run -h
+pyfmto report -h
+pyfmto list -h
+pyfmto show -h
+```
 
-- Run experiments:
+#### Run experiments
 
-    ```bash
-    pyfmto run # or ↓
-    # pyfmto run -c config.yaml
-    ```
+```bash
+pyfmto run              # Run with default config.yaml
+pyfmto run -c config.yaml   # Run with specified config file
+```
 
-- Generate reports:
+#### Generate reports
 
-    ```bash
-    pyfmto report # or ↓
-    # pyfmto report -c config.yaml
-    ```
+```bash
+pyfmto report           # Generate reports with default config.yaml
+pyfmto report -c config.yaml  # Generate with specified config file
+```
 
-- List something:
+#### List available components
 
-    ```bash
-    pyfmto list algorithms  # or ↓ 
-    # pyfmto list problems
-    ```
+```bash
+pyfmto list algorithms  # List all available algorithms
+pyfmto list problems    # List all available problems
+```
 
-- Show supported configurations:
+#### Show component configurations
 
-    ```bash
-    pyfmto show algorithms.<alg_name>  # or ↓  
-    # pyfmto show problems.<prob_name>
-    ```
+```bash
+pyfmto show algorithms.<alg_name>   # Show algorithm default params
+pyfmto show problems.<prob_name>    # Show problem default params
+```
 
 > **Notes**:
 >
-> Every subcommand support `-c/--config <config_file>`
+> Every subcommand supports `-c/--config <config_file>` to specify a configuration file.
+> A `config.yaml` file in the current working directory is required when `-c` is not provided.
 >
-> In the subcommands `list` and `show`, strings 'algorithms', 'problems', and 'reports' can be
+> In the subcommands `list` and `show`, strings 'algorithms' and 'problems' can be
 > replaced with any prefix of length ≥ 1. PyFMTO matches the prefix to the corresponding category.
 > For example:
 >
@@ -155,36 +159,76 @@ pyfmto
 > - `pyfmto show prob.<prob_name>`
 > - ...
 
-### Use PyFMTO in Python
+## Use PyFMTO in Python
+
+### Basic Usage
 
 ```python
-
 from pyfmto import Launcher, Reporter, ConfigLoader
 
 if __name__ == '__main__':
     conf = ConfigLoader()
     launcher = Launcher(conf.launcher)
-    reports = Reporter(conf.reporter)
-    reports.to_excel()
+    launcher.run()
+    
+    reporter = Reporter(conf.reporter)
+    reporter.report()
+```
+
+### Loading Problems
+
+```python
+from pyfmto import load_problem
+
+# Initialize a problem with customized args
+prob = load_problem('arxiv2017', dim=2, fe_init=20, fe_max=50, npd=5)
+
+# Problem instance can be printed
+print(prob)
+```
+
+### Reporter Output Formats
+
+The Reporter supports multiple output formats:
+
+```python
+from pyfmto import Reporter, ConfigLoader
+
+conf = ConfigLoader()
+reporter = Reporter(conf.reporter)
+
+# Generate performance curves
+reporter.to_curve()
+
+# Generate Excel report with statistics
+reporter.to_excel()
+
+# Generate LaTeX table
+reporter.to_latex()
+
+# Print statistics to console
+reporter.to_console()
+
+# Generate violin plots
+reporter.to_violin()
 ```
 
 ## Architecture and Ecosystem
 
 <div align="center">
-  <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-architecture.svg"
-width="90%">
+  <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/pyfmto-architecture.svg" width="90%">
 </div>
 
-Where the filled area represents the fully developed modules. And the non-filled area represents
+Where the filled area represents the fully developed modules, and the non-filled area represents
 the base modules that can be inherited and extended.
 
-The bottom layer listed the core technologies used in PyFMTO for computing, communicating, plotting
+The bottom layer lists the core technologies used in PyFMTO for computing, communicating, plotting
 and testing.
 
 ## About fmto
 
 The repository [fmto](https://github.com/Xiaoxu-Zhang/fmto) is the official collection of
-published FMTO algorithms. The relationship between the `fmto` and `PyFMTO` is as follows:
+published FMTO algorithms. The relationship between `fmto` and `PyFMTO` is as follows:
 
 <p align="center">
     <img src="https://github.com/Xiaoxu-Zhang/zxx-assets/raw/main/fmto-relation.svg"/>
@@ -197,62 +241,95 @@ which provides a flexible and extensible framework for implementing FMTO algorit
 It also serves as a practical example of how to structure and perform experiments. The repository
 includes the following components:
 
-- A collection of published FMTO algorithms.
-- A config file (config.yaml) that provides guidance on how to set up and configure the experiments.
-- A template algorithm named "DEMO" that you can use as a basis for implementing your own algorithm.
-- A template problem named "demo" that you can use as a basis for implementing your own problem.
+- A collection of published FMTO algorithms
+- A config file (config.yaml) that provides guidance on how to set up and configure the experiments
+- A template algorithm named "DEMO" that you can use as a basis for implementing your own algorithm
+- A template problem named "demo" that you can use as a basis for implementing your own problem
 
-The `config.yaml`, `algorithms/DEMO` and `problems/demo` provided detailed instructions, you can
+The `config.yaml`, `algorithms/DEMO` and `problems/demo` provide detailed instructions. You can
 even start your research without additional documentation. The fmto repository is currently in
 the early stages of development. I'm actively working on improving existing algorithms and adding
 new algorithms.
 
-## Algorithm's Components
+## Algorithm Components
 
-An algorithm includes two parts: the client and the server. The client is responsible for
-optimizing the local problem and the server is responsible for aggregating the knowledge from
-the clients. The required components for client and server are as follows:
+An algorithm includes two parts: the **Client** and the **Server**. The client is responsible for
+optimizing the local problem, and the server is responsible for aggregating knowledge from
+the clients.
+
+### Client Implementation
 
 ```python
-# myalg_client.py
-from pyfmto import Client, Server
+from pyfmto import Client
+from pyfmto.framework import record_runtime
 
 class MyClient(Client):
- def __init__(self, problem, **kwargs):
-  super().__init__(problem)
+    def __init__(self, problem, **kwargs):
+        super().__init__(problem)
+        # Your initialization code
 
- def optimize():
-  # implement the optimizer
-  pass
-
-class MyServer(Server):
- def __init__(self, **kwargs):
-  super().__init__():
- 
- def aggregate(self) -> None:
-  # implement the aggregate logic
-  pass
-
- def handle_request(self, pkg) -> Any:
-  # handle the requests of clients to exchange data
-  pass
+    def optimize(self):
+        """
+        Implement the optimization logic.
+        This method is called iteratively until fe_available reaches 0.
+        """
+        # Get data from server if needed
+        data = self.request_server(pkg)
+        
+        # Perform local optimization
+        # ...
+        
+        # Send data to server if needed
+        self.request_server(pkg)
 ```
 
-## Problem's Components
+### Server Implementation
 
-There are two types of problems: single-task problems and multitask problems. A single-task
-problem is a problem that has only one objective function. A multitask problem is a problem that
-has multiple single-task problems. To define a multitask problem, you should implement several
-SingleTaskProblem and then define a MultiTaskProblem to aggregate them.
+```python
+from pyfmto import Server
 
-> **Note**: There are some classical SingleTaskProblem defined in `pyfmto.problems.benchmarks`
-> module. You can use them directly.
+class MyServer(Server):
+    def __init__(self, **kwargs):
+        super().__init__()
+        # Your initialization code
+ 
+    def aggregate(self) -> None:
+        """
+        Implement the aggregation logic.
+        This method is called periodically to aggregate client knowledge.
+        """
+        pass
+
+    def handle_request(self, pkg) -> Any:
+        """
+        Handle requests from clients to exchange data.
+        """
+        pass
+```
+
+### Algorithm Registration
+
+To register your algorithm with PyFMTO, create an AlgorithmData class:
+
+```python
+from pyfmto.framework import AlgorithmData
+
+class MyAlgorithm(AlgorithmData):
+    client = MyClient
+    server = MyServer
+```
+
+## Problem Components
+
+There are two types of problems: **SingleTaskProblem** and **MultiTaskProblem**. A SingleTaskProblem
+has only one objective function. A MultiTaskProblem aggregates multiple SingleTaskProblems.
+
+### SingleTaskProblem
 
 ```python
 import numpy as np
 from numpy import ndarray
-from pyfmto.problem import SingleTaskProblem, MultiTaskProblem
-from typing import Union
+from pyfmto.problem import SingleTaskProblem
 
 
 class MySTP(SingleTaskProblem):
@@ -261,36 +338,44 @@ class MySTP(SingleTaskProblem):
         super().__init__(dim=dim, obj=1, lb=0, ub=1, **kwargs)
 
     def _eval_single(self, x: ndarray):
-        pass
+        """
+        Evaluate a single solution.
+        
+        Parameters
+        ----------
+        x : ndarray
+            Input vector of shape (dim,)
+            
+        Returns
+        -------
+        float or ndarray
+            Objective value(s)
+        """
+        return np.sum(x ** 2)
+```
+
+### MultiTaskProblem
+
+```python
+from pyfmto.problem import SingleTaskProblem, MultiTaskProblem
 
 
 class MyMTP(MultiTaskProblem):
     is_realworld = False
-    intro = "user defined MTP"
-    notes = "a demo of user-defined MTP"
+    intro = "User defined MTP"
+    notes = "A demo of user-defined MTP"
     references = ['ref1', 'ref2']
 
     def __init__(self, dim=10, **kwargs):
         super().__init__(dim, **kwargs)
 
     def _init_tasks(self, dim, **kwargs) -> list[SingleTaskProblem]:
-        # Duplicate MySTP for 10 here as an example
+        # Create 10 instances of MySTP as an example
         return [MySTP(dim=dim, **kwargs) for _ in range(10)]
-  ```
-
-## Tools
-
-### load_problem
-
-```python
-from pyfmto import load_problem
-
-# init a problem with customized args
-prob = load_problem('arxiv2017', dim=2, fe_init=20, fe_max=50, npd=5)
-
-# problem instance can be print
-print(prob)
 ```
+
+> **Note**: There are some classical SingleTaskProblems defined in `pyfmto.problems.benchmarks`
+> module that you can use directly.
 
 ## Visualization
 
@@ -300,14 +385,14 @@ print(prob)
 from pyfmto.problem.benchmarks import Ackley
 
 task = Ackley()
-task.plot_2d(f'visualize2D')
-task.plot_3d(f'visualize3D')
-task.iplot_3d()  # interactive plotting
+task.plot_2d('visualize2D.png')    # 2D contour plot
+task.plot_3d('visualize3D.png')    # 3D surface plot
+task.iplot_3d()                     # Interactive 3D plot
 ```
 
 ### MultiTaskProblem Visualization
 
-The right side interactive plotting at the beginning is generated by the following code:
+The right side interactive plotting at the beginning of this README is generated by the following code:
 
 ```python
 from pyfmto import load_problem
@@ -315,6 +400,20 @@ from pyfmto import load_problem
 if __name__ == '__main__':
     prob = load_problem('arxiv2017', dim=2)
     prob.iplot_tasks_3d(tasks_id=[2, 5, 12, 18])
+```
+
+### Additional Visualization Methods
+
+```python
+from pyfmto import load_problem
+
+prob = load_problem('arxiv2017', dim=2)
+
+# Plot distribution of initial solutions
+prob.plot_distribution(filename='distribution.png')
+
+# Plot similarity heatmap between tasks
+prob.plot_similarity_heatmap(filename='similarity.png')
 ```
 
 ## Contributing
@@ -325,7 +424,7 @@ See [contributing](https://github.com/Xiaoxu-Zhang/pyfmto/blob/main/CONTRIBUTING
 
 Please send bug reports and feature requests through
 [github issue tracker](https://github.com/Xiaoxu-Zhang/pyfmto/issues). PyFMTO is
-currently under development now, and it's open to any constructive suggestions.
+currently under development, and it's open to any constructive suggestions.
 
 ## License
 
@@ -380,4 +479,4 @@ that supported this work, including:
 `uvicorn`, and `wrapt`.  
 
 Your dedication to building and maintaining these tools has made it possible for this project to
-achieve both depth and breadth that would otherwise have been unattainable.  
+achieve both depth and breadth that would otherwise have been unattainable.
